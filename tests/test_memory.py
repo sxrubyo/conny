@@ -10,7 +10,7 @@ from melissa_memory_engine import MelissaMemoryEngine
 
 
 def _run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.run(coro)
 
 
 def test_ingest_and_recall_roundtrip():

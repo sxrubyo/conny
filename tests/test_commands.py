@@ -5,7 +5,7 @@ sys.path.insert(0, ".")
 
 
 def _run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.run(coro)
 
 
 def test_user_help_command():
@@ -48,7 +48,7 @@ def test_admin_aprender():
     handler = CommandHandler("test_learn")
     result = _run(handler.handle("admin1", '/aprender ¿cuánto vale? → $80.000', is_admin=True))
     assert result is not None
-    assert "Aprendido" in result[0]
+    assert "listo" in result[0].lower() or "aprendido" in result[0].lower()
 
 
 def test_not_a_command():

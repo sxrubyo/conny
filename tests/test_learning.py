@@ -7,7 +7,7 @@ sys.path.insert(0, ".")
 
 
 def _run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.run(coro)
 
 
 def test_learn_from_admin():

@@ -7,7 +7,7 @@ from melissa_nova_proxy import NovaLLMProxy
 
 
 def _run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.run(coro)
 
 
 class MockLLM:
