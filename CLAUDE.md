@@ -1,40 +1,35 @@
-## Nova Governance Rules
-_These rules are automatically enforced by Nova. Do not remove._
+# MELISSA → CONNY — Refactorización Total
+# Monolito 1.3MB → Arquitectura modular limpia
+# Stack: Claude Opus 4.6 + Ruflo + Caveman
 
-- [NEVER] Never modify, delete, or overwrite .nova
-- [NEVER] Never modify, delete, or overwrite .ssh
-- [NEVER] Modify, delete, or overwrite files in .nova
-- [NEVER] Modify, delete, or overwrite files in .ssh
-
-## Melissa Project Rules
-
-- Nova NEVER imports from melissa — it wraps from outside as transparent proxy
-- melissa_brain_v10.py is SINGLE source of truth for conversation history
-- All LLM calls should pass through melissa_nova_proxy.py when governance is needed
-- Multi-tenant: NEVER mix data between instances (each has isolated SQLite + .env)
-- PM2 instances: check ecosystem.config.js before touching any paths
-- When uncertain about an import or connection: investigate with grep/find first
-- Anti-robot: responses must NEVER contain "como IA", "no tengo capacidad", "está fuera de mi alcance"
-- Test with: pm2 logs melissa --lines 50 after every change
-- After every file edit: verify with py_compile before moving on
-- Run pytest tests/ before committing
-
-## Architecture Quick Reference
+## ARQUITECTURA TARGET
 
 ```
-Ports: 8001 (melissa/demo), 8003 (clinica/prod), 8002 (wa-bridge), 9001 (nova)
-Entry: melissa.py → process_message() → demo_mgr/admin_mgr/production_mgr
-Admin API: POST /admin/{id}/persona, /model, /teach, /gaps, /status
-Memory: melissa_memory_engine.py (episodic/semantic/procedural, TF-IDF recall)
-Voice: melissa_voice.py (robot pattern removal, humanization)
-Cron: melissa_cron.py (weekly consolidation Sun 3am)
+src/melissa/
+├── core/        ← config, session, router, init
+├── brain/       ← engine, memory, learning, uncertainty
+├── channels/    ← telegram, voice, cli, web
+├── personas/    ← manager, generator
+├── integrations/← calendar, search, knowledge
+├── admin/       ← api, dashboard
+├── production/  ← guard, handoff, monitor
+└── utils/       ← i18n, helpers, logger
 ```
 
-## Compaction Instructions
+## REGLAS
 
-When compacting, always preserve:
-1. Full list of modified files in this session
-2. Current PM2 instance status (online/errored)
-3. Which phases are complete vs pending
-4. Any failing tests or errors found
-5. Current git branch and last commit hash
+1. Conservar funcionalidad > perfección
+2. Nunca borrar, siempre mover a legacy/
+3. Un módulo = una responsabilidad
+4. Sin prefijo melissa_ dentro del paquete
+5. Commits por fase
+6. grep/rg para analizar — NUNCA leer melissa.py entero
+
+## ESTADO
+
+- Fase 0: checkpoint [pendiente]
+- Fase 1: análisis [pendiente]
+- Fase 2: gate humano [pendiente]
+- Fase 3: construcción [pendiente]
+- Fase 4: QA [pendiente]
+- Fase 5: limpieza [pendiente]
