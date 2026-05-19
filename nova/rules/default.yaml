@@ -1,7 +1,7 @@
 # Nova Governance Rules — Default
-# These rules apply to all Melissa instances unless overridden.
+# These rules apply to all Conny instances unless overridden.
 
-agent: Melissa
+agent: Conny
 version: "1.0"
 
 can_do:

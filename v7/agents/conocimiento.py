@@ -1,5 +1,5 @@
 """
-Melissa V7.0 — Agente de Conocimiento
+Conny V7.0 — Agente de Conocimiento
 =======================================
 Responde preguntas técnicas sobre procedimientos con la KB del negocio.
 Si no tiene la info, lo admite. Nunca inventa datos médicos.

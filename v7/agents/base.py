@@ -1,5 +1,5 @@
 """
-Melissa V7.0 — AgentBase
+Conny V7.0 — AgentBase
 =========================
 Contrato que todos los agentes implementan.
 El orquestador siempre llama agent.run(ctx) sin saber qué agente es.

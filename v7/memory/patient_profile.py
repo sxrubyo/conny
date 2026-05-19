@@ -1,5 +1,5 @@
 """
-Melissa V7.0 — Memoria Clínica Persistente
+Conny V7.0 — Memoria Clínica Persistente
 ============================================
 PatientProfile: perfil enriquecido del paciente (sobrevive reinicios).
 FunnelState:    máquina de estados del proceso de conversión.

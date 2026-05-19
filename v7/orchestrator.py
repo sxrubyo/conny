@@ -1,8 +1,8 @@
 """
-Melissa V7.0 — Orquestador
+Conny V7.0 — Orquestador
 ============================
 Conecta router, memoria, agentes y postprocessor.
-melissa.py llama a orchestrator.process() en lugar de generator.generate().
+conny.py llama a orchestrator.process() en lugar de generator.generate().
 Si algo falla, cae al generator clásico (backward compat).
 
 "todo debe actuar como uno" — el paciente nunca sabe qué agente respondió.
@@ -23,10 +23,10 @@ from v7.postprocess        import postprocess, split_bubbles
 log = logging.getLogger(__name__)
 
 
-class MelissaOrchestrator:
+class ConnyOrchestrator:
     """
-    Orquestador central de Melissa V7.
-    Se instancia una vez al arranque de MelissaUltra.
+    Orquestador central de Conny V7.
+    Se instancia una vez al arranque de ConnyUltra.
     """
 
     def __init__(self, llm_engine, db):
@@ -83,7 +83,7 @@ class MelissaOrchestrator:
         agent = self._agents.get(route.agent_id)
         if not agent:
             log.warning("[orchestrator] agente %s no encontrado, usando fallback", route.agent_id)
-            return None  # señal para que melissa.py use el generator clásico
+            return None  # señal para que conny.py use el generator clásico
 
         # 4. Ensamblar contexto mínimo
         ctx = self._build_context(
@@ -269,7 +269,7 @@ class MelissaOrchestrator:
                 f"Mensaje: {text[:150]}"
             )
             log.warning("[escalacion] %s", msg)
-            # El envío real lo hace melissa.py con _send_message
+            # El envío real lo hace conny.py con _send_message
             # Aquí solo dejamos el log — el handler de escalación ya respondió al paciente
         except Exception as e:
             log.warning("[orchestrator] error en notify_escalation: %s", e)

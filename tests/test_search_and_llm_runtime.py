@@ -7,12 +7,12 @@ import uuid
 from pathlib import Path
 
 
-MODULE_PATH = Path("/home/ubuntu/melissa/melissa.py")
+MODULE_PATH = Path("/home/ubuntu/conny/conny.py")
 sys.path.insert(0, str(MODULE_PATH.parent))
 
 
-def load_melissa_module():
-    module_name = f"melissa_runtime_{uuid.uuid4().hex}"
+def load_conny_module():
+    module_name = f"conny_runtime_{uuid.uuid4().hex}"
     spec = importlib.util.spec_from_file_location(module_name, MODULE_PATH)
     module = importlib.util.module_from_spec(spec)
     sys.modules[module_name] = module
@@ -22,7 +22,7 @@ def load_melissa_module():
 
 
 def test_search_business_link_parses_serpapi_local_results_dict() -> None:
-    module = load_melissa_module()
+    module = load_conny_module()
 
     payload = {
         "local_results": {
@@ -81,7 +81,7 @@ def test_search_business_link_parses_serpapi_local_results_dict() -> None:
 
 
 def test_search_business_link_rejects_weak_clinic_match_and_falls_back_to_maps() -> None:
-    module = load_melissa_module()
+    module = load_conny_module()
 
     payload = {
         "organic_results": [
@@ -138,8 +138,66 @@ def test_search_business_link_rejects_weak_clinic_match_and_falls_back_to_maps()
     assert "Clinica%20Estetica%20Manrique" in url
 
 
+def test_search_business_link_uses_rotated_serp_keys_without_legacy_attr() -> None:
+    module = load_conny_module()
+
+    payload = {
+        "local_results": {
+            "places": [
+                {
+                    "title": "Clínica de Los Olivos",
+                    "type": "Clínica",
+                    "address": "Medellín",
+                    "links": {
+                        "website": "https://www.clinicalosolivos.com/",
+                        "directions": "https://maps.example/los-olivos",
+                    },
+                }
+            ]
+        }
+    }
+    seen_keys = []
+
+    class _Response:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return payload
+
+    class _Client:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def get(self, *args, **kwargs):
+            seen_keys.append(kwargs.get("params", {}).get("api_key"))
+            return _Response()
+
+    module.httpx.AsyncClient = _Client
+    engine = module.WebSearchEngine.__new__(module.WebSearchEngine)
+    engine._ext = None
+    engine.serp_keys = ["serp-1", "serp-2"]
+    engine.brave_keys = []
+    engine.apify_keys = []
+    engine._serp_idx = 0
+    engine._brave_idx = 0
+    engine._apify_idx = 0
+
+    text, url = asyncio.run(engine.search_business_link("Clinica de Los olivos", context_hint="Medellin Colombia"))
+
+    assert seen_keys == ["serp-1"]
+    assert url == "https://www.clinicalosolivos.com/"
+    assert "medellín" in text.lower()
+
+
 def test_llm_engine_prioritizes_recent_healthy_provider() -> None:
-    module = load_melissa_module()
+    module = load_conny_module()
 
     class _Provider:
         def __init__(self, name):
@@ -156,7 +214,7 @@ def test_llm_engine_prioritizes_recent_healthy_provider() -> None:
 
 
 def test_llm_engine_blocks_403_immediately() -> None:
-    module = load_melissa_module()
+    module = load_conny_module()
 
     class _Error(Exception):
         def __init__(self):
@@ -176,7 +234,7 @@ def test_llm_engine_blocks_403_immediately() -> None:
 
 
 def test_llm_engine_blocks_402_immediately() -> None:
-    module = load_melissa_module()
+    module = load_conny_module()
 
     class _Error(Exception):
         def __init__(self):
@@ -200,6 +258,6 @@ def test_config_collects_series_keys_from_environment(monkeypatch) -> None:
     monkeypatch.setenv("TEST_CHAIN_KEY_2", "key2")
     monkeypatch.setenv("TEST_CHAIN_KEYS", "key3,key4")
 
-    module = load_melissa_module()
+    module = load_conny_module()
 
     assert module._collect_env_series("TEST_CHAIN_KEY") == ["key1", "key2", "key3", "key4"]

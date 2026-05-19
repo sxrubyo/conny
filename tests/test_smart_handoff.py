@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 
 
-sys.path.insert(0, "/home/ubuntu/melissa")
+sys.path.insert(0, "/home/ubuntu/conny")
 import smart_handoff as sh  # noqa: E402
 
 

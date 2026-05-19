@@ -1,8 +1,8 @@
 {
   "summary": {
     "endpoint": "http://127.0.0.1:8003/test",
-    "chat_prefix": "melissa-qc-fresh-20260402-1",
-    "scenario_file": "/home/ubuntu/melissa/scripts/persona_scenarios.yaml",
+    "chat_prefix": "conny-qc-fresh-20260402-1",
+    "scenario_file": "/home/ubuntu/conny/scripts/persona_scenarios.yaml",
     "started_at": 1775163796.4236226,
     "duration_s": 14.593,
     "scenarios_total": 12,
@@ -41,9 +41,9 @@
       "scenario_title": "Saludo inicial",
       "turn_index": 1,
       "user_text": "Hola, buenas",
-      "response_text": "Hola, soy Melissa, del equipo de Clinica de las americas. ||| Le ayudo con información, valoración y disponibilidad.",
+      "response_text": "Hola, soy Conny, del equipo de Clinica de las americas. ||| Le ayudo con información, valoración y disponibilidad.",
       "response_bubbles": [
-        "Hola, soy Melissa, del equipo de Clinica de las americas.",
+        "Hola, soy Conny, del equipo de Clinica de las americas.",
         "Le ayudo con información, valoración y disponibilidad."
       ],
       "latency_ms": 11.0,
@@ -53,7 +53,7 @@
       "bubble_count": 2,
       "status": "ok",
       "error": "",
-      "normalized_response": "hola soy melissa del equipo de clinica de las americas le ayudo con informacion valoracion y disponibilidad"
+      "normalized_response": "hola soy conny del equipo de clinica de las americas le ayudo con informacion valoracion y disponibilidad"
     },
     {
       "scenario_id": "saludo",

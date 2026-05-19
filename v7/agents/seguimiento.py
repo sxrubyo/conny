@@ -1,5 +1,5 @@
 """
-Melissa V7.0 — Agente de Seguimiento
+Conny V7.0 — Agente de Seguimiento
 ======================================
 Reactivación de pacientes inactivos, no-shows, post-procedimiento.
 Se activa por cron O por mensaje del paciente que ya tuvo cita.

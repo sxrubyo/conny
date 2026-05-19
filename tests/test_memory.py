@@ -1,4 +1,4 @@
-"""Tests for melissa_memory_engine.py"""
+"""Tests for conny_memory_engine.py"""
 import sys
 import asyncio
 import tempfile
@@ -6,7 +6,7 @@ import shutil
 
 sys.path.insert(0, ".")
 
-from melissa_memory_engine import MelissaMemoryEngine
+from conny_memory_engine import ConnyMemoryEngine
 
 
 def _run(coro):
@@ -16,7 +16,7 @@ def _run(coro):
 def test_ingest_and_recall_roundtrip():
     tmpdir = tempfile.mkdtemp()
     try:
-        engine = MelissaMemoryEngine(base_dir=tmpdir)
+        engine = ConnyMemoryEngine(base_dir=tmpdir)
         messages = [
             {"role": "user", "content": "Hola, quiero agendar una cita de botox"},
             {"role": "assistant", "content": "Claro, te puedo agendar. Que dia te queda bien?"},
@@ -36,7 +36,7 @@ def test_ingest_and_recall_roundtrip():
 def test_entity_extraction():
     tmpdir = tempfile.mkdtemp()
     try:
-        engine = MelissaMemoryEngine(base_dir=tmpdir)
+        engine = ConnyMemoryEngine(base_dir=tmpdir)
         messages = [
             {"role": "user", "content": "Me llamo Santiago, mi telefono es 3124348669 y mi correo es santiago@test.com"},
             {"role": "assistant", "content": "Perfecto Santiago, te agendo"},
@@ -58,7 +58,7 @@ def test_entity_extraction():
 def test_faq_frequency_tracking():
     tmpdir = tempfile.mkdtemp()
     try:
-        engine = MelissaMemoryEngine(base_dir=tmpdir)
+        engine = ConnyMemoryEngine(base_dir=tmpdir)
         messages = [
             {"role": "user", "content": "Cuanto cuesta el botox?"},
             {"role": "assistant", "content": "El precio depende de la valoracion"},
@@ -77,7 +77,7 @@ def test_faq_frequency_tracking():
 def test_empty_recall_returns_empty():
     tmpdir = tempfile.mkdtemp()
     try:
-        engine = MelissaMemoryEngine(base_dir=tmpdir)
+        engine = ConnyMemoryEngine(base_dir=tmpdir)
         results = _run(engine.recall_context("nonexistent", "hola"))
         assert results == []
     finally:

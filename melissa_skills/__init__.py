@@ -1,1 +1,0 @@
-"""Melissa skills scaffold."""

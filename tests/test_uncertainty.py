@@ -1,8 +1,8 @@
-"""Tests for melissa_uncertainty.py"""
+"""Tests for conny_uncertainty.py"""
 import sys
 sys.path.insert(0, ".")
 
-from melissa_uncertainty import UncertaintyDetector
+from conny_uncertainty import UncertaintyDetector
 
 
 def test_confidence_returns_float():

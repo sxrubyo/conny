@@ -1,6 +1,6 @@
 # ══════════════════════════════════════════════════════════════════════════════
-# melissa — .gitignore
-# Repositorio público: github.com/sxrubyo/melissa
+# conny — .gitignore
+# Repositorio público: github.com/sxrubyo/conny
 #
 # REGLA: todo lo que sea datos de clientes, credenciales o sesiones
 #        de WhatsApp va aquí. El repo solo sube el engine.
@@ -12,8 +12,8 @@
 !.env.example          # El ejemplo SÍ se sube
 
 # ── Instancias de clientes (datos privados) ─────────────────────────────────
-melissa-instances/
-~/melissa-instances/
+conny-instances/
+~/conny-instances/
 
 # ── Bases de datos de producción ────────────────────────────────────────────
 *.db
@@ -76,7 +76,7 @@ package-lock.json   # Opcional: comenta esta línea si quieres bloquear versione
 # ── Datos generados en runtime ──────────────────────────────────────────────
 vectors.db
 data.db
-melissa_ultra.db
+conny_ultra.db
 instance.json
 
 # ── OS / IDE ────────────────────────────────────────────────────────────────
@@ -103,7 +103,7 @@ id_ed25519*
 .nova/
 
 # Runtime data (never commit)
-melissa-context.md
+conny-context.md
 model_configs/
 teachings/
 memory_store/

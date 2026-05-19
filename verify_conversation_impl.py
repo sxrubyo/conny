@@ -2,7 +2,7 @@
 """Verificar que todas las funciones de conversación están presentes."""
 import re
 
-with open('melissa-omni.py', 'r') as f:
+with open('conny-omni.py', 'r') as f:
     content = f.read()
 
 checks = {
@@ -21,7 +21,7 @@ checks = {
 }
 
 print("=" * 70)
-print("✅ VERIFICACIÓN: Melissa Omni v2.1 - Conversation Features")
+print("✅ VERIFICACIÓN: Conny Omni v2.1 - Conversation Features")
 print("=" * 70)
 print()
 

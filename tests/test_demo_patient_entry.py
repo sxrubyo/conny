@@ -5,19 +5,19 @@ import uuid
 import importlib.util
 import asyncio
 from pathlib import Path
-sys.path.insert(0, "/home/ubuntu/melissa")
-import melissa_domino
+sys.path.insert(0, "/home/ubuntu/conny")
+import conny_domino
 
 
-sys.path.insert(0, "/home/ubuntu/melissa")
-from melissa import MelissaUltra  # noqa: E402
+sys.path.insert(0, "/home/ubuntu/conny")
+from conny import ConnyUltra  # noqa: E402
 
 
-MODULE_PATH = Path("/home/ubuntu/melissa/melissa.py")
+MODULE_PATH = Path("/home/ubuntu/conny/conny.py")
 
 
-def load_melissa_module():
-    module_name = f"melissa_demo_{uuid.uuid4().hex}"
+def load_conny_module():
+    module_name = f"conny_demo_{uuid.uuid4().hex}"
     spec = importlib.util.spec_from_file_location(module_name, MODULE_PATH)
     module = importlib.util.module_from_spec(spec)
     sys.modules[module_name] = module
@@ -67,7 +67,7 @@ def _build_demo_runtime(module, engine):
     module.llm_engine = engine
     module.db = _DemoDb()
 
-    runtime = module.MelissaUltra.__new__(module.MelissaUltra)
+    runtime = module.ConnyUltra.__new__(module.ConnyUltra)
     runtime._pending_buffers = {}
     runtime._admin_pending = {}
     runtime._last_reviewed_chat = None
@@ -91,7 +91,7 @@ def _build_demo_runtime(module, engine):
 
 
 def test_demo_patient_like_messages_are_detected() -> None:
-    runtime = MelissaUltra.__new__(MelissaUltra)
+    runtime = ConnyUltra.__new__(ConnyUltra)
 
     assert not runtime._demo_should_use_patient_chat_path("hola")
     assert not runtime._demo_should_use_patient_chat_path("quien eres")
@@ -106,10 +106,11 @@ def test_demo_patient_like_messages_are_detected() -> None:
     assert not runtime._demo_should_use_patient_chat_path("what is this")
     assert not runtime._demo_should_use_patient_chat_path("i don't talk spanish")
     assert not runtime._demo_should_use_patient_chat_path("english only")
+    assert not runtime._demo_should_use_patient_chat_path("hola buenas tardea")
 
 
 def test_demo_patient_clinic_uses_runtime_sector_and_drops_nova_label() -> None:
-    runtime = MelissaUltra.__new__(MelissaUltra)
+    runtime = ConnyUltra.__new__(ConnyUltra)
 
     clinic = runtime._build_demo_patient_clinic({"name": "Nova", "sector": "otro"})
 
@@ -118,17 +119,17 @@ def test_demo_patient_clinic_uses_runtime_sector_and_drops_nova_label() -> None:
 
 
 def test_demo_patient_path_ignores_demo_history_when_no_business_loaded() -> None:
-    runtime = MelissaUltra.__new__(MelissaUltra)
+    runtime = ConnyUltra.__new__(ConnyUltra)
     seen = {}
 
     def fake_try_conversation_core(**kwargs):
         seen.update(kwargs)
-        return ["Hola, soy Melissa."]
+        return ["Hola, soy Conny."]
 
     runtime._try_conversation_core = fake_try_conversation_core
 
     history = [
-        {"role": "assistant", "content": "Sigo siendo Melissa, la recepcionista virtual."},
+        {"role": "assistant", "content": "Sigo siendo Conny, la recepcionista virtual."},
         {"role": "assistant", "content": "dime cómo se llama tu negocio"},
     ]
 
@@ -140,13 +141,13 @@ def test_demo_patient_path_ignores_demo_history_when_no_business_loaded() -> Non
         channel="whatsapp",
     )
 
-    assert result == ["Hola, soy Melissa."]
+    assert result == ["Hola, soy Conny."]
     assert seen["history"] == []
-    assert history[0]["content"].startswith("Sigo siendo Melissa")
+    assert history[0]["content"].startswith("Sigo siendo Conny")
 
 
 def test_demo_owner_onboarding_replaces_low_quality_first_turn_without_business_name() -> None:
-    module = load_melissa_module()
+    module = load_conny_module()
     module.Config.DEMO_MODE = True
     module.Config.DEMO_SECTOR = "estetica"
     module.Config.SECTOR = "estetica"
@@ -161,7 +162,7 @@ def test_demo_owner_onboarding_replaces_low_quality_first_turn_without_business_
         save_message=lambda *args, **kwargs: None,
     )
 
-    runtime = module.MelissaUltra.__new__(module.MelissaUltra)
+    runtime = module.ConnyUltra.__new__(module.ConnyUltra)
     runtime._pending_buffers = {}
     runtime._admin_pending = {}
     runtime._last_reviewed_chat = None
@@ -185,13 +186,13 @@ def test_demo_owner_onboarding_replaces_low_quality_first_turn_without_business_
 
     joined = " ".join(result).lower()
     assert "hoy?" not in joined
-    assert "melissa" in joined
+    assert "conny" in joined
     assert "nova" not in joined
     assert "negocio" in joined
 
 
 def test_demo_domino_does_not_treat_followup_question_as_new_business_name() -> None:
-    payload = melissa_domino.build_demo_domino_payload(
+    payload = conny_domino.build_demo_domino_payload(
         user_text="para que querias el nombre de mi negocio?",
         history=[{"role": "assistant", "content": "ya tengo Clínica América"}],
         business_name="Clínica América",
@@ -205,7 +206,7 @@ def test_demo_domino_does_not_treat_followup_question_as_new_business_name() -> 
 
 
 def test_demo_domino_does_not_escalate_to_clarify_demo_only_for_assistant_turn_count() -> None:
-    payload = melissa_domino.build_demo_domino_payload(
+    payload = conny_domino.build_demo_domino_payload(
         user_text="hola",
         history=[
             {"role": "assistant", "content": "pásame el nombre de tu negocio y arrancamos"},
@@ -223,7 +224,7 @@ def test_demo_domino_does_not_escalate_to_clarify_demo_only_for_assistant_turn_c
 
 
 def test_demo_domino_contract_requires_capability_detail_for_identity_probe() -> None:
-    payload = melissa_domino.build_demo_domino_payload(
+    payload = conny_domino.build_demo_domino_payload(
         user_text="me mandaron tu numero y no entiendo que haces",
         history=[],
         business_name="",
@@ -239,7 +240,7 @@ def test_demo_domino_contract_requires_capability_detail_for_identity_probe() ->
 
 
 def test_demo_followup_meta_question_after_business_binding_uses_regrounded_llm() -> None:
-    module = load_melissa_module()
+    module = load_conny_module()
 
     class _Engine:
         def __init__(self) -> None:
@@ -278,12 +279,12 @@ def test_demo_followup_meta_question_after_business_binding_uses_regrounded_llm(
     assert engine.meta_calls >= 2
     assert "te lo pedí para hablar como si ya llevara el chat de clinica america" in joined
     assert "te pido el nombre de tu negocio" not in joined
-    assert "soy melissa" not in joined
+    assert "soy conny" not in joined
     assert runtime._demo_sessions["demo_owner_meta_1_name"] == "Clinica America"
 
 
 def test_demo_business_activation_repairs_fragmented_llm_binding_reply() -> None:
-    module = load_melissa_module()
+    module = load_conny_module()
 
     class _Engine:
         def __init__(self) -> None:
@@ -330,7 +331,7 @@ def test_demo_business_activation_repairs_fragmented_llm_binding_reply() -> None
 
 
 def test_demo_owner_can_explicitly_start_customer_simulation_after_business_binding() -> None:
-    module = load_melissa_module()
+    module = load_conny_module()
 
     class _Engine:
         async def complete(self, msgs, **kwargs):
@@ -358,11 +359,11 @@ def test_demo_owner_can_explicitly_start_customer_simulation_after_business_bind
 
     joined = " ".join(result).lower()
     assert "cliente real" in joined
-    assert "soy melissa" not in joined
+    assert "soy conny" not in joined
 
 
 def test_demo_owner_simulation_start_repairs_truncated_launch_reply() -> None:
-    module = load_melissa_module()
+    module = load_conny_module()
 
     class _Engine:
         def __init__(self) -> None:
@@ -402,7 +403,7 @@ def test_demo_owner_simulation_start_repairs_truncated_launch_reply() -> None:
 
 
 def test_demo_business_activation_without_public_info_avoids_hallucinating_context() -> None:
-    module = load_melissa_module()
+    module = load_conny_module()
 
     class _Engine:
         def __init__(self) -> None:
@@ -435,7 +436,7 @@ def test_demo_business_activation_without_public_info_avoids_hallucinating_conte
 
 
 def test_demo_owner_onboarding_repairs_thin_capability_answer() -> None:
-    module = load_melissa_module()
+    module = load_conny_module()
 
     class _Engine:
         def __init__(self) -> None:
@@ -468,7 +469,7 @@ def test_demo_owner_onboarding_repairs_thin_capability_answer() -> None:
 
 
 def test_demo_owner_onboarding_static_fallback_only_when_model_returns_nothing() -> None:
-    module = load_melissa_module()
+    module = load_conny_module()
 
     class _Engine:
         async def complete(self, msgs, **kwargs):
@@ -487,7 +488,7 @@ def test_demo_owner_onboarding_static_fallback_only_when_model_returns_nothing()
 
 
 def test_demo_owner_onboarding_invalid_model_outputs_fall_back_to_owner_last_resort() -> None:
-    module = load_melissa_module()
+    module = load_conny_module()
 
     class _Engine:
         async def complete(self, msgs, **kwargs):
@@ -505,15 +506,469 @@ def test_demo_owner_onboarding_invalid_model_outputs_fall_back_to_owner_last_res
     assert any(token in joined for token in ("clientes", "citas", "negocio"))
 
 
+def test_demo_business_confirmation_never_overwrites_bound_business_name() -> None:
+    module = load_conny_module()
+
+    class _Engine:
+        async def complete(self, msgs, **kwargs):
+            user = msgs[-1]["content"]
+            system = msgs[0]["content"]
+            if user.startswith("negocio: "):
+                return (
+                    "ya tengo Clinica de Los olivos ||| ya me ubiqué con cómo tendría que sonar esto ||| escríbeme como si fueras un cliente",
+                    {"provider": "fake", "model": "fake"},
+                )
+            if "Ya están en plena conversación con una persona interesada" in system:
+                return (
+                    "hola, Conny por acá en Clinica de Los olivos ||| cuéntame qué te gustaría revisar",
+                    {"provider": "fake", "model": "fake"},
+                )
+            return ("ok ||| sigo", {"provider": "fake", "model": "fake"})
+
+    runtime, _db = _build_demo_runtime(module, _Engine())
+
+    async def _search_business_link(name, excluded_urls=None):
+        return (
+            "Clínica de Los Olivos es una clínica con atención integral y servicios médicos especializados.",
+            "https://www.clinicalosolivos.com/",
+        )
+
+    runtime.search.search_business_link = _search_business_link
+    clinic = {"name": "Nova", "sector": "otro", "services": ["Botox"]}
+
+    asyncio.run(runtime._handle_demo_message("owner_confirm_1", "Clinica de Los olivos", clinic))
+    result = asyncio.run(
+        runtime._handle_demo_message("owner_confirm_1", "Siii somos nosotros hola buenas tardea", clinic)
+    )
+
+    joined = " ".join(result).lower()
+    assert runtime._demo_sessions.get("demo_owner_confirm_1_name") == "Clinica de Los olivos"
+    assert runtime._demo_sessions.get("demo_owner_confirm_1_sim_mode") is True
+    assert "siii somos nosotros" not in joined
+    assert "clinica de los olivos" in joined
+
+
+def test_demo_meta_followup_does_not_repeat_same_ai_disclosure() -> None:
+    module = load_conny_module()
+
+    class _Engine:
+        def __init__(self) -> None:
+            self.followup_calls = 0
+
+        async def complete(self, msgs, **kwargs):
+            user = msgs[-1]["content"].lower()
+            if "holaa" in user:
+                return (
+                    "Hola! soy Conny ||| manejo WhatsApp de negocios como si fuera parte del equipo ||| qué quieres saber o por dónde empezamos?",
+                    {"provider": "fake", "model": "fake"},
+                )
+            if "no lo se cuentame que haces" in user:
+                return (
+                    "Imagínate que tu WhatsApp lo atiende alguien del equipo 24/7 ||| puedo crear agentes para ventas o soporte desde el mismo chat ||| qué te parece si te muestro cómo lo haría por tu negocio?",
+                    {"provider": "fake", "model": "fake"},
+                )
+            if "esto es real" in user:
+                return (
+                    "Sí, soy una IA ||| pero una que lleva el chat como si fuera persona real, sin sonar a bot ||| qué más quieres saber o me dices el nombre de tu negocio para que veas cómo funciono?",
+                    {"provider": "fake", "model": "fake"},
+                )
+            if "modo bot" in user or "como llevarias mi negocio" in user or "como responderias a mis clientes" in user:
+                self.followup_calls += 1
+                if self.followup_calls == 1:
+                    return (
+                        "Sí, soy una IA ||| pero una que lleva el chat como si fuera persona real, sin sonar a bot ||| me adapto al tono de tu negocio y atiendo a tus clientes 24/7",
+                        {"provider": "fake", "model": "fake"},
+                    )
+                return (
+                    "sí es real ||| llevaría tu chat con el tono de tu negocio, filtrando leads y respondiendo dudas como si ya fuera parte del equipo ||| si quieres, dime el nombre de tu negocio y te muestro un ejemplo real",
+                    {"provider": "fake", "model": "fake"},
+                )
+            return ("ok ||| sigo", {"provider": "fake", "model": "fake"})
+
+    runtime, _db = _build_demo_runtime(module, _Engine())
+    clinic = {"name": "Nova", "sector": "otro", "services": ["Botox"]}
+
+    asyncio.run(runtime._handle_demo_message("owner_meta_repeat_1", "Holaa", clinic))
+    asyncio.run(runtime._handle_demo_message("owner_meta_repeat_1", "No lo se cuentame que haces", clinic))
+    asyncio.run(runtime._handle_demo_message("owner_meta_repeat_1", "Woooow que cool, Esto es real?", clinic))
+    result = asyncio.run(
+        runtime._handle_demo_message(
+            "owner_meta_repeat_1",
+            "Jajajaj y tienes modo bot, no? Como llevarias mi negocio? Y como responderias a mis clientes?",
+            clinic,
+        )
+    )
+
+    joined = " ".join(result).lower()
+    assert runtime._demo_sessions.get("demo_owner_meta_repeat_1_name", "") == ""
+    assert "sí, soy una ia" not in joined
+    assert "si soy una ia" not in joined
+    assert "tono de tu negocio" in joined or "leads" in joined or "clientes" in joined
+
+
+def test_demo_meta_question_before_business_uses_owner_reply_not_name_parser() -> None:
+    module = load_conny_module()
+
+    class _Engine:
+        async def complete(self, msgs, **kwargs):
+            user = msgs[-1]["content"].lower()
+            if "esto es real" in user:
+                return (
+                    "Sí, soy una IA ||| pero la gracia es que el chat se sienta natural y útil ||| si quieres, te muestro cómo lo haría por tu negocio",
+                    {"provider": "fake", "model": "fake"},
+                )
+            return (
+                "sí, esto funciona de verdad ||| puedo llevar el chat con el tono de tu negocio y responder clientes sin sonar rígida ||| si quieres, dime el nombre de tu negocio y te muestro",
+                {"provider": "fake", "model": "fake"},
+            )
+
+    runtime, _db = _build_demo_runtime(module, _Engine())
+    clinic = {"name": "Nova", "sector": "otro", "services": ["Botox"]}
+
+    result = asyncio.run(
+        runtime._handle_demo_message("owner_meta_entry_1", "Woooow que cool, Esto es real?", clinic)
+    )
+
+    joined = " ".join(result).lower()
+    assert "antes de mostrarte cómo funciono" not in joined
+    assert "antes de mostrarte como funciono" not in joined
+    assert "funciona de verdad" in joined or "tono de tu negocio" in joined or "clientes" in joined
+
+
+def test_demo_explicit_identity_question_can_answer_ai_once_without_looping() -> None:
+    module = load_conny_module()
+
+    class _Engine:
+        async def complete(self, msgs, **kwargs):
+            return ("Sí, soy una IA", {"provider": "fake", "model": "fake"})
+
+    runtime, _db = _build_demo_runtime(module, _Engine())
+    clinic = {"name": "Nova", "sector": "otro", "services": ["Botox"]}
+
+    result = asyncio.run(
+        runtime._handle_demo_message("owner_identity_1", "eres ia o bot?", clinic)
+    )
+
+    joined = " ".join(result).lower()
+    assert "soy una ia" in joined
+    assert "negocio" in joined
+
+
+def test_demo_learn_mode_retries_business_search_when_owner_adds_location() -> None:
+    module = load_conny_module()
+
+    class _Engine:
+        async def complete(self, msgs, **kwargs):
+            user = msgs[-1]["content"].lower()
+            if user.startswith("negocio: "):
+                return (
+                    "listo, tengo el nombre ||| no encontré mucho online todavía ||| cuéntame un poco más y te muestro cómo respondería",
+                    {"provider": "fake", "model": "fake"},
+                )
+            return (
+                "ahí sí, ya te ubiqué mejor ||| veo que manejan atención clínica en Medellín ||| escríbeme como si fueras un cliente real y te muestro cómo respondería",
+                {"provider": "fake", "model": "fake"},
+            )
+
+    runtime, _db = _build_demo_runtime(module, _Engine())
+    seen_contexts = []
+
+    async def _search_business_link(name, excluded_urls=None, context_hint=""):
+        seen_contexts.append((name, context_hint))
+        if "medellin" in context_hint.lower():
+            return (
+                "Negocio: Clínica de Los Olivos\nClínica en Medellín con servicios médicos y quirúrgicos.",
+                "https://www.clinicalosolivos.com/",
+            )
+        return ("", "https://www.google.com/maps/search/Clinica%20de%20Los%20Olivos+Colombia")
+
+    runtime.search.search_business_link = _search_business_link
+    clinic = {"name": "Nova", "sector": "otro", "services": ["Botox"]}
+
+    asyncio.run(runtime._handle_demo_message("owner_search_retry_1", "Clinica de Los olivos", clinic))
+    result = asyncio.run(
+        runtime._handle_demo_message("owner_search_retry_1", "Clinica de Los olivos en Medellin estamos en Medellin Colombia", clinic)
+    )
+
+    joined = " ".join(result).lower()
+    assert any("medellin" in ctx.lower() for _, ctx in seen_contexts if ctx)
+    assert runtime._demo_sessions.get("demo_owner_search_retry_1_found") is True
+    assert runtime._demo_sessions.get("demo_owner_search_retry_1_url") == "https://www.clinicalosolivos.com/"
+    assert "ya te ubiqué mejor" in joined or "medellín" in joined or "cliente real" in joined
+
+
+def test_demo_why_followup_does_not_repeat_intro_or_pitchy_opening() -> None:
+    module = load_conny_module()
+
+    class _Engine:
+        def __init__(self) -> None:
+            self.why_calls = 0
+
+        async def complete(self, msgs, **kwargs):
+            user = msgs[-1]["content"].lower()
+            if "holaa" in user:
+                return (
+                    "Holaa ||| soy Conny, la que manejaría el chat de tu negocio ||| cómo se llama tu empresa para que empecemos la demo?",
+                    {"provider": "fake", "model": "fake"},
+                )
+            if "para que seria" in user or "para qué sería" in user:
+                self.why_calls += 1
+                if self.why_calls == 1:
+                    return (
+                        "Hola! Pues mira ||| La idea es que yo me encargue de responder por WhatsApp a los clientes de tu negocio ||| Así te quito ese trabajo",
+                        {"provider": "fake", "model": "fake"},
+                    )
+                return (
+                    "te lo pido para aterrizar la demo al tono real de tu negocio ||| así te muestro cómo respondería de verdad y no algo genérico ||| si quieres, dime el nombre y arrancamos",
+                    {"provider": "fake", "model": "fake"},
+                )
+            return ("ok ||| sigo", {"provider": "fake", "model": "fake"})
+
+    runtime, _db = _build_demo_runtime(module, _Engine())
+    clinic = {"name": "Nova", "sector": "otro", "services": ["Botox"]}
+
+    asyncio.run(runtime._handle_demo_message("owner_why_followup_1", "Holaa", clinic))
+    result = asyncio.run(
+        runtime._handle_demo_message("owner_why_followup_1", "Para que Seria?", clinic)
+    )
+
+    joined = " ".join(result).lower()
+    assert "hola! pues mira" not in joined
+    assert "la idea es que yo me encargue" not in joined
+    assert "la que manejaría el chat de tu negocio" not in " ".join(result).lower()
+    assert "tono real" in joined or "genérico" in joined or "respondería" in joined
+
+
+def test_demo_explain_name_confusion_does_not_fall_into_pitch_mode() -> None:
+    module = load_conny_module()
+
+    class _Engine:
+        async def complete(self, msgs, **kwargs):
+            system = msgs[0]["content"].lower()
+            user = msgs[-1]["content"].lower()
+            if user.strip() == "holaa":
+                return (
+                    "Holaa ||| soy Conny, la que atiende los chats de negocios por aquí ||| cuéntame cómo se llama tu negocio para mostrarte cómo suena",
+                    {"provider": "fake", "model": "fake"},
+                )
+            if "black one" in system:
+                return (
+                    "Hola! sea un poco confuso al principio ||| Básicamente, soy la que respondería el WhatsApp de tu negocio por ti",
+                    {"provider": "fake", "model": "fake"},
+                )
+            if "para que" in user or "para qué" in user:
+                return (
+                    "te lo pido para aterrizar la demo al tono real de tu negocio ||| así te muestro cómo respondería de verdad y no algo genérico ||| si quieres, dime el nombre y arrancamos",
+                    {"provider": "fake", "model": "fake"},
+                )
+            return ("ok ||| sigo", {"provider": "fake", "model": "fake"})
+
+    runtime, _db = _build_demo_runtime(module, _Engine())
+    clinic = {"name": "Nova", "sector": "otro", "services": ["Botox"]}
+
+    asyncio.run(runtime._handle_demo_message("owner_explain_no_pitch_1", "Holaa", clinic))
+    result = asyncio.run(
+        runtime._handle_demo_message("owner_explain_no_pitch_1", "Para que?? No entiendo", clinic)
+    )
+
+    joined = " ".join(result).lower()
+    assert "basicamente" not in joined
+    assert "básicamente" not in joined
+    assert "tono" in joined or "contexto" in joined or "responder" in joined
+
+
+def test_send_guard_severe_fragment_uses_neutral_rescue() -> None:
+    from conny_send_guard import guard_response
+
+    repaired = guard_response("Hola! Soy Conny", context="demo", business_name="Clinica de Los olivos")
+    lowered = repaired.lower()
+
+    assert "hola! soy conny |||" not in lowered
+    assert "si quieres, te muestro cómo sonaría en el chat" not in lowered
+    assert "clinica de los olivos" in lowered or "cliente" in lowered
+
+
+def test_send_guard_keeps_short_direct_memory_answer_intact() -> None:
+    from conny_send_guard import guard_response
+
+    repaired = guard_response("Te llamas Santiago", context="demo", business_name="Clinica de Los olivos")
+    assert repaired == "Te llamas Santiago"
+
+
+def test_demo_business_bind_fragment_rescue_uses_bound_business_not_generic_closing() -> None:
+    module = load_conny_module()
+
+    class _Engine:
+        async def complete(self, msgs, **kwargs):
+            user = msgs[-1]["content"]
+            if user.startswith("negocio: "):
+                return ("Hola! Soy Conny", {"provider": "fake", "model": "fake"})
+            return ("ok ||| sigo", {"provider": "fake", "model": "fake"})
+
+    runtime, _db = _build_demo_runtime(module, _Engine())
+
+    async def _search_business_link(name, excluded_urls=None, context_hint=""):
+        return (
+            "Clínica de Los Olivos es una clínica con atención integral y servicios médicos especializados.",
+            "https://www.clinicalosolivos.com/",
+        )
+
+    runtime.search.search_business_link = _search_business_link
+    clinic = {"name": "Nova", "sector": "otro", "services": ["Botox"]}
+
+    result = asyncio.run(
+        runtime._handle_demo_message("owner_bind_fragment_1", "Clinica de Los olivos", clinic)
+    )
+
+    joined = " ".join(result).lower()
+    assert "hola! soy conny" not in joined
+    assert "qué quieres revisar primero" not in joined
+    assert "clinica de los olivos" in joined or "cliente" in joined
+
+
+def test_demo_owner_name_is_captured_and_used_in_explain_name_reply() -> None:
+    module = load_conny_module()
+
+    class _Engine:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        async def complete(self, msgs, **kwargs):
+            user = msgs[-1]["content"].lower()
+            if "hola" in user:
+                return (
+                    "hola, Conny por acá ||| cuéntame cómo se llama tu negocio para mostrarte cómo sonaría",
+                    {"provider": "fake", "model": "fake"},
+                )
+            if "para que seria" in user or "para qué sería" in user:
+                self.calls += 1
+                if self.calls == 1:
+                    return (
+                        "te lo pido para ubicar el tono, el contexto y cómo tendría que responder ||| apenas me digas el nombre del negocio te muestro la demo bien aterrizada",
+                        {"provider": "fake", "model": "fake"},
+                    )
+                return (
+                    "todo bien, Santiago ||| te lo pido para aterrizar la demo al tono real de tu negocio ||| me dices el nombre y arrancamos",
+                    {"provider": "fake", "model": "fake"},
+                )
+            return ("ok ||| sigo", {"provider": "fake", "model": "fake"})
+
+    runtime, _db = _build_demo_runtime(module, _Engine())
+    clinic = {"name": "Nova", "sector": "otro", "services": ["Botox"]}
+
+    asyncio.run(runtime._handle_demo_message("owner_name_probe_1", "Hola", clinic))
+    result = asyncio.run(
+        runtime._handle_demo_message(
+            "owner_name_probe_1",
+            "Como estas?? Mi nombre es Santiago, para que Seria?",
+            clinic,
+        )
+    )
+
+    joined = " ".join(result).lower()
+    assert runtime._demo_sessions.get("demo_owner_name_probe_1_owner_name") == "Santiago"
+    assert "santiago" in joined
+    assert "tono real" in joined or "arrancamos" in joined
+
+
+def test_demo_business_name_extraction_trims_location_clause_from_mixed_phrase() -> None:
+    module = load_conny_module()
+
+    class _Engine:
+        async def complete(self, msgs, **kwargs):
+            user = msgs[-1]["content"]
+            if user.startswith("negocio: "):
+                return (
+                    "ya tengo Clinica de Los olivos ||| ya me ubiqué con cómo tendría que sonar esto ||| Escríbeme como si fueras un cliente y te respondo",
+                    {"provider": "fake", "model": "fake"},
+                )
+            return ("ok ||| sigo", {"provider": "fake", "model": "fake"})
+
+    runtime, _db = _build_demo_runtime(module, _Engine())
+    seen_queries = []
+
+    async def _search_business_link(name, excluded_urls=None, context_hint=""):
+        seen_queries.append(name)
+        return (
+            "Clínica de Los Olivos es una clínica con atención integral y servicios médicos especializados.",
+            "https://www.clinicalosolivos.com/",
+        )
+
+    runtime.search.search_business_link = _search_business_link
+    clinic = {"name": "Nova", "sector": "otro", "services": ["Botox"]}
+
+    result = asyncio.run(
+        runtime._handle_demo_message(
+            "owner_bname_trim_1",
+            "Mi nombre se llama Clinica de Los olivos, estamos ubicados en Medellin",
+            clinic,
+        )
+    )
+
+    joined = " ".join(result).lower()
+    assert runtime._demo_sessions.get("demo_owner_bname_trim_1_name") == "Clinica de Los olivos"
+    assert seen_queries == ["Clinica de Los olivos"]
+    assert "estamos" not in runtime._demo_sessions.get("demo_owner_bname_trim_1_name", "").lower()
+    assert "cliente" in joined or "chat" in joined
+
+
+def test_demo_business_name_extraction_survives_leading_filler_phrase() -> None:
+    module = load_conny_module()
+
+    class _Engine:
+        async def complete(self, msgs, **kwargs):
+            user = msgs[-1]["content"]
+            if user.startswith("negocio: "):
+                return (
+                    "ya tengo Clinica de Los olivos ||| ya me ubiqué con cómo tendría que sonar esto ||| Escríbeme como si fueras un cliente y te respondo",
+                    {"provider": "fake", "model": "fake"},
+                )
+            if "Para que?? No entiendo" in user:
+                return (
+                    "ah, claro ||| si me dices el nombre de tu negocio, lo aterrizo al tono real ||| así ves cómo respondería de verdad",
+                    {"provider": "fake", "model": "fake"},
+                )
+            return ("ok ||| sigo", {"provider": "fake", "model": "fake"})
+
+    runtime, _db = _build_demo_runtime(module, _Engine())
+    seen_queries = []
+
+    async def _search_business_link(name, excluded_urls=None, context_hint=""):
+        seen_queries.append(name)
+        return (
+            "Clínica de Los Olivos es una clínica con atención integral y servicios médicos especializados.",
+            "https://www.clinicalosolivos.com/",
+        )
+
+    runtime.search.search_business_link = _search_business_link
+    clinic = {"name": "Nova", "sector": "otro", "services": ["Botox"]}
+
+    asyncio.run(runtime._handle_demo_message("owner_bname_filler_1", "Holaa", clinic))
+    asyncio.run(runtime._handle_demo_message("owner_bname_filler_1", "Para que?? No entiendo", clinic))
+    result = asyncio.run(
+        runtime._handle_demo_message(
+            "owner_bname_filler_1",
+            "Ah vale. El nombre de mi negocio se llama Clinica de Los olivos estamos en Medellin",
+            clinic,
+        )
+    )
+
+    joined = " ".join(result).lower()
+    assert runtime._demo_sessions.get("demo_owner_bname_filler_1_name") == "Clinica de Los olivos"
+    assert seen_queries == ["Clinica de Los olivos"]
+    assert "ya tengo clinica de los olivos" in joined
+    assert "cliente" in joined or "chat" in joined
+
+
 def test_demo_owner_english_probe_does_not_bind_language_phrase_as_business() -> None:
-    module = load_melissa_module()
+    module = load_conny_module()
 
     class _Engine:
         async def complete(self, msgs, **kwargs):
             user = msgs[-1]["content"].lower()
             if "just english sorry" in user:
                 return (
-                    "Hi, I’m Melissa ||| I can handle client chats, questions and appointment flow for a business ||| send me the business name and I’ll build the demo around it",
+                    "Hi, I’m Conny ||| I can handle client chats, questions and appointment flow for a business ||| send me the business name and I’ll build the demo around it",
                     {"provider": "fake", "model": "fake"},
                 )
             if "what did u say" in user or "don't understand" in user:
@@ -545,7 +1000,7 @@ def test_demo_owner_english_probe_does_not_bind_language_phrase_as_business() ->
 
 
 def test_demo_owner_english_language_boundary_does_not_become_business_name() -> None:
-    module = load_melissa_module()
+    module = load_conny_module()
 
     class _Engine:
         async def complete(self, msgs, **kwargs):
@@ -556,7 +1011,7 @@ def test_demo_owner_english_language_boundary_does_not_become_business_name() ->
                     {"provider": "fake", "model": "fake"},
                 )
             return (
-                "Hi, I’m Melissa ||| tell me the business name and I’ll set the demo up properly",
+                "Hi, I’m Conny ||| tell me the business name and I’ll set the demo up properly",
                 {"provider": "fake", "model": "fake"},
             )
 
@@ -575,7 +1030,7 @@ def test_demo_owner_english_language_boundary_does_not_become_business_name() ->
 
 
 def test_demo_owner_english_wrong_match_triggers_correction_not_rebind() -> None:
-    module = load_melissa_module()
+    module = load_conny_module()
 
     class _Engine:
         async def complete(self, msgs, **kwargs):
@@ -613,7 +1068,7 @@ def test_demo_owner_english_wrong_match_triggers_correction_not_rebind() -> None
 
 @pytest.mark.xfail(reason="Requires GROQ_API_KEY in test env or proper mock")
 def test_transcribe_audio_uses_groq_when_gemini_is_exhausted() -> None:
-    module = load_melissa_module()
+    module = load_conny_module()
     module.Config.TELEGRAM_TOKEN = "tg-test"
     module.Config.GEMINI_API_KEY = "k1"
     module.Config.GEMINI_API_KEY_2 = "k2"
@@ -659,14 +1114,14 @@ def test_transcribe_audio_uses_groq_when_gemini_is_exhausted() -> None:
             raise AssertionError(f"POST inesperado: {url}")
 
     module.httpx.AsyncClient = _FakeAsyncClient
-    runtime = module.MelissaUltra.__new__(module.MelissaUltra)
+    runtime = module.ConnyUltra.__new__(module.ConnyUltra)
 
     text = asyncio.run(runtime.transcribe_audio("voice-1", platform="telegram"))
     assert "quiero información de botox" in text
 
 
 def test_demo_simulation_mode_bypasses_core_for_same_chat_customer_turns() -> None:
-    module = load_melissa_module()
+    module = load_conny_module()
 
     class _Engine:
         async def complete(self, msgs, **kwargs):
@@ -703,7 +1158,7 @@ def test_demo_simulation_mode_bypasses_core_for_same_chat_customer_turns() -> No
 
 
 def test_demo_customer_audio_question_repairs_incomplete_answer() -> None:
-    module = load_melissa_module()
+    module = load_conny_module()
 
     class _Engine:
         def __init__(self) -> None:
@@ -747,7 +1202,7 @@ def test_demo_customer_audio_question_repairs_incomplete_answer() -> None:
 
 
 def test_demo_simulation_last_resort_keeps_continuity_when_models_fully_fail() -> None:
-    module = load_melissa_module()
+    module = load_conny_module()
 
     class _Engine:
         def __init__(self) -> None:
@@ -786,13 +1241,13 @@ def test_demo_simulation_last_resort_keeps_continuity_when_models_fully_fail() -
     result = asyncio.run(runtime._handle_demo_message("owner_sim_fail_1", "si quiero cita como seguimos?", clinic))
 
     joined = " ".join(result).lower()
-    assert "hola, soy melissa" not in joined
+    assert "hola, soy conny" not in joined
     assert "cuéntame un poco más y te voy guiando" not in joined
     assert any(token in joined for token in ("agendar", "horario", "siguiente paso", "nombre"))
 
 
 def test_demo_owner_why_name_without_business_falls_back_to_real_explanation() -> None:
-    module = load_melissa_module()
+    module = load_conny_module()
 
     class _Engine:
         async def complete(self, msgs, **kwargs):
@@ -812,7 +1267,7 @@ def test_demo_owner_why_name_without_business_falls_back_to_real_explanation() -
 
 
 def test_demo_customer_simulation_rejects_hoy_fragment_and_repairs_greeting() -> None:
-    module = load_melissa_module()
+    module = load_conny_module()
 
     class _Engine:
         def __init__(self) -> None:
@@ -835,11 +1290,11 @@ def test_demo_customer_simulation_rejects_hoy_fragment_and_repairs_greeting() ->
                 self.customer_calls += 1
                 if self.customer_calls == 1:
                     return (
-                        "Hola, buenas tardes. Soy Melissa de Clínica América. hoy?",
+                        "Hola, buenas tardes. Soy Conny de Clínica América. hoy?",
                         {"provider": "fake", "model": "fake"},
                     )
                 return (
-                    "hola, Melissa por acá en Clínica América ||| cuéntame qué te gustaría revisar",
+                    "hola, Conny por acá en Clínica América ||| cuéntame qué te gustaría revisar",
                     {"provider": "fake", "model": "fake"},
                 )
             return ("ok ||| sigo", {"provider": "fake", "model": "fake"})
@@ -855,12 +1310,12 @@ def test_demo_customer_simulation_rejects_hoy_fragment_and_repairs_greeting() ->
     joined = " ".join(result).lower()
     assert engine.customer_calls >= 2
     assert "hoy?" not in joined
-    assert "melissa" in joined
+    assert "conny" in joined
     assert "revisar" in joined
 
 
 def test_demo_learn_mode_accepts_pdf_offer_without_claiming_it_already_understands() -> None:
-    module = load_melissa_module()
+    module = load_conny_module()
 
     class _Engine:
         async def complete(self, msgs, **kwargs):
@@ -885,7 +1340,7 @@ def test_demo_learn_mode_accepts_pdf_offer_without_claiming_it_already_understan
 
 
 def test_demo_doc_offer_after_found_business_stays_in_owner_mode() -> None:
-    module = load_melissa_module()
+    module = load_conny_module()
 
     class _Engine:
         async def complete(self, msgs, **kwargs):
@@ -918,7 +1373,7 @@ def test_demo_doc_offer_after_found_business_stays_in_owner_mode() -> None:
 
 
 def test_demo_business_switch_rebinds_without_manual_reset() -> None:
-    module = load_melissa_module()
+    module = load_conny_module()
 
     class _Engine:
         async def complete(self, msgs, **kwargs):
@@ -953,12 +1408,12 @@ def test_demo_business_switch_rebinds_without_manual_reset() -> None:
 
 
 def test_demo_owner_onboarding_greeting_keeps_hola_prefix() -> None:
-    module = load_melissa_module()
+    module = load_conny_module()
 
     class _Engine:
         async def complete(self, msgs, **kwargs):
             return (
-                "soy Melissa, la asesora virtual que llevaría tu chat ||| pásame el nombre de tu negocio y arranco",
+                "soy Conny, la asesora virtual que llevaría tu chat ||| pásame el nombre de tu negocio y arranco",
                 {"provider": "fake", "model": "fake"},
             )
 
@@ -967,11 +1422,11 @@ def test_demo_owner_onboarding_greeting_keeps_hola_prefix() -> None:
 
     result = asyncio.run(runtime._handle_demo_message("owner_greet_1", "Hola buenas", clinic))
 
-    assert result[0].lower().startswith("hola, soy melissa")
+    assert result[0].lower().startswith("hola, soy conny")
 
 
 def test_demo_correction_retries_search_before_manual_learning() -> None:
-    module = load_melissa_module()
+    module = load_conny_module()
 
     class _Engine:
         async def complete(self, msgs, **kwargs):
@@ -1006,7 +1461,7 @@ def test_demo_correction_retries_search_before_manual_learning() -> None:
 
 
 def test_demo_owner_can_reject_business_name_after_no_public_match() -> None:
-    module = load_melissa_module()
+    module = load_conny_module()
 
     class _Engine:
         async def complete(self, msgs, **kwargs):

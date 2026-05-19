@@ -1,16 +1,16 @@
 <div align="center">
-  <img src="brand-assets/melissa-logo.png" alt="Melissa AI" width="300"/>
+  <img src="brand-assets/conny-logo.png" alt="Conny AI" width="300"/>
 
 ### 💜 **The AI Receptionist Engine Built for Agencies & Resellers**
 
 *Train once. Deploy unlimited. Your clients pay monthly. You keep the margin.*
 
-[![NPM Version](https://img.shields.io/npm/v/melissa-ai.svg?style=for-the-badge&color=9333ea&logo=npm&logoColor=white)](https://www.npmjs.com/package/melissa-ai)
+[![NPM Version](https://img.shields.io/npm/v/conny-ai.svg?style=for-the-badge&color=9333ea&logo=npm&logoColor=white)](https://www.npmjs.com/package/conny-ai)
 [![License: MIT](https://img.shields.io/badge/License-MIT-9333ea.svg?style=for-the-badge)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-9333ea.svg?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
-[![Production Ready](https://img.shields.io/badge/PRODUCTION-READY-9333ea?style=for-the-badge&logo=checkmarx&logoColor=white)](https://github.com/sxrubyo/melissa)
-[![WhatsApp](https://img.shields.io/badge/WhatsApp-READY-25D366?style=for-the-badge&logo=whatsapp&logoColor=white)](https://github.com/sxrubyo/melissa)
-[![Telegram](https://img.shields.io/badge/Telegram-READY-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)](https://github.com/sxrubyo/melissa)
+[![Production Ready](https://img.shields.io/badge/PRODUCTION-READY-9333ea?style=for-the-badge&logo=checkmarx&logoColor=white)](https://github.com/sxrubyo/conny)
+[![WhatsApp](https://img.shields.io/badge/WhatsApp-READY-25D366?style=for-the-badge&logo=whatsapp&logoColor=white)](https://github.com/sxrubyo/conny)
+[![Telegram](https://img.shields.io/badge/Telegram-READY-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)](https://github.com/sxrubyo/conny)
 
 </div>
 
@@ -18,7 +18,7 @@
 
 ## 💰 Turn AI Assistants Into Recurring Revenue
 
-**Melissa** isn't just another chatbot framework.
+**Conny** isn't just another chatbot framework.
 It's a **white-label AI receptionist platform** that lets you sell branded conversational AI to restaurants, clinics, salons, real estate agencies, e-commerce stores — **any business with a phone number.**
 
 <div align="center">
@@ -34,12 +34,12 @@ It's a **white-label AI receptionist platform** that lets you sell branded conve
 
 ---
 
-## 🚀 Your Business Model (The Melissa Way)
+## 🚀 Your Business Model (The Conny Way)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  1. Install Melissa (5 minutes)                             │
-│     npm install -g melissa-ai                               │
+│  1. Install Conny (5 minutes)                             │
+│     npm install -g conny-ai                               │
 └──────────────────────────┬──────────────────────────────────┘
                            ↓
 ┌─────────────────────────────────────────────────────────────┐
@@ -50,9 +50,9 @@ It's a **white-label AI receptionist platform** that lets you sell branded conve
                            ↓
 ┌─────────────────────────────────────────────────────────────┐
 │  3. Clone to unlimited client instances (1 command)         │
-│     melissa sync --add /opt/melissa-client-restaurant       │
-│     melissa sync --add /opt/melissa-client-salon            │
-│     melissa sync --add /opt/melissa-client-realestate       │
+│     conny sync --add /opt/conny-client-restaurant       │
+│     conny sync --add /opt/conny-client-salon            │
+│     conny sync --add /opt/conny-client-realestate       │
 └──────────────────────────┬──────────────────────────────────┘
                            ↓
 ┌─────────────────────────────────────────────────────────────┐
@@ -87,13 +87,13 @@ It's a **white-label AI receptionist platform** that lets you sell branded conve
 
 ---
 
-## 🎯 Why Melissa Destroys the Competition
+## 🎯 Why Conny Destroys the Competition
 
 <table>
 <tr>
 <th width="20%">Solution</th>
 <th width="40%">Their Reality</th>
-<th width="40%">Melissa Reality</th>
+<th width="40%">Conny Reality</th>
 </tr>
 <tr>
 <td><strong>Voiceflow / Botpress</strong></td>
@@ -121,17 +121,17 @@ It's a **white-label AI receptionist platform** that lets you sell branded conve
 
 ## ⚡ Start Selling in 3 Steps
 
-### Step 1 — Install Melissa
+### Step 1 — Install Conny
 
 ```bash
-npm install -g melissa-ai
-melissa --version
+npm install -g conny-ai
+conny --version
 ```
 
 ### Step 2 — Create Your First Agent
 
 ```bash
-melissa persona create restaurant-receptionist
+conny persona create restaurant-receptionist
 ```
 
 Edit `personas/restaurant-receptionist.txt`:
@@ -157,11 +157,11 @@ Never confirm reservations — say "I'll pass this to our manager to confirm."
 ### Step 3 — Deploy to Client
 
 ```bash
-melissa sync --add /opt/melissa-restaurant-bella
-cd /opt/melissa-restaurant-bella
+conny sync --add /opt/conny-restaurant-bella
+cd /opt/conny-restaurant-bella
 cp .env.example .env
 nano .env
-python3 melissa.py
+python3 conny.py
 ```
 
 **Done.** Their WhatsApp now has a 24/7 AI receptionist. You never touch their credentials again.
@@ -173,9 +173,9 @@ python3 melissa.py
 ```
                   ┌──────────────────────────┐
                   │    Your Development Core  │
-                  │      ~/melissa-dev/       │
+                  │      ~/conny-dev/       │
                   └────────────┬─────────────┘
-                               │  melissa sync
+                               │  conny sync
                   ┌────────────┼────────────┐
                   │            │            │
          ┌────────▼───┐ ┌──────▼─────┐ ┌───▼────────┐
@@ -191,11 +191,11 @@ python3 melissa.py
 
 | Module | Purpose |
 |:---|:---|
-| **`melissa.py`** | FastAPI orchestrator — webhooks, routing, concurrency |
-| **`melissa_brain_v10.py`** | Memory layer — context normalization, conversation history |
-| **`melissa_domino.py`** | Quality control — validates responses before delivery |
-| **`melissa_core/`** | Shared conversation logic and state retention |
-| **`melissa_agents/`** | Pluggable skills — calendar, CRM, payments, custom functions |
+| **`conny.py`** | FastAPI orchestrator — webhooks, routing, concurrency |
+| **`conny_brain_v10.py`** | Memory layer — context normalization, conversation history |
+| **`conny_domino.py`** | Quality control — validates responses before delivery |
+| **`conny_core/`** | Shared conversation logic and state retention |
+| **`conny_agents/`** | Pluggable skills — calendar, CRM, payments, custom functions |
 | **`personas/`** | Personality configs — tone, language, brand voice per client |
 
 ---
@@ -209,11 +209,11 @@ python3 melissa.py
 ### ✅ Synced to all instances
 
 ```
-melissa.py               # Main engine
-melissa_brain_v10.py     # Memory system
-melissa_domino.py        # Quality control
-melissa_core/            # Shared logic
-melissa_agents/          # Skills & integrations
+conny.py               # Main engine
+conny_brain_v10.py     # Memory system
+conny_domino.py        # Quality control
+conny_core/            # Shared logic
+conny_agents/          # Skills & integrations
 personas/                # Personality templates
 requirements.txt         # Dependencies
 ```
@@ -242,24 +242,24 @@ backups/                 # Local backups
 ## 🎮 CLI Reference
 
 ```bash
-npm install -g melissa-ai          # Install globally
-melissa --version                  # Check version
+npm install -g conny-ai          # Install globally
+conny --version                  # Check version
 
-melissa sync --list                # List all client instances
-melissa sync --add /opt/client     # Register new client
-melissa sync --remove /opt/client  # Remove client
-melissa sync -y                    # Push updates to all clients
+conny sync --list                # List all client instances
+conny sync --add /opt/client     # Register new client
+conny sync --remove /opt/client  # Remove client
+conny sync -y                    # Push updates to all clients
 
-melissa persona create <name>      # New personality template
-melissa agent list                 # Show available agents
-melissa validate                   # Health check — config, deps, files
+conny persona create <name>      # New personality template
+conny agent list                 # Show available agents
+conny validate                   # Health check — config, deps, files
 ```
 
 ---
 
 ## 🛡️ Security by Design
 
-| Risk | Other Platforms | Melissa |
+| Risk | Other Platforms | Conny |
 |:---|:---|:---|
 | API keys in version control | ❌ Common mistake | ✅ `.env` never synced |
 | Shared database across clients | ❌ GDPR violation | ✅ Isolated SQLite per instance |
@@ -286,8 +286,8 @@ melissa validate                   # Health check — config, deps, files
 ### VPS (DigitalOcean, Linode, Vultr — $6/mo)
 
 ```bash
-npm install -g melissa-ai
-melissa sync --add /opt/client-001
+npm install -g conny-ai
+conny sync --add /opt/client-001
 cd /opt/client-001
 cp .env.example .env && nano .env
 ```
@@ -296,12 +296,12 @@ cp .env.example .env && nano .env
 
 ```ini
 [Unit]
-Description=Melissa AI — Client 001
+Description=Conny AI — Client 001
 After=network.target
 
 [Service]
 WorkingDirectory=/opt/client-001
-ExecStart=/usr/bin/python3 /opt/client-001/melissa.py
+ExecStart=/usr/bin/python3 /opt/client-001/conny.py
 Restart=always
 
 [Install]
@@ -309,19 +309,19 @@ WantedBy=multi-user.target
 ```
 
 ```bash
-sudo systemctl enable melissa-client-001
-sudo systemctl start melissa-client-001
+sudo systemctl enable conny-client-001
+sudo systemctl start conny-client-001
 ```
 
 ### Docker
 
 ```bash
 docker run -d \
-  --name melissa-client-001 \
+  --name conny-client-001 \
   -p 8000:8000 \
   -v /opt/client-001:/app \
   --env-file /opt/client-001/.env \
-  melissa-ai:latest
+  conny-ai:latest
 ```
 
 ---
@@ -344,7 +344,7 @@ docker run -d \
 ❌ AWS Lambda complexity &nbsp;&nbsp; ❌ Kubernetes &nbsp;&nbsp; ❌ Redis (unless 500+ clients)  
 ❌ PostgreSQL &nbsp;&nbsp; ❌ Docker Swarm &nbsp;&nbsp; ❌ A dev team
 
-**Melissa runs on a $6/mo VPS. One server. Dozens of clients.**
+**Conny runs on a $6/mo VPS. One server. Dozens of clients.**
 
 ---
 
@@ -352,9 +352,9 @@ docker run -d \
 
 ## 💜 Ready to Build?
 
-[![Install Now](https://img.shields.io/badge/📦_Install_Now-npm_install_-g_melissa--ai-9333ea?style=for-the-badge&logo=npm&logoColor=white)](https://www.npmjs.com/package/melissa-ai)
-[![GitHub Issues](https://img.shields.io/badge/🐛_Issues-Report_Here-9333ea?style=for-the-badge&logo=github)](https://github.com/sxrubyo/melissa/issues)
-[![Discussions](https://img.shields.io/badge/💬_Community-GitHub_Discussions-9333ea?style=for-the-badge&logo=github)](https://github.com/sxrubyo/melissa/discussions)
+[![Install Now](https://img.shields.io/badge/📦_Install_Now-npm_install_-g_conny--ai-9333ea?style=for-the-badge&logo=npm&logoColor=white)](https://www.npmjs.com/package/conny-ai)
+[![GitHub Issues](https://img.shields.io/badge/🐛_Issues-Report_Here-9333ea?style=for-the-badge&logo=github)](https://github.com/sxrubyo/conny/issues)
+[![Discussions](https://img.shields.io/badge/💬_Community-GitHub_Discussions-9333ea?style=for-the-badge&logo=github)](https://github.com/sxrubyo/conny/discussions)
 
 ---
 

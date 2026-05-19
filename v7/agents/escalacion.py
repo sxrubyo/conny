@@ -1,5 +1,5 @@
 """
-Melissa V7.0 — Agente de Escalación
+Conny V7.0 — Agente de Escalación
 =====================================
 Detecta urgencias reales y deriva al humano correcto.
 Nunca diagnostica. Nunca minimiza una queja.

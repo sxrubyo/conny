@@ -1,4 +1,4 @@
-"""Tests for melissa_commands.py"""
+"""Tests for conny_commands.py"""
 import sys
 import asyncio
 sys.path.insert(0, ".")
@@ -9,7 +9,7 @@ def _run(coro):
 
 
 def test_user_help_command():
-    from melissa_commands import CommandHandler
+    from conny_commands import CommandHandler
     handler = CommandHandler("test")
     result = _run(handler.handle("user123", "/ayuda", is_admin=False))
     assert result is not None
@@ -17,7 +17,7 @@ def test_user_help_command():
 
 
 def test_user_horarios():
-    from melissa_commands import CommandHandler
+    from conny_commands import CommandHandler
     handler = CommandHandler("test")
     clinic = {"schedule": "L-V 8am-6pm"}
     result = _run(handler.handle("user123", "/horarios", is_admin=False, clinic=clinic))
@@ -26,7 +26,7 @@ def test_user_horarios():
 
 
 def test_admin_pausa():
-    from melissa_commands import CommandHandler
+    from conny_commands import CommandHandler
     handler = CommandHandler("test")
     result = _run(handler.handle("admin1", "/pausa", is_admin=True))
     assert result is not None
@@ -36,7 +36,7 @@ def test_admin_pausa():
 
 
 def test_admin_personalidad():
-    from melissa_commands import CommandHandler
+    from conny_commands import CommandHandler
     handler = CommandHandler("test_cmd")
     result = _run(handler.handle("admin1", '/personalidad tono=formal nombre="Sofía"', is_admin=True))
     assert result is not None
@@ -44,7 +44,7 @@ def test_admin_personalidad():
 
 
 def test_admin_aprender():
-    from melissa_commands import CommandHandler
+    from conny_commands import CommandHandler
     handler = CommandHandler("test_learn")
     result = _run(handler.handle("admin1", '/aprender ¿cuánto vale? → $80.000', is_admin=True))
     assert result is not None
@@ -52,7 +52,7 @@ def test_admin_aprender():
 
 
 def test_not_a_command():
-    from melissa_commands import CommandHandler
+    from conny_commands import CommandHandler
     handler = CommandHandler("test")
     result = _run(handler.handle("user123", "hola quiero una cita", is_admin=False))
     assert result is None

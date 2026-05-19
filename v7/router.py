@@ -1,5 +1,5 @@
 """
-Melissa V7.0 — Router de Intención
+Conny V7.0 — Router de Intención
 ===================================
 Clasifica el mensaje entrante al agente correcto en 3 capas:
   Capa 1: señales exactas (regex)     → 5-15ms, costo 0
@@ -235,5 +235,5 @@ class IntentRouter:
 
 
 # ── Instancia global (singleton) ─────────────────────────────────────────────
-# Se importa desde melissa.py:  from router import router
+# Se importa desde conny.py:  from router import router
 router = IntentRouter()

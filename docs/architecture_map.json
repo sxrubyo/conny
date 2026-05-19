@@ -1,106 +1,106 @@
 {
   "brand_assets.py": [],
-  "chat_melissa.py": [],
+  "chat_conny.py": [],
   "knowledge_base.py": [],
-  "melissa-chat.py": [],
-  "melissa-omni.py": [],
-  "melissa.py": [
+  "conny-chat.py": [],
+  "conny-omni.py": [],
+  "conny.py": [
     "brand_assets.py",
     "knowledge_base.py",
-    "melissa_admin.py",
-    "melissa_audio.py",
-    "melissa_brain_v10.py",
-    "melissa_core/__init__.py",
-    "melissa_core/first_turn_ops.py",
-    "melissa_core/prompt_ops.py",
-    "melissa_demo.py",
-    "melissa_domino.py",
-    "melissa_generator.py",
-    "melissa_i18n.py",
-    "melissa_intelligence.py",
-    "melissa_nuke_robot_phrases.py",
-    "melissa_pitch_upgrade.py",
-    "melissa_production.py",
-    "melissa_send_guard.py",
-    "melissa_session.py",
-    "melissa_utils.py",
+    "conny_admin.py",
+    "conny_audio.py",
+    "conny_brain_v10.py",
+    "conny_core/__init__.py",
+    "conny_core/first_turn_ops.py",
+    "conny_core/prompt_ops.py",
+    "conny_demo.py",
+    "conny_domino.py",
+    "conny_generator.py",
+    "conny_i18n.py",
+    "conny_intelligence.py",
+    "conny_nuke_robot_phrases.py",
+    "conny_pitch_upgrade.py",
+    "conny_production.py",
+    "conny_send_guard.py",
+    "conny_session.py",
+    "conny_utils.py",
     "nova_bridge.py",
     "search.py",
     "smart_handoff.py",
     "v7/orchestrator.py"
   ],
-  "melissa_admin.py": [
-    "melissa.py",
-    "melissa_utils.py"
+  "conny_admin.py": [
+    "conny.py",
+    "conny_utils.py"
   ],
-  "melissa_agents/__init__.py": [],
-  "melissa_agents/agenda.py": [],
-  "melissa_agents/captacion.py": [],
-  "melissa_agents/conocimiento.py": [],
-  "melissa_agents/escalacion.py": [],
-  "melissa_agents/objeciones.py": [],
-  "melissa_agents/seguimiento.py": [],
-  "melissa_audio.py": [
-    "melissa_config.py"
+  "conny_agents/__init__.py": [],
+  "conny_agents/agenda.py": [],
+  "conny_agents/captacion.py": [],
+  "conny_agents/conocimiento.py": [],
+  "conny_agents/escalacion.py": [],
+  "conny_agents/objeciones.py": [],
+  "conny_agents/seguimiento.py": [],
+  "conny_audio.py": [
+    "conny_config.py"
   ],
-  "melissa_brain_v10.py": [],
-  "melissa_bridge.py": [
-    "melissa.py"
+  "conny_brain_v10.py": [],
+  "conny_bridge.py": [
+    "conny.py"
   ],
-  "melissa_cli.py": [
-    "melissa_cli_bb.py",
-    "melissa_i18n.py"
+  "conny_cli.py": [
+    "conny_cli_bb.py",
+    "conny_i18n.py"
   ],
-  "melissa_cli_bb.py": [],
-  "melissa_config.py": [],
-  "melissa_core/__init__.py": [
-    "melissa_core/conversation_engine.py",
-    "melissa_core/persona_registry.py"
+  "conny_cli_bb.py": [],
+  "conny_config.py": [],
+  "conny_core/__init__.py": [
+    "conny_core/conversation_engine.py",
+    "conny_core/persona_registry.py"
   ],
-  "melissa_core/conversation_engine.py": [
-    "melissa_core/persona_registry.py"
+  "conny_core/conversation_engine.py": [
+    "conny_core/persona_registry.py"
   ],
-  "melissa_core/first_turn_ops.py": [],
-  "melissa_core/persona_registry.py": [],
-  "melissa_core/prompt_ops.py": [],
-  "melissa_cron.py": [],
-  "melissa_demo.py": [],
-  "melissa_domino.py": [],
-  "melissa_generator.py": [
-    "melissa_config.py"
+  "conny_core/first_turn_ops.py": [],
+  "conny_core/persona_registry.py": [],
+  "conny_core/prompt_ops.py": [],
+  "conny_cron.py": [],
+  "conny_demo.py": [],
+  "conny_domino.py": [],
+  "conny_generator.py": [
+    "conny_config.py"
   ],
-  "melissa_i18n.py": [],
-  "melissa_integrations/__init__.py": [],
-  "melissa_integrations/llm.py": [],
-  "melissa_integrations/whatsapp.py": [],
-  "melissa_intelligence.py": [],
-  "melissa_memory.py": [],
-  "melissa_nuke_robot_phrases.py": [],
-  "melissa_pairing.py": [],
-  "melissa_patch.py": [],
-  "melissa_pitch_upgrade.py": [],
-  "melissa_production.py": [
-    "melissa.py"
+  "conny_i18n.py": [],
+  "conny_integrations/__init__.py": [],
+  "conny_integrations/llm.py": [],
+  "conny_integrations/whatsapp.py": [],
+  "conny_intelligence.py": [],
+  "conny_memory.py": [],
+  "conny_nuke_robot_phrases.py": [],
+  "conny_pairing.py": [],
+  "conny_patch.py": [],
+  "conny_pitch_upgrade.py": [],
+  "conny_production.py": [
+    "conny.py"
   ],
-  "melissa_router.py": [
-    "melissa_config.py"
+  "conny_router.py": [
+    "conny_config.py"
   ],
-  "melissa_send_guard.py": [
-    "melissa_pitch_upgrade.py"
+  "conny_send_guard.py": [
+    "conny_pitch_upgrade.py"
   ],
-  "melissa_session.py": [
-    "melissa_config.py"
+  "conny_session.py": [
+    "conny_config.py"
   ],
-  "melissa_skills/__init__.py": [],
-  "melissa_skills/demo_mode.py": [
-    "melissa_i18n.py"
+  "conny_skills/__init__.py": [],
+  "conny_skills/demo_mode.py": [
+    "conny_i18n.py"
   ],
-  "melissa_skills/text_processing.py": [],
-  "melissa_skills/tone_detection.py": [],
-  "melissa_sync_fix.py": [],
-  "melissa_tui.py": [],
-  "melissa_utils.py": [],
-  "melissa_voice.py": [],
+  "conny_skills/text_processing.py": [],
+  "conny_skills/tone_detection.py": [],
+  "conny_sync_fix.py": [],
+  "conny_tui.py": [],
+  "conny_utils.py": [],
+  "conny_voice.py": [],
   "nova_bridge.py": [],
   "scripts/long_conversation_harness.py": [],
   "search.py": [],
@@ -108,31 +108,31 @@
     "knowledge_base.py"
   ],
   "test_conversation.py": [
-    "melissa.py"
+    "conny.py"
   ],
   "tests/test_demo_patient_entry.py": [
-    "melissa.py",
-    "melissa_domino.py"
+    "conny.py",
+    "conny_domino.py"
   ],
-  "tests/test_melissa_bridge.py": [
-    "melissa_bridge.py"
+  "tests/test_conny_bridge.py": [
+    "conny_bridge.py"
   ],
   "tests/test_patient_greeting_flow.py": [
-    "melissa_brain_v10.py",
-    "melissa_core/conversation_engine.py",
-    "melissa_core/first_turn_ops.py",
-    "melissa_core/persona_registry.py"
+    "conny_brain_v10.py",
+    "conny_core/conversation_engine.py",
+    "conny_core/first_turn_ops.py",
+    "conny_core/persona_registry.py"
   ],
   "tests/test_robot_phrase_boundaries.py": [
-    "melissa_nuke_robot_phrases.py",
-    "melissa_send_guard.py"
+    "conny_nuke_robot_phrases.py",
+    "conny_send_guard.py"
   ],
   "tests/test_search_and_llm_runtime.py": [],
   "tests/test_smart_handoff.py": [
     "smart_handoff.py"
   ],
   "tests/test_sync_runtime.py": [
-    "melissa_cli.py"
+    "conny_cli.py"
   ],
   "tests/test_telegram_webhook_mode.py": [],
   "v7/__init__.py": [

@@ -1,19 +1,19 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════════════════════════════
-# start.sh — Melissa v5.0 Ultra — inicio completo en un comando
+# start.sh — Conny v5.0 Ultra — inicio completo en un comando
 # ═══════════════════════════════════════════════════════════════════════════════
 
 set -e
-MELISSA_DIR="/home/ubuntu/melissa"
-VENV="$MELISSA_DIR/.venv"
-ENV_FILE="$MELISSA_DIR/.env"
+CONNY_DIR="/home/ubuntu/conny"
+VENV="$CONNY_DIR/.venv"
+ENV_FILE="$CONNY_DIR/.env"
 
 echo ""
-echo "  Melissa v5.0 Ultra — arranque"
+echo "  Conny v5.0 Ultra — arranque"
 echo "══════════════════════════════════"
 
 # ── 1. Directorio ─────────────────────────────────────────────────────────────
-cd "$MELISSA_DIR"
+cd "$CONNY_DIR"
 
 # ── 2. Python virtual env (si no existe) ──────────────────────────────────────
 if [ ! -d "$VENV" ]; then
@@ -83,8 +83,8 @@ done
 # ── 5. Verificar archivos requeridos ──────────────────────────────────────────
 echo ""
 echo "  Archivos:"
-for f in melissa.py search.py knowledge_base.py; do
-  if [ -f "$MELISSA_DIR/$f" ]; then
+for f in conny.py search.py knowledge_base.py; do
+  if [ -f "$CONNY_DIR/$f" ]; then
     echo "  [OK] $f"
   else
     echo "  [!!] $f — NO ENCONTRADO"
@@ -94,14 +94,14 @@ done
 # ── 6. PM2 ────────────────────────────────────────────────────────────────────
 echo ""
 echo "  Iniciando con PM2..."
-pm2 delete melissa 2>/dev/null || true
-pm2 start melissa.py \
-  --name melissa \
+pm2 delete conny 2>/dev/null || true
+pm2 start conny.py \
+  --name conny \
   --interpreter "$VENV/bin/python3" \
   --restart-delay=3000 \
   --max-restarts=10 \
-  --log "$MELISSA_DIR/logs/melissa.log" \
-  --error "$MELISSA_DIR/logs/error.log"
+  --log "$CONNY_DIR/logs/conny.log" \
+  --error "$CONNY_DIR/logs/error.log"
 pm2 save
 
 # ── 7. Health check ───────────────────────────────────────────────────────────
@@ -117,7 +117,7 @@ if [ "$HTTP_STATUS" = "200" ]; then
   echo "  [OK] Health check OK (puerto $PORT)"
 else
   echo "  [!!] Health check fallo (HTTP $HTTP_STATUS)"
-  echo "  Revisa los logs: pm2 logs melissa"
+  echo "  Revisa los logs: pm2 logs conny"
 fi
 
 # ── 8. Webhook ────────────────────────────────────────────────────────────────
@@ -129,18 +129,18 @@ else
 fi
 
 # ── 9. Crear directorio de logs si no existe ──────────────────────────────────
-mkdir -p "$MELISSA_DIR/logs"
+mkdir -p "$CONNY_DIR/logs"
 
 # ── Resumen ───────────────────────────────────────────────────────────────────
 echo ""
 echo "══════════════════════════════════"
-echo "  Melissa online en puerto $PORT"
+echo "  Conny online en puerto $PORT"
 echo ""
 echo "  Comandos utiles:"
-echo "    pm2 logs melissa          ver logs en vivo"
-echo "    pm2 restart melissa       reiniciar"
-echo "    pm2 stop melissa          detener"
-echo "    tail -f logs/melissa.log  logs completos"
+echo "    pm2 logs conny          ver logs en vivo"
+echo "    pm2 restart conny       reiniciar"
+echo "    pm2 stop conny          detener"
+echo "    tail -f logs/conny.log  logs completos"
 echo ""
 echo "  Abre Telegram y escribe al bot para empezar."
 echo "══════════════════════════════════"

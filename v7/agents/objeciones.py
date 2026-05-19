@@ -1,5 +1,5 @@
 """
-Melissa V7.0 — Agente de Objeciones
+Conny V7.0 — Agente de Objeciones
 =====================================
 Maneja toda resistencia del paciente.
 La objeción dicha raramente es la objeción real.

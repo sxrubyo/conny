@@ -1,5 +1,5 @@
 """
-Melissa V7.0 — Registry de Agentes
+Conny V7.0 — Registry de Agentes
 =====================================
 Registra todos los agentes disponibles.
 El orquestador los carga una sola vez al arranque.
@@ -23,7 +23,7 @@ from v7.router             import AgentID
 def build_registry(llm_engine) -> Dict[str, "AgentBase"]:
     """
     Construye el diccionario de agentes instanciados.
-    Llamar UNA SOLA VEZ al arranque, pasar a MelissaUltra.
+    Llamar UNA SOLA VEZ al arranque, pasar a ConnyUltra.
     """
     return {
         AgentID.CAPTACION:    AgenteCaptacion(llm_engine),

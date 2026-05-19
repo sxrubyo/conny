@@ -1,12 +1,12 @@
 """
-knowledge_base.py — Base de conocimiento de la clinica para Melissa
+knowledge_base.py — Base de conocimiento de la clinica para Conny
 
 Sistema que permite al admin cargar un documento maestro con toda la info
 de la clinica (servicios, precios, contraindicaciones, protocolos, FAQs, etc.)
-y que Melissa consulte siempre antes de responder.
+y que Conny consulte siempre antes de responder.
 
 Flujo:
-  1. Admin termina setup y Melissa le pide el documento maestro
+  1. Admin termina setup y Conny le pide el documento maestro
   2. Admin envia texto libre (puede ser muy largo)
   3. Se chunquea y se guarda en DB
   4. Cuando un paciente pregunta algo, se recuperan los chunks relevantes
@@ -26,7 +26,7 @@ import sqlite3
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
-log = logging.getLogger("melissa.kb")
+log = logging.getLogger("conny.kb")
 
 # Tamano de chunks (en caracteres)
 CHUNK_SIZE   = 400
@@ -132,7 +132,7 @@ def _score_chunk(chunk_keywords: List[str], query_keywords: List[str]) -> float:
 class KnowledgeBase:
     """
     Gestor de la base de conocimiento de la clinica.
-    Se inicializa con la conexion DB de melissa.
+    Se inicializa con la conexion DB de conny.
     """
 
     def __init__(self, db_path: str):

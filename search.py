@@ -1,5 +1,5 @@
 """
-search.py — Motor de busqueda para Melissa v2
+search.py — Motor de busqueda para Conny v2
 SerpAPI (primario) → Brave Search (secundario) → Apify (fallback de emergencia)
 
 Incluye:
@@ -7,7 +7,7 @@ Incluye:
   - Busqueda medica/estetica especializada con answer_box de Google
   - Deteccion automatica de procedimientos y edad en el texto
   - Autodiscovery de clinicas
-  - SearchEngine compatible con melissa.py
+  - SearchEngine compatible con conny.py
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ from typing import Dict, List, Optional, Tuple
 
 import httpx
 
-log = logging.getLogger("melissa.search")
+log = logging.getLogger("conny.search")
 
 
 def _split_env_values(raw) -> List[str]:
@@ -439,11 +439,11 @@ async def discover_clinic(clinic_name: str, city: str = "Medellin") -> str:
     return "\n".join(snippets)[:2000]
 
 
-# ─── Clase compatible con melissa.py ─────────────────────────────────────────
+# ─── Clase compatible con conny.py ─────────────────────────────────────────
 
 class SearchEngine:
     """
-    Interfaz compatible con WebSearchEngine en melissa.py.
+    Interfaz compatible con WebSearchEngine en conny.py.
     Drop-in replacement con capacidades medicas adicionales.
     """
 

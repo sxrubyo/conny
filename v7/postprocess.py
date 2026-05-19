@@ -1,5 +1,5 @@
 """
-Melissa V7.0 — Postprocessor Determinístico
+Conny V7.0 — Postprocessor Determinístico
 =============================================
 Humaniza la respuesta cruda del LLM sin llamar a ningún otro modelo.
 Garantías: sin em dash, sin punto final, sin frases relleno, sin emojis.

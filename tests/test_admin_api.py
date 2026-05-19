@@ -1,4 +1,4 @@
-"""Tests for melissa_admin_api.py"""
+"""Tests for conny_admin_api.py"""
 import sys
 import os
 sys.path.insert(0, ".")
@@ -7,7 +7,7 @@ os.environ.setdefault("MASTER_API_KEY", "test_key_123")
 os.environ.setdefault("ADMIN_API_KEY", "test_key_123")
 
 from fastapi.testclient import TestClient
-from melissa_admin_api import router as admin_router
+from conny_admin_api import router as admin_router
 from fastapi import FastAPI
 
 app = FastAPI()

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Harness HTTP agnóstico para conversaciones largas con Melissa.
+"""Harness HTTP agnóstico para conversaciones largas con Conny.
 
 Envía escenarios secuenciales contra un endpoint HTTP arbitrario, acepta
 respuestas en texto plano o JSON y genera un reporte con latencia, repetición
@@ -108,7 +108,7 @@ class TurnResult:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Harness HTTP agnóstico para conversaciones largas con Melissa"
+        description="Harness HTTP agnóstico para conversaciones largas con Conny"
     )
     parser.add_argument("--endpoint", required=True, help="URL HTTP del endpoint a probar")
     parser.add_argument(
@@ -136,7 +136,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--master-key",
-        default=os.getenv("MELISSA_MASTER_KEY", ""),
+        default=os.getenv("CONNY_MASTER_KEY", ""),
         help="Master key opcional para endpoints protegidos",
     )
     return parser.parse_args()

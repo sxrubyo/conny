@@ -1,25 +1,25 @@
 """
-nova_bridge.py — Puente entre Nova y Melissa
+nova_bridge.py — Puente entre Nova y Conny
 
-Nova es el sistema nervioso de Melissa:
-  - Antes de enviar cualquier mensaje, Melissa pregunta a Nova: "¿puedo?"
+Nova es el sistema nervioso de Conny:
+  - Antes de enviar cualquier mensaje, Conny pregunta a Nova: "¿puedo?"
   - Nova evalúa las reglas y responde: APPROVED / BLOCKED / ESCALATED
   - Todo queda en el ledger criptográfico de Nova
   - El admin puede crear reglas en lenguaje natural: "no le mandes X a Y"
 
 Cómo funciona:
-  1. MelissaGuard intercepta cada mensaje ANTES de enviarlo
+  1. ConnyGuard intercepta cada mensaje ANTES de enviarlo
   2. Llama a Nova /validate con la acción
   3. APPROVED → mensaje se envía normalmente
-  4. BLOCKED → Melissa responde algo alternativo, no el mensaje bloqueado
-  5. ESCALATED → Melissa le pregunta al admin antes de enviar
+  4. BLOCKED → Conny responde algo alternativo, no el mensaje bloqueado
+  5. ESCALATED → Conny le pregunta al admin antes de enviar
 
 Requisitos:
   - Nova server corriendo (puerto 9002 por defecto)
-  - NOVA_TOKEN configurado en .env (token del agente "Melissa")
+  - NOVA_TOKEN configurado en .env (token del agente "Conny")
   - NOVA_URL=http://localhost:9002
 
-Sin Nova activo → Melissa funciona normal (modo degradado seguro)
+Sin Nova activo → Conny funciona normal (modo degradado seguro)
 """
 
 from __future__ import annotations
@@ -34,11 +34,11 @@ from typing import Dict, List, Optional, Tuple
 
 import httpx
 
-log = logging.getLogger("melissa.nova")
+log = logging.getLogger("conny.nova")
 
 # ─── Config ──────────────────────────────────────────────────────────────────
 NOVA_URL      = os.getenv("NOVA_URL",      "http://localhost:9002")
-NOVA_TOKEN    = os.getenv("NOVA_TOKEN",    "")   # Token del agente Melissa en Nova
+NOVA_TOKEN    = os.getenv("NOVA_TOKEN",    "")   # Token del agente Conny en Nova
 NOVA_API_KEY  = os.getenv("NOVA_API_KEY",  "")   # API key de Nova
 NOVA_ENABLED  = os.getenv("NOVA_ENABLED",  "true").lower() == "true"
 NOVA_TIMEOUT  = float(os.getenv("NOVA_TIMEOUT", "3.0"))  # 3s max, no bloquear usuarios
@@ -125,7 +125,7 @@ class NovaClient:
         self._last_health_check = 0.0
 
     def _headers(self) -> Dict:
-        h = {"Content-Type": "application/json", "User-Agent": "melissa/5.0"}
+        h = {"Content-Type": "application/json", "User-Agent": "conny/5.0"}
         if self.api_key:
             h["Authorization"] = f"Bearer {self.api_key}"
             h["X-API-Key"] = self.api_key
@@ -205,12 +205,12 @@ class NovaClient:
         authorized_by: str = "admin"
     ) -> Dict:
         """
-        Crea o actualiza el agente Melissa en Nova con nuevas reglas.
+        Crea o actualiza el agente Conny en Nova con nuevas reglas.
         Se llama cuando el admin agrega una nueva regla en lenguaje natural.
         """
         payload = {
             "agent_name":    agent_name,
-            "description":   "Melissa — recepcionista virtual de clínica estética",
+            "description":   "Conny — recepcionista virtual de clínica estética",
             "can_do":        can_do,
             "cannot_do":     cannot_do,
             "authorized_by": authorized_by,
@@ -238,11 +238,11 @@ class NovaClient:
             return []
 
 
-# ─── Guard de Melissa ─────────────────────────────────────────────────────────
+# ─── Guard de Conny ─────────────────────────────────────────────────────────
 
-class MelissaGuard:
+class ConnyGuard:
     """
-    Interceptor principal entre Melissa y sus mensajes.
+    Interceptor principal entre Conny y sus mensajes.
     Se llama antes de enviar cualquier burbuja al paciente.
     
     Flujo:
@@ -264,7 +264,7 @@ class MelissaGuard:
         clinic_name: str = ""
     ) -> Tuple[bool, str, str]:
         """
-        Decide si Melissa puede enviar este mensaje.
+        Decide si Conny puede enviar este mensaje.
         
         Retorna: (should_send: bool, reason: str, ledger_id: str)
         """
@@ -348,20 +348,20 @@ class MelissaGuard:
 
 async def nl_to_nova_rules(
     instruction: str,
-    llm_complete_fn,  # función llm_engine.complete de melissa
+    llm_complete_fn,  # función llm_engine.complete de conny
     existing_rules: Dict = None
 ) -> Dict:
     """
     Traduce una instrucción en lenguaje natural a reglas de Nova.
     
-    Ej: "No permitas que Melissa le envíe precios a clientes con menos de 3 visitas"
+    Ej: "No permitas que Conny le envíe precios a clientes con menos de 3 visitas"
     →   cannot_do: ["send price information to new patients with fewer than 3 visits"]
     
     Retorna: {"can_do": [...], "cannot_do": [...], "explanation": "..."}
     """
     existing = json.dumps(existing_rules or {}, ensure_ascii=False)[:500]
 
-    prompt = f"""Eres un motor de políticas para Melissa, una recepcionista virtual de clínica estética.
+    prompt = f"""Eres un motor de políticas para Conny, una recepcionista virtual de clínica estética.
 
 El administrador dijo: "{instruction}"
 
@@ -415,13 +415,13 @@ EJEMPLOS:
 
 # ─── Funciones de configuración ───────────────────────────────────────────────
 
-async def setup_melissa_agent(
+async def setup_conny_agent(
     client: NovaClient,
     clinic_name: str,
-    agent_name: str = "Melissa"
+    agent_name: str = "Conny"
 ) -> Optional[str]:
     """
-    Crea el agente Melissa en Nova con reglas base para clínicas estéticas.
+    Crea el agente Conny en Nova con reglas base para clínicas estéticas.
     Retorna el token_id o None si falló.
     """
     can_do = [
@@ -446,7 +446,7 @@ async def setup_melissa_agent(
     ]
 
     result = await client.create_agent_rule(
-        agent_name=f"Melissa - {clinic_name}",
+        agent_name=f"Conny - {clinic_name}",
         can_do=can_do,
         cannot_do=cannot_do,
         authorized_by="admin"
@@ -454,7 +454,7 @@ async def setup_melissa_agent(
 
     if "error" not in result:
         token_id = result.get("token_id", "")
-        log.info(f"[nova] agente Melissa creado: {token_id[:20]}...")
+        log.info(f"[nova] agente Conny creado: {token_id[:20]}...")
         return token_id
     return None
 
@@ -481,11 +481,11 @@ async def get_ledger_summary(client: NovaClient, limit: int = 10) -> str:
 
 # ─── Instancia global ──────────────────────────────────────────────────────────
 
-_guard: Optional[MelissaGuard] = None
+_guard: Optional[ConnyGuard] = None
 _client: Optional[NovaClient] = None
 
 
-def init_nova() -> MelissaGuard:
+def init_nova() -> ConnyGuard:
     """Inicializa el puente Nova. Seguro aunque Nova no esté activo."""
     global _guard, _client
     _client = NovaClient(
@@ -493,7 +493,7 @@ def init_nova() -> MelissaGuard:
         api_key=NOVA_API_KEY,
         token_id=NOVA_TOKEN
     )
-    _guard = MelissaGuard(_client)
+    _guard = ConnyGuard(_client)
     if NOVA_ENABLED:
         log.info(f"[nova] bridge iniciado → {NOVA_URL}")
     else:
@@ -501,7 +501,7 @@ def init_nova() -> MelissaGuard:
     return _guard
 
 
-def get_guard() -> Optional[MelissaGuard]:
+def get_guard() -> Optional[ConnyGuard]:
     return _guard
 
 

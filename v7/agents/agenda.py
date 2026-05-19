@@ -1,5 +1,5 @@
 """
-Melissa V7.0 — Agente de Agenda
+Conny V7.0 — Agente de Agenda
 ==================================
 Gestiona la valoración/cita. Propone UN día concreto.
 Nunca inventa disponibilidad. Cierra hacia el micro-compromiso.

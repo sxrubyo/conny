@@ -1,10 +1,10 @@
-# Guia Operativa: Instancias Telegram de Melissa
+# Guia Operativa: Instancias Telegram de Conny
 
 ## Estado correcto
 
-- Melissa base vive en `:8001` y hoy está configurada para `whatsapp`.
+- Conny base vive en `:8001` y hoy está configurada para `whatsapp`.
 - Omni vive en `:9001` y usa su propio bot de Telegram para control.
-- Las instancias adicionales de Melissa para Telegram no deben exponerse con `http://IP:puerto`.
+- Las instancias adicionales de Conny para Telegram no deben exponerse con `http://IP:puerto`.
 - Deben vivir detrás de `https://nexusys.duckdns.org` usando una ruta dedicada de Caddy:
   - patrón: `/webhook/<WEBHOOK_SECRET>`
 
@@ -20,9 +20,9 @@ Ejemplo conceptual:
 
 - `BASE_URL=https://nexusys.duckdns.org`
 - `PORT=8003`
-- `WEBHOOK_SECRET=melissa_mi-instancia_abcd1234`
+- `WEBHOOK_SECRET=conny_mi-instancia_abcd1234`
 - Webhook final registrado en Telegram:
-  - `https://nexusys.duckdns.org/webhook/melissa_mi-instancia_abcd1234`
+  - `https://nexusys.duckdns.org/webhook/conny_mi-instancia_abcd1234`
 
 ## Qué rompía la instancia clínica
 
@@ -43,7 +43,7 @@ Ejemplo conceptual:
 ### 1. PM2
 
 ```bash
-pm2 show melissa-clinica-de-las-americas
+pm2 show conny-clinica-de-las-americas
 ```
 
 Debe verse `status: online`.
@@ -90,7 +90,7 @@ Debe responder:
 Revisar:
 
 ```bash
-pm2 logs melissa-clinica-de-las-americas --lines 80 --nostream
+pm2 logs conny-clinica-de-las-americas --lines 80 --nostream
 ```
 
 Buscar:
@@ -101,7 +101,7 @@ Buscar:
 
 ### No aparece escribiendo
 
-Si el webhook entra bien, Melissa dispara `sendChatAction` antes de responder.
+Si el webhook entra bien, Conny dispara `sendChatAction` antes de responder.
 Si no aparece escribiendo, revisar:
 
 - que el update esté entrando por el webhook correcto
@@ -121,8 +121,8 @@ Cuando crees una nueva instancia Telegram desde el CLI:
 
 ```bash
 pm2 ls
-pm2 show melissa-clinica-de-las-americas
-pm2 logs melissa-clinica-de-las-americas --lines 120 --nostream
+pm2 show conny-clinica-de-las-americas
+pm2 logs conny-clinica-de-las-americas --lines 120 --nostream
 docker compose -f /home/ubuntu/xus-https/docker-compose.yml restart caddy
 curl http://127.0.0.1:8003/health
 ```

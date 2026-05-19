@@ -108,7 +108,7 @@ scenarios:
 
   - id: reingreso
     title: Reingreso tras cierre
-    description: Revisa si Melissa saluda y retoma natural después de una pausa o cierre previo.
+    description: Revisa si Conny saluda y retoma natural después de una pausa o cierre previo.
     turns:
       - Hola
       - Quiero saber por botox en la frente
