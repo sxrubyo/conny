@@ -13271,6 +13271,87 @@ class ConnyUltra:
                 log.error(f"[demo] llm error: {e}")
                 return None
 
+        async def _llm_classify_business_name(raw_text: str) -> Tuple[bool, Optional[str]]:
+            candidate = (raw_text or "").strip()
+            if not candidate:
+                return False, None
+            
+            # Simple length checks or common greetings to save API calls
+            if len(candidate) < 2 or len(candidate) > 100:
+                return False, None
+                
+            normalized = _normalize_conv_text(candidate)
+            if normalized in {
+                "hola", "holaa", "holaaa", "holaaaa", "buenas", "buenasas", "buenasas", "buenasas",
+                "hey", "ey", "hi", "hello", "reset", "reiniciar", "menu", "menú"
+            }:
+                return False, None
+
+            sys_prompt = """Eres un clasificador y extractor de nombres de negocio de alta precisión para un chatbot de WhatsApp en modo demo.
+Analiza el mensaje del usuario y determina si está respondiendo a la pregunta de cómo se llama su negocio proporcionando el nombre de una clínica, empresa, marca, local o tienda para la demostración.
+
+REGLAS DE CLASIFICACIÓN:
+1. El mensaje debe contener el nombre de un negocio o marca de manera evidente (ej. "Nova", "Clinica de la Costa", "mi negocio es Spa Luna").
+2. Conversaciones casuales, saludos, preguntas sobre el funcionamiento del bot ("¿qué me quieres mostrar?", "¿de qué se trata?", "me mandaron tu número", "¿quién eres?"), respuestas afirmativas/negativas generales ("sí", "no", "ok", "claro"), o nombres de personas solos ("Santiago") NO son nombres de negocio.
+3. Si el mensaje es una frase donde presenta el negocio (ej. "se llama Peludos"), clasifica como negocio y extrae solo la marca limpia ("Peludos").
+
+EJEMPLOS DE POCAS TOMAS (FEW-SHOT):
+- Mensaje: "Nova"
+  Respuesta: {"es_negocio": true, "nombre": "Nova"}
+- Mensaje: "mi clínica se llama Clínica Dental Americana"
+  Respuesta: {"es_negocio": true, "nombre": "Clínica Dental Americana"}
+- Mensaje: "de qué se trata esto?"
+  Respuesta: {"es_negocio": false, "nombre": null}
+- Mensaje: "no quiero darte el nombre"
+  Respuesta: {"es_negocio": false, "nombre": null}
+- Mensaje: "Spa Luna, hacemos tratamientos faciales"
+  Respuesta: {"es_negocio": true, "nombre": "Spa Luna"}
+- Mensaje: "Petlandia"
+  Respuesta: {"es_negocio": true, "nombre": "Petlandia"}
+- Mensaje: "Carlos"
+  Respuesta: {"es_negocio": false, "nombre": null}
+- Mensaje: "hola buenas"
+  Respuesta: {"es_negocio": false, "nombre": null}
+
+Responde ÚNICAMENTE con un JSON válido:
+{
+  "es_negocio": true o false,
+  "nombre": "nombre del negocio limpio" (o null si es_negocio es false)
+}"""
+
+            try:
+                eng = _get_demo_engine()
+                if not eng:
+                    raise RuntimeError("LLM no init")
+                msgs = [
+                    {"role": "system", "content": sys_prompt},
+                    {"role": "user", "content": f"Mensaje del usuario: {raw_text}"}
+                ]
+                r, meta = await eng.complete(
+                    msgs,
+                    model_tier="fast",
+                    temperature=0.0,
+                    max_tokens=512,
+                    use_cache=False,
+                )
+                log.info(f"[demo] classify business name LLM using {meta.get('provider','?')} model={meta.get('model','?')[:30]}")
+                if not r:
+                    return _looks_like_business_name_candidate_legacy(raw_text), None
+
+                import json
+                clean_r = r.strip()
+                start_idx = clean_r.find("{")
+                end_idx = clean_r.rfind("}")
+                if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                    clean_r = clean_r[start_idx:end_idx+1]
+                
+                data = json.loads(clean_r)
+                return bool(data.get("es_negocio", False)), data.get("nombre")
+            except Exception as e:
+                log.error(f"[demo] Business name classification LLM failed: {e}")
+                legacy_res = _looks_like_business_name_candidate_legacy(raw_text)
+                return legacy_res, None
+
         async def _llm_conv_pitch(temp=0.85, max_t=8192, recent_limit=12):
             """LLM con el pitch de Black One para prospectos confundidos."""
             try:
@@ -13427,7 +13508,7 @@ class ConnyUltra:
                 bubbles[0] = bubbles[0][0].upper() + bubbles[0][1:] if bubbles[0] else bubbles[0]
             return bubbles
 
-        def _looks_like_business_name_candidate(raw_text: str) -> bool:
+        def _looks_like_business_name_candidate_legacy(raw_text: str) -> bool:
             candidate = (raw_text or "").strip()
             if not candidate:
                 return False
@@ -13915,20 +13996,26 @@ class ConnyUltra:
 Estás en una demo con un posible cliente (dueño de negocio). Tu trabajo: que se enamore de ti en 5 minutos.
 
 CÓMO SUENAS: como una persona real de Medellín escribiendo en WhatsApp.
-- Mensajes cortos, partidos en 2-3 burbujas
-- Sin puntuación perfecta (como escribe alguien real en WhatsApp)
-- Cero listas de capacidades, cero pitch de ventas directo
-- Tono: segura pero cercana, como compañera de trabajo que sabe lo que hace
-- Si te hablan en inglés, respondes en inglés perfecto y natural
+- Mensajes cortos, partidos en 2-3 burbujas usando ||| como separador.
+- Sin puntuación perfecta (como escribe alguien real en WhatsApp).
+- Escribe de forma informal: puedes empezar las burbujas o frases en minúsculas. NO uses mayúscula obligatoria en cada frase.
+- NO uses signos de apertura (¿ ni ¡) y NUNCA uses punto final al terminar las burbujas o frases sueltas (ej. escribe "hola cómo vas" en vez de "Hola, ¿cómo vas?").
+- Evita totalmente explicaciones largas o introducciones robóticas como "básicamente", "como tal", "mi función es", "soy una inteligencia artificial". Habla directo, como compañera de trabajo.
+- Si te hablan en inglés, respondes en inglés perfecto, súper casual y natural de WhatsApp.
 
 TU ESTRATEGIA DE DEMO (no la menciones, solo ejecútala):
-1. PRIMERO: saluda, preséntate brevemente, pregunta el nombre del negocio
-2. SEGUNDO: cuando te lo den, busca info del negocio y entra en personaje
-3. TERCERO: invita a que te escriban como si fueran un cliente real
-4. CUARTO: responde como recepcionista REAL de ese negocio — aquí es donde se enamoran
+1. PRIMERO: saluda de forma muy relajada ("holaa", "hola cómo vas", "conny por acá..."), preséntate brevemente y pide el nombre del negocio.
+2. SEGUNDO: cuando te lo den, busca info del negocio y entra en personaje.
+3. TERCERO: invita a que te escriban como si fueran un cliente real.
+4. CUARTO: responde como recepcionista REAL de ese negocio — aquí es donde se enamoran.
 5. QUINTO: después de 2-3 simulaciones, cierra: "si te gustó, Santiago te cuenta los planes: 3124348669"
 
-REGLA MÁXIMA: cada respuesta debe hacer que la persona piense "esto no puede ser una IA"
+REGLAS DE FORMATO (IMPORTANTÍSIMAS):
+- Escribe de manera ultra natural y fluida, como si chatearas rápido con un amigo.
+- Puedes omitir tildes de vez en cuando (ej. "tambien" en vez de "también", "asi" en vez de "así") y usar abreviaciones comunes y cortas en español (ej. "pq" o "por qué").
+- No saludes formalmente si ya se saludaron en el flujo.
+
+REGLA MÁXIMA: cada respuesta debe hacer que la persona piense "esto no puede ser una IA".
 
  SESIÓN ACTIVA: Tienes una sesión de demo de 30 minutos con este usuario. NO es una conversación nueva.
  {"Ya conoces el negocio: " + business_name + "." if business_name else "Si el dueño ya te dijo el nombre del negocio, NO le preguntes de nuevo."}
@@ -14051,17 +14138,7 @@ EJEMPLOS DE RESPUESTAS BUENAS vs MALAS:
                     owner_tokens = [token for token in _normalize_conv_text(owner_name).split() if len(token) >= 3]
                     if owner_tokens and not any(token in lowered_candidate for token in owner_tokens):
                         return True
-                # HUMANFIX: rechazar respuestas de 1 burbuja sin invitación de seguimiento
-                _cand_parts = [p.strip() for p in re.split(r"\s*\|\|\|\s*", candidate or "") if p.strip()]
-                _cand_low = lowered_candidate
-                _has_invitation = any(s in _cand_low for s in (
-                    "?", "cuál es", "cual es", "cómo se llama", "como se llama",
-                    "escríbeme", "escribeme", "cuéntame", "cuentame",
-                    "dime", "pásame", "pasame", "arrancamos", "probame",
-                    "para arrancar", "para empezar",
-                ))
-                if len(_cand_parts) == 1 and not _has_invitation:
-                    return True  # respuesta cortada → regenerar
+
                 if recent_assistant_norm and lowered_candidate and lowered_candidate == recent_assistant_norm:
                     return True
                 if already_disclosed_ai and lowered_candidate.startswith("si soy una ia"):
@@ -14276,13 +14353,19 @@ TONO: Cálido, profesional, como receptionistareal.
                 _save("user", text)
                 return _send(" ||| ".join(demo_patient_bubbles))
 
+        # Classify business name using LLM
+        is_name_candidate = False
+        extracted_name = None
+        if not sim_mode_active and not detected_cmd and not self._demo_should_use_patient_chat_path(text):
+            is_name_candidate, extracted_name = await _llm_classify_business_name(text)
+
         # ── PASO 0: Onboarding demo del dueño — dirigido por LLM ───────────────
         if (
             not business_name
             and not detected_cmd
             and not self._demo_should_use_patient_chat_path(text)
             and not _force_business_bind
-            and not _looks_like_business_name_candidate(text)
+            and not is_name_candidate
         ):
             # BLACK ONE: Si el prospecto está confundido y pregunta qué hace Conny,
             # usar el pitch inteligente en vez del onboarding genérico
@@ -14345,183 +14428,186 @@ TONO: Cálido, profesional, como receptionistareal.
         if not business_name and len(history) <= 12:
             nombre_raw = text.strip()
 
-            # Validar que no sea error de audio (sin límite duro de chars — la gente describe el negocio)
-            _bad = ["[no se pudo","[no pude","transcripci","veed","inline_data"]
-            if any(b in nombre_raw.lower() for b in _bad):
-                _save("user", nombre_raw)
-                return _send(_r.choice(["no te escuché ||| cómo se llama tu negocio","no entendí bien ||| dime el nombre de tu negocio o clínica","perdona, no te oí bien ||| cuál es el nombre del negocio"]))
+            if is_name_candidate and extracted_name:
+                nombre = extracted_name
+            else:
+                # Validar que no sea error de audio (sin límite duro de chars — la gente describe el negocio)
+                _bad = ["[no se pudo","[no pude","transcripci","veed","inline_data"]
+                if any(b in nombre_raw.lower() for b in _bad):
+                    _save("user", nombre_raw)
+                    return _send(_r.choice(["no te escuché ||| cómo se llama tu negocio","no entendí bien ||| dime el nombre de tu negocio o clínica","perdona, no te oí bien ||| cuál es el nombre del negocio"]))
 
-            # Detectar preguntas o frases que claramente NO son un nombre de negocio
-            _explicit_business_phrase = any(
-                marker in nombre_raw.lower()
-                for marker in (
-                    "el nombre de mi negocio se llama",
-                    "el nombre de nuestro negocio se llama",
-                    "el nombre de mi empresa se llama",
-                    "el nombre de nuestra empresa se llama",
-                    "el nombre de mi negocio es",
-                    "el nombre del negocio es",
-                    "el nombre de mi empresa es",
-                    "el nombre de la empresa es",
-                    "mi negocio se llama",
-                    "nuestro negocio se llama",
-                    "mi empresa se llama",
-                    "nuestra empresa se llama",
+                # Detectar preguntas o frases que claramente NO son un nombre de negocio
+                _explicit_business_phrase = any(
+                    marker in nombre_raw.lower()
+                    for marker in (
+                        "el nombre de mi negocio se llama",
+                        "el nombre de nuestro negocio se llama",
+                        "el nombre de mi empresa se llama",
+                        "el nombre de nuestra empresa se llama",
+                        "el nombre de mi negocio es",
+                        "el nombre del negocio es",
+                        "el nombre de mi empresa es",
+                        "el nombre de la empresa es",
+                        "mi negocio se llama",
+                        "nuestro negocio se llama",
+                        "mi empresa se llama",
+                        "nuestra empresa se llama",
+                    )
                 )
-            )
-            _question_signals = [
-                "?", "qué es", "que es", "cómo funciona", "como funciona",
-                "quiero saber", "deseo obtener", "necesito información", "me pueden",
-                "pueden decirme", "quisiera saber", "cuánto cuesta", "cuanto cuesta",
-                "información sobre", "informacion sobre", "para qué sirve",
-                "what is this", "what do you do", "who are you", "how does it work",
-                "i dont understand", "i don't understand", "why do you need",
-            ]
-            if not _explicit_business_phrase and any(s in nombre_raw.lower() for s in _question_signals):
-                explain_name = any(token in nombre_raw.lower() for token in ("para que", "para qué", "por que", "por qué", "why do you need"))
-                return await _demo_owner_onboarding_reply(explain_name=explain_name)
+                _question_signals = [
+                    "?", "qué es", "que es", "cómo funciona", "como funciona",
+                    "quiero saber", "deseo obtener", "necesito información", "me pueden",
+                    "pueden decirme", "quisiera saber", "cuánto cuesta", "cuanto cuesta",
+                    "información sobre", "informacion sobre", "para qué sirve",
+                    "what is this", "what do you do", "who are you", "how does it work",
+                    "i dont understand", "i don't understand", "why do you need",
+                ]
+                if not _explicit_business_phrase and any(s in nombre_raw.lower() for s in _question_signals):
+                    explain_name = any(token in nombre_raw.lower() for token in ("para que", "para qué", "por que", "por qué", "why do you need"))
+                    return await _demo_owner_onboarding_reply(explain_name=explain_name)
 
-            # Detectar saludos y frases conversacionales que NO son un nombre de negocio
-            _conversational = [
-                "hola","buenas","hey","ey","holi","buenas tardes","buenas noches","buenos días",
-                "como estas","cómo estás","como estas","bien","como va","que mas","qué más",
-                "todo bien","muy bien","gracias","de nada","ok","okay","sí","si","no",
-                "claro","dale","listo","perfecto","entendido","excelente","genial",
-                "jaja","jeje","xd","😊","😂","👍","🙏",
-                "quién eres","quien eres","qué haces","que haces","para qué sirves",
-                "eres un bot","eres ia","eres humano","cómo te llamas","como te llamas",
-                "hi","hello","good morning","good afternoon","good evening",
-                "sorry","thanks","thank you","yep","yes","nope",
-                "what is this","what do you do","who are you","i don't understand","i dont understand",
-                "english only","i don't talk spanish","i dont talk spanish",
-            ]
-            if not _explicit_business_phrase and any(nombre_raw.lower().strip() == s or nombre_raw.lower().strip().startswith(s + " ")
-                   for s in _conversational):
-                return await _demo_owner_onboarding_reply()
+                # Detectar saludos y frases conversacionales que NO son un nombre de negocio
+                _conversational = [
+                    "hola","buenas","hey","ey","holi","buenas tardes","buenas noches","buenos días",
+                    "como estas","cómo estás","como estas","bien","como va","que mas","qué más",
+                    "todo bien","muy bien","gracias","de nada","ok","okay","sí","si","no",
+                    "claro","dale","listo","perfecto","entendido","excelente","genial",
+                    "jaja","jeje","xd","😊","😂","👍","🙏",
+                    "quién eres","quien eres","qué haces","que haces","para qué sirves",
+                    "eres un bot","eres ia","eres humano","cómo te llamas","como te llamas",
+                    "hi","hello","good morning","good afternoon","good evening",
+                    "sorry","thanks","thank you","yep","yes","nope",
+                    "what is this","what do you do","who are you","i don't understand","i dont understand",
+                    "english only","i don't talk spanish","i dont talk spanish",
+                ]
+                if not _explicit_business_phrase and any(nombre_raw.lower().strip() == s or nombre_raw.lower().strip().startswith(s + " ")
+                       for s in _conversational):
+                    return await _demo_owner_onboarding_reply()
 
-            # Detectar si es nombre de persona en vez de negocio
-            # HUMANFIX: solo rechazar si es un nombre humano CONOCIDO.
-            # Nombres creativos como "Peludos", "Bigotes", "Glamour" son negocios válidos.
-            _biz = ["clinica","clinic","centro","consultorio","tienda","salon","spa",
-                    "gym","gimnasio","restaurante","hotel","academia","estudio","taller",
-                    "dental","estetica","salud","espacio","lab","farmacia","inmobiliaria",
-                    "group","corp","servicios","soluciones","base","camas","lujo","empresa"]
-            _KNOWN_HUMAN_NAMES = {
-                "santiago","carlos","andres","andrés","david","juan","luis","miguel",
-                "daniel","felipe","sebastian","sebastián","alejandro","gabriel","samuel",
-                "nicolas","nicolás","diego","mateo","martin","martín","simon","simón",
-                "lucas","pablo","jorge","sergio","fabian","fabián","camilo","ivan","iván",
-                "jaime","javier","jonathan","kevin","mario","mauricio","oscar","óscar",
-                "rafael","ramon","ramón","richard","roberto","rodrigo","wilson","yesid",
-                "henry","hernan","hernán","fernando","francisco","fabio","cristian",
-                "jesus","jesús","jose","josé","manuel","pedro","antonio","victor","víctor",
-                "hugo","ernesto","gustavo","nelson","edgar","jhon","john","james",
-                "michael","william","thomas","joseph","steven","mark",
-                "maria","maría","ana","laura","sofia","sofía","valentina","camila","sara",
-                "isabella","monica","mónica","patricia","claudia","andrea","natalia",
-                "daniela","lucia","lucía","paula","juliana","manuela","gabriela",
-                "catalina","carolina","paola","gloria","sandra","liliana","rosa",
-                "elena","carmen","beatriz","alejandra","isabel","pilar","cristina",
-                "mariana","tatiana","vanessa","yolanda","adriana","amanda","angela",
-                "ángela","blanca","cecilia","diana","elizabeth","jennifer","jessica",
-                "ashley","emily","sarah","lisa","conny",
-            }
-            words = nombre_raw.lower().split()
-            _is_known_person_name = (
-                len(words) == 1
-                and nombre_raw[0].isupper()
-                and not any(b in nombre_raw.lower() for b in _biz)
-                and not any(c.isdigit() for c in nombre_raw)
-                and nombre_raw.lower().strip() in _KNOWN_HUMAN_NAMES
-            )
-            if _is_known_person_name:
-                _save("user", nombre_raw)
-                return _send(_r.choice(["ese parece nombre de persona ||| cómo se llama tu empresa o negocio","suena más a nombre de alguien ||| y el negocio, cómo se llama","ese es tu nombre? ||| yo necesito el nombre del negocio"]))
-
-            # ── Extraer el nombre real si viene dentro de una frase ─────────────
-            # "el nombre de mi negocio es Bigotes que hace X" → "Bigotes"
-            # "mi negocio se llama Spa Luna" → "Spa Luna"
-            import re as _re
-
-            # Separadores que indican que el nombre terminó y empieza una descripción
-            _cut = _re.compile(
-                r'(?:'
-                r'\s+que\s+(?:se\s+)?(?:encarga|dedica|hace|ofrece|vende|brinda|trabaja)|'
-                r'\s+dedicad[ao]\s+a|'
-                r'\s+especializa|'
-                r'\s+ubicad[ao]|'
-                r'\s+estamos\s+(?:ubicad[ao]s?\s+)?en|'
-                r'\s+quedamos\s+en|'
-                r'\s+y\s+nos\s+dedicamos|'
-                r',\s*(?:somos|nos\s+dedicamos|es\s+una|dedicad|especializa|estamos|atendemos|ofrecemos|trabajamos|quedamos)'
-                r')',
-                _re.IGNORECASE
-            )
-
-            _patterns = [
-                r"(?:el\s+)?nombre\s+(?:de\s+(?:mi|nuestro)\s+)?(?:negocio|empresa|clinica|local|salon|consultorio|tienda)\s+es\s+(.+)",
-                r"(?:mi|nuestro)\s+(?:negocio|empresa|clinica|local|salon|consultorio|tienda)\s+(?:es|se\s+llama)\s+(.+)",
-                r"se\s+llama\s+(.+)",
-                r"(?:llamamos?|llamo)\s+(.+)",
-                r"negocio\s+es\s+(.+)",
-                r"empresa\s+es\s+(.+)",
-            ]
-            nombre = nombre_raw
-            for pat in _patterns:
-                m = _re.search(pat, nombre_raw.lower())
-                if m:
-                    start  = m.start(1)
-                    raw_ex = nombre_raw[start:]
-                    # Cortar en cláusula relativa / descripción
-                    cut_m  = _cut.search(raw_ex)
-                    if cut_m:
-                        raw_ex = raw_ex[:cut_m.start()]
-                    extracted = raw_ex.strip(" .,;\"'")
-                    if len(extracted) >= 2:
-                        nombre = extracted
-                        break
-
-            def _clean_extracted_business_name(raw_candidate: str) -> str:
-                cleaned = (raw_candidate or "").strip(" .,;\"'")
-                cleaned = _re.sub(
-                    r',\s*(?:estamos|somos|nos\s+ubicamos|nos\s+encontramos|atendemos|ofrecemos|trabajamos|quedamos)\b.*$',
-                    '',
-                    cleaned,
-                    flags=_re.IGNORECASE,
+                # Detectar si es nombre de persona en vez de negocio
+                # HUMANFIX: solo rechazar si es un nombre humano CONOCIDO.
+                # Nombres creativos como "Peludos", "Bigotes", "Glamour" son negocios válidos.
+                _biz = ["clinica","clinic","centro","consultorio","tienda","salon","spa",
+                        "gym","gimnasio","restaurante","hotel","academia","estudio","taller",
+                        "dental","estetica","salud","espacio","lab","farmacia","inmobiliaria",
+                        "group","corp","servicios","soluciones","base","camas","lujo","empresa"]
+                _KNOWN_HUMAN_NAMES = {
+                    "santiago","carlos","andres","andrés","david","juan","luis","miguel",
+                    "daniel","felipe","sebastian","sebastián","alejandro","gabriel","samuel",
+                    "nicolas","nicolás","diego","mateo","martin","martín","simon","simón",
+                    "lucas","pablo","jorge","sergio","fabian","fabián","camilo","ivan","iván",
+                    "jaime","javier","jonathan","kevin","mario","mauricio","oscar","óscar",
+                    "rafael","ramon","ramón","richard","roberto","rodrigo","wilson","yesid",
+                    "henry","hernan","hernán","fernando","francisco","fabio","cristian",
+                    "jesus","jesús","jose","josé","manuel","pedro","antonio","victor","víctor",
+                    "hugo","ernesto","gustavo","nelson","edgar","jhon","john","james",
+                    "michael","william","thomas","joseph","steven","mark",
+                    "maria","maría","ana","laura","sofia","sofía","valentina","camila","sara",
+                    "isabella","monica","mónica","patricia","claudia","andrea","natalia",
+                    "daniela","lucia","lucía","paula","juliana","manuela","gabriela",
+                    "catalina","carolina","paola","gloria","sandra","liliana","rosa",
+                    "elena","carmen","beatriz","alejandra","isabel","pilar","cristina",
+                    "mariana","tatiana","vanessa","yolanda","adriana","amanda","angela",
+                    "ángela","blanca","cecilia","diana","elizabeth","jennifer","jessica",
+                    "ashley","emily","sarah","lisa","conny",
+                }
+                words = nombre_raw.lower().split()
+                _is_known_person_name = (
+                    len(words) == 1
+                    and nombre_raw[0].isupper()
+                    and not any(b in nombre_raw.lower() for b in _biz)
+                    and not any(c.isdigit() for c in nombre_raw)
+                    and nombre_raw.lower().strip() in _KNOWN_HUMAN_NAMES
                 )
-                cleaned = _re.sub(
-                    r'\s+estamos\s+(?:ubicad[ao]s?\s+)?en\b.*$',
-                    '',
-                    cleaned,
-                    flags=_re.IGNORECASE,
-                )
-                cleaned = _re.sub(
-                    r'\s+ubicad[ao]s?\s+en\b.*$',
-                    '',
-                    cleaned,
-                    flags=_re.IGNORECASE,
-                )
-                cleaned = _re.sub(
-                    r'\s+quedamos\s+en\b.*$',
-                    '',
-                    cleaned,
-                    flags=_re.IGNORECASE,
-                )
-                return cleaned.strip(" .,;\"'")
+                if _is_known_person_name:
+                    _save("user", nombre_raw)
+                    return _send(_r.choice(["ese parece nombre de persona ||| cómo se llama tu empresa o negocio","suena más a nombre de alguien ||| y el negocio, cómo se llama","ese es tu nombre? ||| yo necesito el nombre del negocio"]))
 
-            nombre = _clean_extracted_business_name(nombre)
+                # ── Extraer el nombre real si viene dentro de una frase ─────────────
+                # "el nombre de mi negocio es Bigotes que hace X" → "Bigotes"
+                # "mi negocio se llama Spa Luna" → "Spa Luna"
+                import re as _re
 
-            # v11: strip de afirmaciones conversacionales al inicio del nombre
-            # Ej: "Vale, Clinica de los molinos" → "Clinica de los molinos"
-            # Ej: "Ok, es Spa Luna" → "Spa Luna"
-            _affirm_prefix = _re.compile(
-                r'^(?:vale|ok|okay|s[ií]p?|claro|dale|listo|exacto|perfecto|correcto|bueno|ya|eso|es)[\s,]+',
-                _re.IGNORECASE,
-            )
-            _nombre_stripped = _affirm_prefix.sub('', nombre).strip(' .,;')
-            if len(_nombre_stripped) >= 2:
-                nombre = _nombre_stripped
-            nombre = _clean_extracted_business_name(nombre)
+                # Separadores que indican que el nombre terminó y empieza una descripción
+                _cut = _re.compile(
+                    r'(?:'
+                    r'\s+que\s+(?:se\s+)?(?:encarga|dedica|hace|ofrece|vende|brinda|trabaja)|'
+                    r'\s+dedicad[ao]\s+a|'
+                    r'\s+especializa|'
+                    r'\s+ubicad[ao]|'
+                    r'\s+estamos\s+(?:ubicad[ao]s?\s+)?en|'
+                    r'\s+quedamos\s+en|'
+                    r'\s+y\s+nos\s+dedicamos|'
+                    r',\s*(?:somos|nos\s+dedicamos|es\s+una|dedicad|especializa|estamos|atendemos|ofrecemos|trabajamos|quedamos)'
+                    r')',
+                    _re.IGNORECASE
+                )
+
+                _patterns = [
+                    r"(?:el\s+)?nombre\s+(?:de\s+(?:mi|nuestro)\s+)?(?:negocio|empresa|clinica|local|salon|consultorio|tienda)\s+es\s+(.+)",
+                    r"(?:mi|nuestro)\s+(?:negocio|empresa|clinica|local|salon|consultorio|tienda)\s+(?:es|se\s+llama)\s+(.+)",
+                    r"se\s+llama\s+(.+)",
+                    r"(?:llamamos?|llamo)\s+(.+)",
+                    r"negocio\s+es\s+(.+)",
+                    r"empresa\s+es\s+(.+)",
+                ]
+                nombre = nombre_raw
+                for pat in _patterns:
+                    m = _re.search(pat, nombre_raw.lower())
+                    if m:
+                        start  = m.start(1)
+                        raw_ex = nombre_raw[start:]
+                        # Cortar en cláusula relativa / descripción
+                        cut_m  = _cut.search(raw_ex)
+                        if cut_m:
+                            raw_ex = raw_ex[:cut_m.start()]
+                        extracted = raw_ex.strip(" .,;\"'")
+                        if len(extracted) >= 2:
+                            nombre = extracted
+                            break
+
+                def _clean_extracted_business_name(raw_candidate: str) -> str:
+                    cleaned = (raw_candidate or "").strip(" .,;\"'")
+                    cleaned = _re.sub(
+                        r',\s*(?:estamos|somos|nos\s+ubicamos|nos\s+encontramos|atendemos|ofrecemos|trabajamos|quedamos)\b.*$',
+                        '',
+                        cleaned,
+                        flags=_re.IGNORECASE,
+                    )
+                    cleaned = _re.sub(
+                        r'\s+estamos\s+(?:ubicad[ao]s?\s+)?en\b.*$',
+                        '',
+                        cleaned,
+                        flags=_re.IGNORECASE,
+                    )
+                    cleaned = _re.sub(
+                        r'\s+ubicad[ao]s?\s+en\b.*$',
+                        '',
+                        cleaned,
+                        flags=_re.IGNORECASE,
+                    )
+                    cleaned = _re.sub(
+                        r'\s+quedamos\s+en\b.*$',
+                        '',
+                        cleaned,
+                        flags=_re.IGNORECASE,
+                    )
+                    return cleaned.strip(" .,;\"'")
+
+                nombre = _clean_extracted_business_name(nombre)
+
+                # v11: strip de afirmaciones conversacionales al inicio del nombre
+                # Ej: "Vale, Clinica de los molinos" → "Clinica de los molinos"
+                # Ej: "Ok, es Spa Luna" → "Spa Luna"
+                _affirm_prefix = _re.compile(
+                    r'^(?:vale|ok|okay|s[ií]p?|claro|dale|listo|exacto|perfecto|correcto|bueno|ya|eso|es)[\s,]+',
+                    _re.IGNORECASE,
+                )
+                _nombre_stripped = _affirm_prefix.sub('', nombre).strip(' .,;')
+                if len(_nombre_stripped) >= 2:
+                    nombre = _nombre_stripped
+                nombre = _clean_extracted_business_name(nombre)
 
             # Validar longitud DESPUÉS de extraer (2 chars mínimo — siglas como "MS" son válidas)
             if len(nombre) < 2:
@@ -14658,19 +14744,6 @@ Máximo 1 oración por burbuja. Natural y seguro."""
                 ):
                     return True
                 if _demo_owner_reply_is_low_quality(candidate):
-                    return True
-                if not any(token in lowered_candidate for token in ("cliente", "chat", "client", "business", "cliente real")):
-                    return True
-                if not found and any(
-                    token in lowered_candidate
-                    for token in (
-                        "supongo que",
-                        "parece que",
-                        "creo que",
-                        "debe ser",
-                        "seguramente",
-                    )
-                ):
                     return True
                 return False
 
@@ -14940,7 +15013,7 @@ Máximo 1 oración por burbuja. Natural y seguro."""
             business_name
             and not sim_mode_active
             and not detected_cmd
-            and _looks_like_business_name_candidate(text)
+            and is_name_candidate
             and not _looks_like_business_confirmation(text)
             and _candidate_business_norm
             and _candidate_business_norm != _current_business_norm

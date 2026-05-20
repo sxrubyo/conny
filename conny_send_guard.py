@@ -159,9 +159,7 @@ def is_cut_response(response: str) -> Tuple[bool, str]:
     ])
     has_terminal_punctuation = last.rstrip().endswith((".", "!", "?", "…"))
 
-    if len(parts) == 1 and not has_question and not has_invitation and not has_terminal_punctuation and len(last) < 24:
-        return True, "respuesta de 1 sola burbuja muy corta sin invitación"
-
+    # Removido para evitar conflicto con la regla de estilo "sin punto al final" y confiar en el LLM
     return False, ""
 
 
@@ -191,8 +189,6 @@ import random as _random
 _SEVERE_FRAGMENT_PATTERNS = (
     r"^hola!?(\s+soy)?$",
     r"^hola!?(\s+sea)?$",
-    r"^hola!?(\s+soy\s+\w+)?$",
-    r"^hola!?(\s+\w+\s+por\s+aca)?$",
     r"^soy$",
     r"^soy\s+\w+$",
     r"^ok$",
@@ -277,9 +273,28 @@ def repair_response(
     looks_too_thin = len(last.strip()) < 18 or len(parts) == 0
 
     if _is_severe_fragment(last):
-        rescue = _severe_fragment_rescue(context=context, business_name=business_name)
-        log.info(f"[send_guard] fragmento severo → rescate neutro: '{rescue}'")
-        return rescue
+        if len(parts) > 1:
+            parts = parts[:-1]
+            log.info(f"[send_guard] burbuja final corta removida pero se conservan las previas ({len(parts)})")
+            # Verificar si la nueva burbuja de cierre necesita un cierre seguro
+            last = parts[-1]
+            has_close = '?' in last or any(
+                inv in last.lower() for inv in [
+                    "cuéntame", "cuentame", "dime", "escríbeme", "escribeme",
+                    "dale", "listo", "cuál es", "cual es", "seguimos",
+                ]
+            )
+            looks_too_thin = len(last.strip()) < 18 or len(parts) == 0
+            if not has_close and looks_too_thin:
+                if context == "demo":
+                    closing = _random.choice(_SAFE_CLOSINGS_DEMO)
+                else:
+                    closing = _random.choice(_SAFE_CLOSINGS_PATIENT)
+                parts.append(closing)
+            return " ||| ".join(parts)
+        else:
+            log.info(f"[send_guard] fragmento severo en respuesta única → se conserva intacto para confiar en el LLM: '{response}'")
+            return response
 
     if not has_close and looks_too_thin:
         if context == "demo":

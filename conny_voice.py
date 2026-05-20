@@ -10,19 +10,19 @@ log = logging.getLogger("conny.voice")
 
 # Patterns that MUST be removed/replaced from any response
 ROBOT_PATTERNS = [
-    (re.compile(r"como (IA|inteligencia artificial|asistente virtual|bot)", re.I), ""),
+    (re.compile(r"como (IA|inteligencia artificial|(?:asistente|asesora)\s+virtual|bot)", re.I), ""),
     (re.compile(r"no (tengo|tenemos) (la )?capacidad", re.I), "no manejo eso ahora mismo"),
     (re.compile(r"está fuera de mi (alcance|capacidades)", re.I), "eso tendría que verificarlo"),
     (re.compile(r"no (puedo|podemos) (procesar|entender)", re.I), "no tengo esa información ahora"),
-    (re.compile(r"^(Hola|Buenos días|Buenas tardes)[,!]?\s*(Soy|Me llamo)\s*Conny", re.I), ""),
+    (re.compile(r"^(Hola|Buenos días|Buenas tardes)[,!]?\s*(Soy|Me llamo)\s*Conny(?:,\s*(?:tu|la)\s+(?:asistente|asesora)\s+virtual)?[.!?]?(?:\s+|$)", re.I), ""),
     (re.compile(r"¡?Por supuesto[,!]?\s*", re.I), ""),
     (re.compile(r"¡?Claro que sí[,!]?\s*", re.I), ""),
     (re.compile(r"¡?Con gusto[,!]?\s*", re.I), ""),
     (re.compile(r"¡+", re.I), ""),  # Remove excessive exclamation
     (re.compile(r"^\s*¡\s*", re.I), ""),
-    (re.compile(r",?\s*tu\s+asistente\s+virtual[.,]?\s*", re.I), ". "),
-    (re.compile(r"(?:como|en mi rol de) asistente virtual", re.I), ""),
-    (re.compile(r"(?:soy\s+)?(?:tu\s+)?asistente\s+virtual", re.I), ""),
+    (re.compile(r",?\s*(?:tu|la)\s+(?:asistente|asesora)\s+virtual[.,]?\s*", re.I), ". "),
+    (re.compile(r"(?:como|en mi rol de) (?:asistente|asesora)\s+virtual", re.I), ""),
+    (re.compile(r"(?:soy\s+)?(?:tu|la\s+)?(?:asistente|asesora)\s+virtual", re.I), ""),
     (re.compile(r"estoy aquí para (servirte|atenderte)", re.I), ""),
     (re.compile(r"no dudes en", re.I), ""),
     (re.compile(r"estaré encantad[ao] de", re.I), ""),

@@ -25,6 +25,131 @@ except ImportError:
         DEMO_SECTOR = "estetica"
 
 
+
+class DatabaseBackedDict:
+    """
+    Un diccionario persistente respaldado por SQLite para compartir el estado
+    de sesiones demo entre múltiples procesos (PM2 cluster) de manera segura.
+    """
+    def __init__(self, db_path: str):
+        import os
+        import sqlite3
+        self.db_path = db_path
+        # Asegurar que el directorio de la base de datos existe
+        os.makedirs(os.path.dirname(os.path.abspath(self.db_path)), exist_ok=True)
+        # Crear la tabla de sesiones demo si no existe
+        with sqlite3.connect(self.db_path, timeout=30.0) as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS demo_sessions (
+                    key TEXT PRIMARY KEY,
+                    value TEXT
+                )
+            """)
+            conn.commit()
+
+    def _conn(self):
+        import sqlite3
+        conn = sqlite3.connect(self.db_path, timeout=30.0)
+        conn.row_factory = sqlite3.Row
+        return conn
+
+    def __getitem__(self, key: str) -> Any:
+        import json
+        with self._conn() as conn:
+            row = conn.execute("SELECT value FROM demo_sessions WHERE key = ?", (key,)).fetchone()
+            if row is None:
+                raise KeyError(key)
+            try:
+                return json.loads(row["value"])
+            except Exception:
+                raise KeyError(key)
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        import json
+        with self._conn() as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO demo_sessions (key, value) VALUES (?, ?)",
+                (key, json.dumps(value, ensure_ascii=False))
+            )
+            conn.commit()
+
+    def __delitem__(self, key: str) -> None:
+        with self._conn() as conn:
+            row = conn.execute("SELECT 1 FROM demo_sessions WHERE key = ?", (key,)).fetchone()
+            if row is None:
+                raise KeyError(key)
+            conn.execute("DELETE FROM demo_sessions WHERE key = ?", (key,))
+            conn.commit()
+
+    def __contains__(self, key: str) -> bool:
+        with self._conn() as conn:
+            row = conn.execute("SELECT 1 FROM demo_sessions WHERE key = ?", (key,)).fetchone()
+            return row is not None
+
+    def get(self, key: str, default: Any = None) -> Any:
+        try:
+            return self[key]
+        except KeyError:
+            return default
+
+    def pop(self, key: str, default: Any = None) -> Any:
+        try:
+            val = self[key]
+            del self[key]
+            return val
+        except KeyError:
+            return default
+
+    def setdefault(self, key: str, default: Any = None) -> Any:
+        try:
+            return self[key]
+        except KeyError:
+            self[key] = default
+            return default
+
+    def items(self) -> List[Tuple[str, Any]]:
+        import json
+        with self._conn() as conn:
+            rows = conn.execute("SELECT key, value FROM demo_sessions").fetchall()
+            res = []
+            for r in rows:
+                try:
+                    res.append((r["key"], json.loads(r["value"])))
+                except Exception:
+                    pass
+            return res
+
+    def keys(self) -> List[str]:
+        with self._conn() as conn:
+            rows = conn.execute("SELECT key FROM demo_sessions").fetchall()
+            return [r["key"] for r in rows]
+
+    def values(self) -> List[Any]:
+        import json
+        with self._conn() as conn:
+            rows = conn.execute("SELECT value FROM demo_sessions").fetchall()
+            res = []
+            for r in rows:
+                try:
+                    res.append(json.loads(r["value"]))
+                except Exception:
+                    pass
+            return res
+
+    def __iter__(self):
+        return iter(self.keys())
+
+    def __len__(self) -> int:
+        with self._conn() as conn:
+            row = conn.execute("SELECT count(*) as cnt FROM demo_sessions").fetchone()
+            return row["cnt"]
+
+    def clear(self) -> None:
+        with self._conn() as conn:
+            conn.execute("DELETE FROM demo_sessions")
+            conn.commit()
+
+
 class SessionManager:
     """
     Gestor de sesiones demo para Conny Ultra.
@@ -178,10 +303,17 @@ class SessionManager:
         is_new = (now - last_seen) > ttl
         self._demo_sessions[sk + "_ts"] = now
 
-        self._demo_sessions = {
-            k: v for k, v in self._demo_sessions.items()
-            if not k.endswith("_ts") or (now - v) < ttl * 2
-        }
+        # Limpiar sesiones expiradas in-place sin reasignar el diccionario
+        expired_keys = [
+            k for k, v in list(self._demo_sessions.items())
+            if k.endswith("_ts") and (now - v) >= ttl * 2
+        ]
+        for ek in expired_keys:
+            expired_chat_id = ek.replace("_ts", "").replace("demo_", "")
+            sk_expired = f"demo_{expired_chat_id}"
+            keys_to_del = [k for k in list(self._demo_sessions) if k.startswith(sk_expired)]
+            for kd in keys_to_del:
+                self._demo_sessions.pop(kd, None)
 
         if is_new:
             keys_to_delete = [k for k in list(self._demo_sessions)

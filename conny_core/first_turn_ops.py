@@ -17,10 +17,11 @@ def _normalize_conv_text(text: str) -> str:
 _GREETING_SIGNAL_TOKENS = {
     "hola", "buenas", "buenos", "dias", "tardes", "noches",
     "hey", "holi", "ey", "saludos",
+    "holaa", "holaaa", "holaaaa", "holas", "buenasas", "buenasa",
 }
 _GREETING_FILLER_TOKENS = {
     "que", "tal", "como", "estas", "esta", "todo", "bien", "mas", "pues",
-    "holaa", "holaaa", "buena", "buen", "va",
+    "buena", "buen", "va",
 }
 
 
@@ -103,8 +104,18 @@ def _clean_first_contact_part(text: str) -> str:
         part,
         flags=re.IGNORECASE,
     ).strip()
-    part = re.sub(r"^(soy\s+conny[^.?!]*[.?!]?\s*)", "", part, flags=re.IGNORECASE).strip()
-    part = re.sub(r"^(te\s+habla\s+conny[^.?!]*[.?!]?\s*)", "", part, flags=re.IGNORECASE).strip()
+    part = re.sub(
+        r"^(soy\s+conny(?:,\s*(?:tu|la)\s+(?:asistente|asesora)\s+virtual)?(?:\s+de\s+[^,.?!]+)?)[,!. ]*",
+        "",
+        part,
+        flags=re.IGNORECASE,
+    ).strip()
+    part = re.sub(
+        r"^(te\s+habla\s+conny(?:,\s*(?:tu|la)\s+(?:asistente|asesora)\s+virtual)?(?:\s+de\s+[^,.?!]+)?)[,!. ]*",
+        "",
+        part,
+        flags=re.IGNORECASE,
+    ).strip()
     return part
 
 
@@ -206,9 +217,8 @@ def _is_low_quality_first_contact_part(
             "soy conny",
             "te habla conny",
             "asistente virtual",
+            "asesora virtual",
             "recepcionista virtual",
-            "tu hoy",
-            "hoy",
         )
     ):
         return True
