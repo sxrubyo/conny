@@ -778,14 +778,14 @@ def test_demo_explain_name_confusion_does_not_fall_into_pitch_mode() -> None:
 
 
 def test_send_guard_severe_fragment_uses_neutral_rescue() -> None:
-    from conny_send_guard import guard_response
+    from src.domain.send_guard import guard_response
 
     repaired = guard_response("Hola! Soy Conny", context="demo", business_name="Clinica de Los olivos")
     assert repaired == "Hola! Soy Conny"
 
 
 def test_send_guard_keeps_short_direct_memory_answer_intact() -> None:
-    from conny_send_guard import guard_response
+    from src.domain.send_guard import guard_response
 
     repaired = guard_response("Te llamas Santiago", context="demo", business_name="Clinica de Los olivos")
     assert repaired == "Te llamas Santiago"

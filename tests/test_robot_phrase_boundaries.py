@@ -10,7 +10,7 @@ ROOT = Path("/home/ubuntu/conny")
 sys.path.insert(0, str(ROOT))
 
 from conny_nuke_robot_phrases import apply_patch, strip_robot_phrases
-from conny_send_guard import guard_response, is_cut_response
+from src.domain.send_guard import guard_response, is_cut_response
 
 
 @pytest.mark.parametrize(

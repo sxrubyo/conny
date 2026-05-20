@@ -8,7 +8,7 @@ from conny_memory_engine import memory_engine, ConnyMemoryEngine
 from conny_uncertainty import uncertainty_detector, UncertaintyDetector
 from conny_voice import voice, ConnyVoice
 from conny_nova_proxy import NovaLLMProxy
-from conny_admin_api import router as admin_router
+from src.interfaces.web.admin_api import router as admin_router
 from conny_cron import init_scheduler, shutdown_scheduler
 
 __all__ = [

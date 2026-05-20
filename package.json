@@ -27,9 +27,7 @@
     "conny_brain_v10.py",
     "conny_bridge.py",
     "conny_domino.py",
-    "conny_send_guard.py",
     "conny_nuke_robot_phrases.py",
-    "conny_pitch_upgrade.py",
     "smart_handoff.py",
     "conny_pairing.py",
     "knowledge_base.py",
@@ -46,7 +44,6 @@
     "install.sh",
     "package.json",
     "conny_admin.py",
-    "conny_admin_api.py",
     "conny_config.py",
     "conny_demo.py",
     "conny_production.py",
@@ -68,7 +65,8 @@
     "core/**/*.py",
     "nova/rules/*.yaml",
     "personas/conny/base/*.yaml",
-    "v7/**/*.py"
+    "v7/**/*.py",
+    "src/**/*.py"
   ],
   "engines": {
     "node": ">=18"

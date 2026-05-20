@@ -7,7 +7,7 @@ os.environ.setdefault("MASTER_API_KEY", "test_key_123")
 os.environ.setdefault("ADMIN_API_KEY", "test_key_123")
 
 from fastapi.testclient import TestClient
-from conny_admin_api import router as admin_router
+from src.interfaces.web.admin_api import router as admin_router
 from fastapi import FastAPI
 
 app = FastAPI()

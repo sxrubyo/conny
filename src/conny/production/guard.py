@@ -18,7 +18,7 @@ CÓMO USAR en conny.py:
 
   # Al inicio con los demás imports opcionales:
   try:
-      from conny_send_guard import (
+      from src.domain.send_guard import (
           SendGuard,
           guard_response,
           patch_demo_send,
@@ -506,7 +506,7 @@ INTEGRATION_SNIPPET = '''
 # CONNY_SEND_GUARD — Pegar al inicio de _handle_demo_message
 # ═══════════════════════════════════════════════════════════════════════
 try:
-    from conny_send_guard import SendGuard
+    from src.domain.send_guard import SendGuard
     from conny_pitch_upgrade import is_prospect_confused, build_prospect_pitch_system_prompt
     _guard = SendGuard(context="demo", business_name=business_name)
     _GUARD_ACTIVE = True

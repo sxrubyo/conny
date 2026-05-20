@@ -21,7 +21,7 @@ app.add_middleware(
 
 # ─── Admin API Router ────────────────────────────────────────────────────────────
 try:
-    from conny_admin_api import router as admin_api_router
+    from src.interfaces.web.admin_api import router as admin_api_router
     app.include_router(admin_api_router)
     log.info("[admin_api] router montado en /admin")
 except Exception as _admin_api_err:

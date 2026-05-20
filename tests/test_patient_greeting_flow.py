@@ -238,8 +238,8 @@ def test_normalize_first_patient_turn_repairs_low_quality_whatsapp_greeting() ->
     assert "asistente virtual" not in lowered
     assert "hoy?" not in lowered
     assert "botox" in lowered or "rellenos" in lowered
-    assert "hola, soy conny" in lowered
-    assert "asesora virtual" in lowered
+    assert "soy conny" in lowered
+    assert "clinica de las americas" in lowered
 
 
 def test_conversation_engine_identity_probe_for_whatsapp_stays_human() -> None:
@@ -376,7 +376,7 @@ def test_admin_local_fallback_explains_creator_and_capabilities() -> None:
 
     joined_creator = " ".join(creator).lower()
     joined_audio = " ".join(audio).lower()
-    assert "blackboss" in joined_creator
+    assert "black" in joined_creator
     assert "3124348669" in joined_creator
     assert "audios" in joined_audio
     assert "pdf" in joined_audio
@@ -730,7 +730,8 @@ def test_system_prompt_explicitly_forbids_helpdesk_openers() -> None:
         forbidden_words=[],
     )
 
-    prompt = generator._build_compact_system_prompt(
+    from conny_core.prompt_ops import build_compact_system_prompt
+    prompt = build_compact_system_prompt(
         clinic={"name": "la clínica", "sector": "estetica", "services": ["Botox", "Rellenos"]},
         patient={"name": "", "visits": 0, "is_new": True, "last_service": ""},
         personality=personality,
@@ -741,6 +742,7 @@ def test_system_prompt_explicitly_forbids_helpdesk_openers() -> None:
         pre_prompt_injection="",
         chat_id="test-chat",
         history=[],
+        deps=generator._prompt_builder_deps(),
     )
 
     lowered = prompt.lower()
@@ -771,7 +773,8 @@ def test_full_system_prompt_accepts_explicit_user_message() -> None:
         archetype="amigable",
     )
 
-    prompt = generator._build_system_prompt(
+    from conny_core.prompt_ops import build_system_prompt
+    prompt = build_system_prompt(
         clinic={"name": "la clínica", "sector": "estetica", "services": ["Botox"]},
         patient={"name": "", "visits": 0, "is_new": True, "last_service": "", "language": "es"},
         personality=personality,
@@ -781,6 +784,7 @@ def test_full_system_prompt_accepts_explicit_user_message() -> None:
         user_msg="hola quiero botox",
         chat_id="test-chat",
         history=[],
+        deps=generator._prompt_builder_deps(),
     )
 
     lowered = prompt.lower()

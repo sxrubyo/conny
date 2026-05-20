@@ -1,30 +1,7 @@
 """
-conny_pitch_upgrade.py
+src/domain/prompts/prospect_pitch.py
 ════════════════════════════════════════════════════════════════════════════════
 PITCH INTELIGENTE — Black One / Conny v1.0
-════════════════════════════════════════════════════════════════════════════════
-
-SOLUCIONA:
-  1. Conny sin pitch cuando alguien pregunta "qué haces / cuánto cuestas"
-  2. Branding correcto: Black One (no BlackBoss)
-  3. Smart Handoff trigger más agresivo en confusión del prospecto
-  4. Detección de "modo prospecto" — alguien que recibió el número para una demo
-
-CÓMO USAR en conny.py (al final del archivo, antes del bloque __main__):
-
-    try:
-        from conny_pitch_upgrade import (
-            patch_owner_demo_prompt,
-            patch_creator_identity,
-            is_prospect_confused,
-            build_prospect_pitch_system_prompt,
-            SMART_HANDOFF_PROSPECT_TRIGGERS,
-        )
-        patch_creator_identity()   # cambia BlackBoss → Black One en runtime
-        patch_owner_demo_prompt()  # reemplaza el system prompt de la demo
-    except Exception as e:
-        log.warning(f"[pitch_upgrade] no se pudo aplicar: {e}")
-
 ════════════════════════════════════════════════════════════════════════════════
 """
 
@@ -32,7 +9,6 @@ from __future__ import annotations
 
 import logging
 import re
-import sys
 from typing import Any, Dict, List, Optional
 
 log = logging.getLogger("conny.pitch_upgrade")
@@ -53,34 +29,26 @@ CREATOR_LINE = (
 
 # ════════════════════════════════════════════════════════════════════════════════
 # 2. DETECCIÓN DE MODO PROSPECTO
-#    Señales de que quien escribe NO es un cliente del negocio sino
-#    alguien que recibió el número de Conny para evaluarla como producto.
 # ════════════════════════════════════════════════════════════════════════════════
 
 _PROSPECT_SIGNALS = [
-    # "me mandaron tu número"
     "me mandaron", "me enviaron", "me pasaron", "me dieron tu número",
     "me dieron este número", "me recomendaron",
-    # "qué haces / para qué sirves"
     "qué haces", "que haces", "para qué sirves", "para que sirves",
     "qué eres", "que eres", "qué harías", "que harias", "qué harías por",
     "que harias por", "que harias en", "qué harías en",
     "qué puedes hacer", "que puedes hacer",
-    # "cuánto cuestas"
     "cuánto cuestas", "cuanto cuestas", "cuánto cobras", "cuanto cobras",
     "cuánto vale", "cuanto vale", "cuál es tu precio", "cual es tu precio",
     "cuánto me cobran", "cuanto me cobran", "planes", "tarifas",
-    # "quiero ver cómo funciona / demo"
     "cómo funciona", "como funciona", "quiero ver", "quiero entender",
     "explícame", "explicame", "no entiendo qué eres", "no entiendo que eres",
     "no sé qué es esto", "no se que es esto",
-    # frustración directa
     "gracias pero", "no me interesa que actues",
     "no me interesa que actúes", "que harias en mi clinica",
     "qué harías en mi", "que harias en mi",
 ]
 
-# Si la conversación lleva más de 3 turnos y el prospecto sigue sin entender
 _CONFUSION_LOOP_SIGNALS = [
     "no entiendo", "no sé", "no se", "gracias", "me voy", "adios", "adiós",
     "hasta luego", "no era lo que", "error", "equivocado", "equivocada",
@@ -103,12 +71,10 @@ def is_prospect_confused(user_msg: str, history: List[Dict[str, Any]]) -> bool:
     """
     msg_low = _strip_accents((user_msg or "").lower().strip())
 
-    # Señal directa en el mensaje actual
     if any(sig in msg_low for sig in _PROSPECT_SIGNALS_NORM):
         return True
 
-    # Loop de confusión: cliente lleva 3+ turnos y sigue confundido
-    if len(history) >= 6:  # 3 turnos = 6 mensajes
+    if len(history) >= 6:
         recent_client = [
             m.get("content", "").lower()
             for m in history[-6:]
@@ -126,16 +92,12 @@ def is_prospect_confused(user_msg: str, history: List[Dict[str, Any]]) -> bool:
 
 # ════════════════════════════════════════════════════════════════════════════════
 # 3. SYSTEM PROMPT DEL PITCH INTELIGENTE
-#    Esto reemplaza el prompt genérico de la demo cuando se detecta un prospecto.
 # ════════════════════════════════════════════════════════════════════════════════
 
 def build_prospect_pitch_system_prompt(business_name: str = "") -> str:
     """
     Genera el system prompt para cuando un prospecto B2B pregunta
     qué hace Conny, cuánto cuesta, qué haría por su negocio, etc.
-
-    Es un pitch de ventas inteligente — no robótico, no una lista de features.
-    Conny habla como la persona que LLEVARÍA el chat del negocio.
     """
     biz_ctx = f"El prospecto es de: {business_name}." if business_name else ""
 
@@ -208,11 +170,9 @@ PROHIBIDO:
 
 # ════════════════════════════════════════════════════════════════════════════════
 # 4. TRIGGERS ADICIONALES PARA SMART HANDOFF
-#    Señales de que el prospecto está a punto de irse y necesita un humano
 # ════════════════════════════════════════════════════════════════════════════════
 
 SMART_HANDOFF_PROSPECT_TRIGGERS = [
-    # Frustración activa
     "gracias, me voy",
     "no entiendo nada",
     "esto no es lo que busco",
@@ -231,12 +191,6 @@ def should_trigger_handoff_for_prospect(user_msg: str) -> Optional[str]:
     """
     Retorna el motivo del handoff si el prospecto está a punto de irse
     o pide hablar con una persona real. Retorna None si no aplica.
-
-    Usar en el flujo principal antes de generar respuesta LLM:
-
-        reason = should_trigger_handoff_for_prospect(user_msg)
-        if reason and handoff_manager:
-            return await handoff_manager.trigger_handoff(...)
     """
     msg_low = (user_msg or "").lower().strip()
     for trigger in SMART_HANDOFF_PROSPECT_TRIGGERS:
@@ -246,34 +200,7 @@ def should_trigger_handoff_for_prospect(user_msg: str) -> Optional[str]:
 
 
 # ════════════════════════════════════════════════════════════════════════════════
-# 5. PARCHE AL PROMPT DE LA DEMO — reemplaza el system_prompt en runtime
-# ════════════════════════════════════════════════════════════════════════════════
-
-def patch_owner_demo_prompt() -> bool:
-    """
-    Busca la función que construye el system_prompt de la demo del dueño
-    e inyecta el pitch inteligente cuando se detecta un prospecto confundido.
-
-    Este parche es NO-DESTRUCTIVO: si no encuentra las variables esperadas,
-    retorna False sin romper nada.
-    """
-    conny_module = sys.modules.get("__main__") or sys.modules.get("conny")
-    if conny_module is None:
-        for name, mod in sys.modules.items():
-            if name.startswith("conny") and hasattr(mod, "generator"):
-                conny_module = mod
-                break
-
-    if conny_module is None:
-        log.warning("[pitch_upgrade] módulo conny no encontrado — patch no aplicado")
-        return False
-
-    log.info("[pitch_upgrade] patch_owner_demo_prompt aplicado ✓")
-    return True
-
-
-# ════════════════════════════════════════════════════════════════════════════════
-# 6. PARCHE DE IDENTIDAD — cambia BlackBoss → Black One en todas las respuestas
+# 5. BRAND IDENTITY BRANDING FIXES
 # ════════════════════════════════════════════════════════════════════════════════
 
 _BLACKBOSS_VARIANTS = [
@@ -284,9 +211,6 @@ def fix_creator_in_response(response: str) -> str:
     """
     Postprocesa cualquier respuesta del LLM y reemplaza menciones
     incorrectas de BlackBoss por Black One.
-
-    Usar al final de generate() antes de retornar al usuario:
-        response = fix_creator_in_response(response)
     """
     if not response:
         return response
@@ -295,125 +219,14 @@ def fix_creator_in_response(response: str) -> str:
     return response
 
 
-def patch_creator_identity() -> bool:
-    """
-    Intenta parchear la constante de identidad del creador directamente
-    en el módulo conny si existe.
-    """
-    conny_module = sys.modules.get("__main__") or sys.modules.get("conny")
-    if conny_module is None:
-        log.warning("[pitch_upgrade] no se encontró módulo para parchear identidad")
-        return False
-
-    # Parchear constantes si existen
-    for attr in dir(conny_module):
-        val = getattr(conny_module, attr, None)
-        if isinstance(val, str):
-            for variant in _BLACKBOSS_VARIANTS:
-                if variant in val:
-                    setattr(conny_module, attr, val.replace(variant, CREATOR_NAME))
-                    log.info(f"[pitch_upgrade] constante {attr} parcheada: BlackBoss → Black One")
-
-    log.info("[pitch_upgrade] patch_creator_identity aplicado ✓")
-    return True
-
-
 # ════════════════════════════════════════════════════════════════════════════════
-# 7. HELPER PARA INTEGRAR EN _handle_demo_message
-#
-#   En conny.py, dentro de _handle_demo_message, ANTES del bloque de LLM:
-#
-#       try:
-#           from conny_pitch_upgrade import (
-#               is_prospect_confused,
-#               build_prospect_pitch_system_prompt,
-#               should_trigger_handoff_for_prospect,
-#               fix_creator_in_response,
-#           )
-#           # Handoff si el prospecto quiere hablar con humano
-#           handoff_reason = should_trigger_handoff_for_prospect(text)
-#           if handoff_reason and _SMART_HANDOFF and handoff_manager:
-#               return await handoff_manager.trigger_handoff(
-#                   client_chat_id=chat_id,
-#                   user_msg=text,
-#                   history=history,
-#                   clinic=clinic,
-#                   uncertainty_reason=handoff_reason,
-#                   send_fn=send_to_client,
-#                   notify_fn=notify_admin,
-#               )
-#
-#           # Pitch inteligente si el prospecto está confundido
-#           if is_prospect_confused(text, history):
-#               system_prompt = build_prospect_pitch_system_prompt(
-#                   business_name=str(clinic.get("name") or "")
-#               )
-#               # ... continuar con esta system_prompt en vez de la genérica
-#       except ImportError:
-#           pass
-#
-#   Y al retornar la respuesta:
-#       final_response = fix_creator_in_response(llm_response)
-#       return _send(final_response)
-#
-# ════════════════════════════════════════════════════════════════════════════════
-
-def get_integration_snippet() -> str:
-    """Retorna el snippet de integración listo para pegar en conny.py."""
-    return '''
-# ── PITCH UPGRADE — pegar en _handle_demo_message ANTES del bloque LLM ──────
-try:
-    from conny_pitch_upgrade import (
-        is_prospect_confused,
-        build_prospect_pitch_system_prompt,
-        should_trigger_handoff_for_prospect,
-        fix_creator_in_response,
-    )
-
-    # 1. ¿El prospecto quiere hablar con un humano? → Smart Handoff inmediato
-    _handoff_reason = should_trigger_handoff_for_prospect(text)
-    if _handoff_reason and _SMART_HANDOFF and handoff_manager:
-        log.info(f"[pitch_upgrade] smart handoff por prospecto: {_handoff_reason}")
-        return await handoff_manager.trigger_handoff(
-            client_chat_id=chat_id,
-            user_msg=text,
-            history=history,
-            clinic=clinic,
-            uncertainty_reason=_handoff_reason,
-            send_fn=send_to_client,
-            notify_fn=notify_admin,
-        )
-
-    # 2. ¿El prospecto está confundido sobre qué es Conny? → Pitch
-    if is_prospect_confused(text, history):
-        _biz = str(clinic.get("name") or "")
-        system_prompt = build_prospect_pitch_system_prompt(business_name=_biz)
-        log.info("[pitch_upgrade] modo pitch activado para prospecto confundido")
-        # system_prompt ya está listo para usar en el bloque de LLM
-
-except ImportError:
-    pass
-
-# ── Al retornar la respuesta del LLM, siempre aplicar fix de identidad ───────
-# (reemplaza BlackBoss → Black One en cualquier respuesta)
-try:
-    from conny_pitch_upgrade import fix_creator_in_response
-    _raw_response = fix_creator_in_response(_raw_response)
-except ImportError:
-    pass
-'''
-
-
-# ════════════════════════════════════════════════════════════════════════════════
-# 8. FIX DEL CORTE — validador de burbujas completas
+# 6. VALIDACIÓN Y REPARACIÓN DE BURBUJAS
 # ════════════════════════════════════════════════════════════════════════════════
 
 def validate_bubbles(response: str, min_bubbles: int = 2) -> bool:
     """
     Retorna True si la respuesta tiene el mínimo de burbujas y ninguna
     está cortada (termina en palabra incompleta o sin puntuación mínima).
-
-    Si retorna False, el LLM debe regenerar.
     """
     if not response:
         return False
@@ -423,13 +236,11 @@ def validate_bubbles(response: str, min_bubbles: int = 2) -> bool:
     if len(parts) < min_bubbles:
         return False
 
-    # La última burbuja no puede terminar en palabra suelta sin cierre
     last = parts[-1]
     ends_open = re.search(r"\b(el|la|los|las|un|una|y|o|de|que|en|con|por|si|me|te|le|se|su)\s*$", last, re.IGNORECASE)
     if ends_open:
         return False
 
-    # La respuesta debe tener una pregunta o invitación al final
     has_invitation = "?" in last or any(
         inv in last.lower() for inv in [
             "cuéntame", "cuentame", "dime", "escríbeme", "escribeme",

@@ -18,7 +18,7 @@ CÓMO USAR en conny.py:
 
   # Al inicio con los demás imports opcionales:
   try:
-      from conny_send_guard import (
+      from src.domain.send_guard import (
           SendGuard,
           guard_response,
           patch_demo_send,
@@ -427,7 +427,7 @@ def patch_demo_send(
         # Ahora todos los return _send(r) pasan por el guard automáticamente
     """
     try:
-        from conny_pitch_upgrade import fix_creator_in_response
+        from src.domain.prompts.prospect_pitch import fix_creator_in_response
         _has_pitch_upgrade = True
     except ImportError:
         _has_pitch_upgrade = False
@@ -552,7 +552,7 @@ class SendGuard:
         self.business_name = business_name
         self._pitch_fix_available = False
         try:
-            from conny_pitch_upgrade import fix_creator_in_response
+            from src.domain.prompts.prospect_pitch import fix_creator_in_response
             self._fix_creator = fix_creator_in_response
             self._pitch_fix_available = True
         except ImportError:
@@ -592,8 +592,8 @@ INTEGRATION_SNIPPET = '''
 # CONNY_SEND_GUARD — Pegar al inicio de _handle_demo_message
 # ═══════════════════════════════════════════════════════════════════════
 try:
-    from conny_send_guard import SendGuard
-    from conny_pitch_upgrade import is_prospect_confused, build_prospect_pitch_system_prompt
+    from src.domain.send_guard import SendGuard
+    from src.domain.prompts.prospect_pitch import is_prospect_confused, build_prospect_pitch_system_prompt
     _guard = SendGuard(context="demo", business_name=business_name)
     _GUARD_ACTIVE = True
 except ImportError:
