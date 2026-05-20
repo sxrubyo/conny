@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="brand-assets/conny-logo.png" alt="Conny AI" width="300"/>
+  <img src="brand-assets/conny-logo.png" alt="Conny AI" width="200"/>
 
 ### 💜 **The AI Receptionist Engine Built for Agencies & Resellers**
 
