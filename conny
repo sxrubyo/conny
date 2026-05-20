@@ -48,7 +48,7 @@ except ImportError:
     import urllib.request
     _HTTPX = False
 
-CONNY_VERSION = "9.6.0"
+CONNY_VERSION = "9.6.1"
 CONNY_BUILD   = "2026.03"
 
 # ══════════════════════════════════════════════════════════════════════════════

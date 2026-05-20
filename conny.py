@@ -11878,7 +11878,7 @@ class ConnyUltra:
             scheduled_for=datetime.now() + timedelta(hours=1)
         )
 
-        log.info("═══ CONNY V9.6.0 INICIALIZADA ═══")
+        log.info("═══ CONNY V9.6.1 INICIALIZADA ═══")
         asyncio.create_task(self._schedule_daily_report())
     
     async def _schedule_daily_report(self):
@@ -17235,7 +17235,7 @@ async def lifespan(app: FastAPI):
         log.warning(f"[startup] memory/cron init error: {_mem_err}")
 
     log.info("═══════════════════════════════════════════════════════")
-    log.info("       CONNY V9.6.0 - ONLINE Y OPERATIVA         ")
+    log.info("       CONNY V9.6.1 - ONLINE Y OPERATIVA         ")
     log.info("═══════════════════════════════════════════════════════")
 
     # Notificar a Omni que esta instancia está online
@@ -17258,9 +17258,9 @@ async def lifespan(app: FastAPI):
     log.info("Conny Ultra apagada")
 
 app = FastAPI(
-    title="Conny v9.6.0",
+    title="Conny v9.6.1",
     description="Conny V9.0 — Agente de Recepción Hipernaturalmente Humana",
-    version="9.6.0",
+    version="9.6.1",
     lifespan=lifespan
 )
 
@@ -17722,7 +17722,7 @@ async def health():
 
     return {
         "status":         "online",
-        "version":        "9.6.0",
+        "version":        "9.6.1",
         "clinic":         clinic.get("name", "sin configurar"),
         "sector":         Config.SECTOR or clinic.get("sector", "otro"),
         "setup_done":     bool(clinic.get("setup_done")),

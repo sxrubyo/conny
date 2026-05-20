@@ -4,9 +4,9 @@ from __future__ import annotations
 # To decouple: use FastAPI dependency injection or pass via app.state
 
 app = FastAPI(
-    title="Conny v9.6.0",
+    title="Conny v9.6.1",
     description="Conny V9.0 — Agente de Recepción Hipernaturalmente Humana",
-    version="9.6.0",
+    version="9.6.1",
     lifespan=lifespan
 )
 
@@ -468,7 +468,7 @@ async def health():
 
     return {
         "status":         "online",
-        "version":        "9.6.0",
+        "version":        "9.6.1",
         "clinic":         clinic.get("name", "sin configurar"),
         "sector":         Config.SECTOR or clinic.get("sector", "otro"),
         "setup_done":     bool(clinic.get("setup_done")),

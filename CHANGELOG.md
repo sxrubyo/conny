@@ -1,5 +1,13 @@
 # Changelog
 
+## 9.6.1 - 2026-05-20
+
+- Refactorización de arquitectura hacia un diseño DDD (Domain-Driven Design) modular
+- Extracción del orquestador central (ConnyOrchestrator) hacia `src/core/orchestrator.py`
+- Extracción del clasificador de nombres y flujos de onboarding hacia `src/domain/onboarding_flow.py`
+- Migración de dependencias, scripts de guardias, admin api y prospect pitch a la jerarquía de `/src`
+- Actualización de manifiestos y limpieza de archivos de bootstrapping obsoletos
+
 ## 9.6.0 - 2026-05-19
 
 - corregido el flujo demo-owner para que frases mixtas como `Ah vale. El nombre de mi negocio se llama...` entren al bind real del negocio y no caigan otra vez en onboarding o en modo paciente
