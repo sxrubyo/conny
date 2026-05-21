@@ -215,9 +215,9 @@ WORKSPACE_CONFIG_PATH = Path(os.getenv("CONNY_WORKSPACE_CONFIG", f"{CONNY_HOME}/
 
 SYNC_RUNTIME_FILES = [
     "conny.py",
-    "conny_admin.py",
-    "conny_production.py",
-    "conny_demo.py",
+    "src/core/admin_engines.py",
+    "src/core/production_monitor.py",
+    "src/interfaces/web/demo_handler.py",
     "conny_config.py",
     "conny_router.py",
     "conny_utils.py",
@@ -656,6 +656,7 @@ def _get_terminal_width() -> int:
         return 80
 
 def print_logo(compact=False, sector=None):
+    from conny.channels.logo_art import LOGO_ART
     print()
     YLW = _e("38;5;220")
 
@@ -666,16 +667,8 @@ def print_logo(compact=False, sector=None):
         print()
         return
 
-    ROWS = [
-        ("38;5;213", "  ██████╗  ██████╗ ███╗   ██╗███╗   ██╗██╗   ██╗"),
-        ("38;5;218", " ██╔════╝ ██╔═══██╗████╗  ██║████╗  ██║╚██╗ ██╔╝"),
-        ("38;5;183", " ██║      ██║   ██║██╔██╗ ██║██╔██╗ ██║ ╚████╔╝ "),
-        ("38;5;177", " ██║      ██║   ██║██║╚██╗██║██║╚██╗██║  ╚██╔╝  "),
-        ("38;5;147", " ╚██████╗ ╚██████╔╝██║ ╚████║██║ ╚████║   ██║   "),
-        ("38;5;141", "  ╚═════╝  ╚═════╝ ╚═╝  ╚═══╝╚═╝  ╚═══╝   ╚═╝   "),
-    ]
-    for col_code, row in ROWS:
-        print(f"{C.BOLD}{_e(col_code)}{row}{C.R}")
+    # Print the high-resolution ANSI TrueColor petal logo
+    print(LOGO_ART)
     print()
 
     if sector and sector in SECTORS:
@@ -1128,70 +1121,135 @@ def edit_workspace_config() -> Dict[str, Any]:
     ensure_workspace_files()
     cfg = load_workspace_config()
 
-    owner_name = prompt("Nombre del dueño o admin", default=cfg.get("owner_name", ""))
-    business_name = prompt("Nombre del negocio por defecto", default=cfg.get("default_business_name", ""))
+    try:
+        import questionary
+        from questionary import Choice
+    except ImportError:
+        warn("Falta questionary. Instálalo con: pip install questionary")
+        return cfg
+
+    # 1. Información del Negocio
+    print(f"\n  {q(C.P2, '━'*40)}")
+    print(f"  {q(C.P2, '1.')} {q(C.W, 'Información del Negocio')}")
+    print(f"  {q(C.P2, '━'*40)}")
+    
+    owner = questionary.text("Nombre del dueño o admin:", default=cfg.get("owner_name", "")).ask()
+    if owner is not None: cfg["owner_name"] = owner.strip()
+    
+    biz = questionary.text("Nombre del negocio por defecto:", default=cfg.get("default_business_name", "")).ask()
+    if biz is not None: cfg["default_business_name"] = biz.strip()
+    
     sector_keys = list(SECTORS.keys())
-    suggested_sector = str(cfg.get("default_sector", "") or "").strip()
-    if confirm("¿Definir un sector por defecto para nuevas instancias?", default=bool(suggested_sector)):
-        sector_labels = [f"{SECTORS[key].emoji} {SECTORS[key].name}" for key in sector_keys]
-        sector_descs = [SECTORS[key].tagline for key in sector_keys]
-        sector_idx = select(sector_labels, descs=sector_descs, title="Sector sugerido para nuevas instancias")
-        cfg["default_sector"] = sector_keys[sector_idx]
+    sector_choices = [Choice(f"{SECTORS[k].emoji} {SECTORS[k].name}", k) for k in sector_keys]
+    
+    sector = questionary.select(
+        "Sector sugerido para nuevas instancias:",
+        choices=sector_choices,
+        default=cfg.get("default_sector") if cfg.get("default_sector") in sector_keys else sector_choices[0]
+    ).ask()
+    if sector: cfg["default_sector"] = sector
 
-    platform_options = ["telegram", "whatsapp", "ambos"]
-    platform_descs = [
-        "Empieza por Telegram con setup más simple.",
-        "Prepara WhatsApp Business como canal principal.",
-        "Deja todo listo para Telegram y WhatsApp.",
-    ]
-    platform_idx = select(
-        ["Telegram", "WhatsApp", "Ambos"],
-        descs=platform_descs,
-        title="Canal sugerido para nuevas instancias",
-    )
-    cfg["default_platform"] = platform_options[platform_idx]
+    platform = questionary.select(
+        "Canal sugerido para nuevas instancias:",
+        choices=[
+            Choice("Telegram (Setup más simple)", "telegram"),
+            Choice("WhatsApp (Canal principal de negocio)", "whatsapp"),
+            Choice("Ambos", "ambos")
+        ],
+        default=cfg.get("default_platform", "telegram")
+    ).ask()
+    if platform: cfg["default_platform"] = platform
 
-    public_base_url = prompt("Base URL pública por defecto", default=cfg.get("public_base_url", ""))
-    telegram_token = prompt(
-        "Token compartido de Telegram (opcional)",
-        default=cfg.get("telegram_token", ""),
-        secret=bool(cfg.get("telegram_token")),
-    )
-    telegram_shared = confirm("¿Usar router compartido de Telegram por defecto?", default=bool(cfg.get("telegram_shared")))
+    # 2. Modelos de Inteligencia Artificial
+    print(f"\n  {q(C.P2, '━'*40)}")
+    print(f"  {q(C.P2, '2.')} {q(C.W, 'Motor de Inteligencia Artificial (LLM)')}")
+    print(f"  {q(C.P2, '━'*40)}")
 
-    llm_labels = [
-        ("GROQ_API_KEY", "Groq"),
-        ("GEMINI_API_KEY", "Gemini"),
-        ("OPENROUTER_API_KEY", "OpenRouter"),
-        ("OPENAI_API_KEY", "OpenAI"),
-    ]
-    if confirm("¿Configurar API keys LLM ahora?", default=any(cfg.get("llm_keys", {}).values())):
-        for key, label in llm_labels:
-            current = cfg["llm_keys"].get(key, "")
-            cfg["llm_keys"][key] = prompt(f"{label} API key", default=current, secret=bool(current))
+    provider = questionary.select(
+        "¿Qué proveedor de IA principal usarás?",
+        choices=[
+            Choice("Nvidia NIM (Recomendado, Llama 3)", "nvidia"),
+            Choice("Anthropic (Claude 3.5 Sonnet)", "anthropic"),
+            Choice("Groq (Ultrarrápido, Llama 3)", "groq"),
+            Choice("OpenAI (GPT-4o)", "openai"),
+            Choice("Local / Custom (Ollama, vLLM)", "local"),
+            Choice("Mantener actual / Saltar", "skip")
+        ]
+    ).ask()
 
-    if confirm("¿Configurar claves de búsqueda ahora?", default=any(cfg.get("search_keys", {}).values())):
-        for key, label in [("BRAVE_API_KEY", "Brave Search"), ("SERP_API_KEY", "SerpAPI"), ("APIFY_API_KEY", "Apify")]:
-            current = cfg["search_keys"].get(key, "")
-            cfg["search_keys"][key] = prompt(f"{label} API key", default=current, secret=bool(current))
+    if provider and provider != "skip":
+        cfg["llm_keys"] = cfg.get("llm_keys", {})
+        
+        if provider == "nvidia":
+            model = questionary.select(
+                "Selecciona el modelo de Nvidia:",
+                choices=["meta/llama3-70b-instruct", "meta/llama3-8b-instruct", "mistralai/mixtral-8x22b-instruct-v0.1"]
+            ).ask()
+            key = questionary.password("Nvidia API Key (nvapi-...):").ask()
+            if model and key is not None:
+                cfg["llm_keys"]["NVIDIA_API_KEY"] = key.strip()
+                cfg["llm_keys"]["MASTER_LLM_PROVIDER"] = "nvidia"
+                cfg["llm_keys"]["MASTER_LLM_MODEL"] = model
+                
+        elif provider == "anthropic":
+            model = questionary.select(
+                "Selecciona el modelo de Anthropic:",
+                choices=["claude-3-5-sonnet-20240620", "claude-3-opus-20240229", "claude-3-haiku-20240307"]
+            ).ask()
+            key = questionary.password("Anthropic API Key (sk-ant-...):").ask()
+            if model and key is not None:
+                cfg["llm_keys"]["ANTHROPIC_API_KEY"] = key.strip()
+                cfg["llm_keys"]["MASTER_LLM_PROVIDER"] = "anthropic"
+                cfg["llm_keys"]["MASTER_LLM_MODEL"] = model
+                
+        elif provider == "groq":
+            model = questionary.select(
+                "Selecciona el modelo de Groq:",
+                choices=["llama3-70b-8192", "llama3-8b-8192", "mixtral-8x7b-32768"]
+            ).ask()
+            key = questionary.password("Groq API Key (gsk_...):").ask()
+            if model and key is not None:
+                cfg["llm_keys"]["GROQ_API_KEY"] = key.strip()
+                cfg["llm_keys"]["MASTER_LLM_PROVIDER"] = "groq"
+                cfg["llm_keys"]["MASTER_LLM_MODEL"] = model
+                
+        elif provider == "openai":
+            model = questionary.select(
+                "Selecciona el modelo de OpenAI:",
+                choices=["gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"]
+            ).ask()
+            key = questionary.password("OpenAI API Key (sk-...):").ask()
+            if model and key is not None:
+                cfg["llm_keys"]["OPENAI_API_KEY"] = key.strip()
+                cfg["llm_keys"]["MASTER_LLM_PROVIDER"] = "openai"
+                cfg["llm_keys"]["MASTER_LLM_MODEL"] = model
+                
+        elif provider == "local":
+            base_url = questionary.text("Base URL (ej: http://localhost:11434/v1):").ask()
+            model = questionary.text("Nombre del modelo local (ej: llama3):").ask()
+            key = questionary.password("API Key local (o enter si no tiene):").ask()
+            if base_url and model:
+                cfg["llm_keys"]["OPENAI_BASE_URL"] = base_url.strip()
+                cfg["llm_keys"]["OPENAI_API_KEY"] = key.strip() or "ollama"
+                cfg["llm_keys"]["MASTER_LLM_PROVIDER"] = "openai"  # Standard compat format
+                cfg["llm_keys"]["MASTER_LLM_MODEL"] = model.strip()
 
-    cfg["owner_name"] = owner_name.strip()
-    cfg["default_business_name"] = business_name.strip()
-    cfg["public_base_url"] = public_base_url.strip()
-    cfg["telegram_token"] = telegram_token.strip()
-    cfg["telegram_shared"] = telegram_shared
+    # 3. Integraciones y Agente Base
+    print(f"\n  {q(C.P2, '━'*40)}")
+    print(f"  {q(C.P2, '3.')} {q(C.W, 'Integraciones')}")
+    print(f"  {q(C.P2, '━'*40)}")
 
     agent_cfg = dict(cfg.get("agent", {}))
-    agent_cfg["display_name"] = prompt("Nombre base del agente", default=agent_cfg.get("display_name", "Conny")).strip() or "Conny"
-    agent_cfg["role"] = prompt("Rol base del agente", default=agent_cfg.get("role", "asesora virtual")).strip() or "asesora virtual"
-    agent_cfg["prompt_master"] = prompt(
-        "Prompt maestro base (opcional)",
-        default=agent_cfg.get("prompt_master", ""),
-    ).strip()
+    agent_name = questionary.text("Nombre del agente:", default=agent_cfg.get("display_name", "Conny")).ask()
+    if agent_name: agent_cfg["display_name"] = agent_name.strip()
+    
+    agent_role = questionary.text("Rol del agente:", default=agent_cfg.get("role", "asesora virtual")).ask()
+    if agent_role: agent_cfg["role"] = agent_role.strip()
+    
     cfg["agent"] = agent_cfg
 
     save_workspace_config(cfg)
-    ok(f"Workspace guardado en {WORKSPACE_CONFIG_PATH}")
+    ok(f"Workspace configurado exitosamente.")
     return cfg
 
 def slug(name):
@@ -6333,43 +6391,49 @@ def cmd_token(args):
     name = getattr(args, 'name', '') or getattr(args, 'subcommand', '') or ''
 
     def _gen_token(inst, label_override=""):
-        ev = dict(load_env(f"{inst.dir}/.env"))
-        master_key = ev.get("MASTER_API_KEY", "")
-        if not master_key:
-            fail(f"[{inst.label}] MASTER_API_KEY no configurada")
-            return
+        import sqlite3
+        import secrets
+        import re
+        from datetime import datetime, timedelta
+
         label = label_override or inst.label
-        base_url = f"http://localhost:{inst.port}"
+        
+        # Generar token
+        sanitized = re.sub(r'[^a-zA-Z0-9]', '', label.lower())[:10]
+        if not sanitized:
+            sanitized = "generic"
+        entropy = secrets.token_hex(16).upper()
+        token = f"ACTV-{sanitized}-{entropy}"
+        
+        expires_at = (datetime.now() + timedelta(hours=72)).isoformat()
+        
         try:
-            if _HTTPX:
-                r = _httpx.post(
-                    f"{base_url}/api/tokens/create",
-                    json={"clinic_label": label},
-                    headers={"X-Master-Key": master_key},
-                    timeout=10
+            conn = sqlite3.connect(inst.db_path)
+            cur = conn.cursor()
+            # Asegurar que la tabla existe por si acaso
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS activation_tokens (
+                    token TEXT PRIMARY KEY,
+                    clinic_label TEXT NOT NULL,
+                    expires_at TEXT NOT NULL,
+                    used_at TEXT,
+                    created_at TEXT NOT NULL
                 )
-                data = r.json() if r.status_code == 200 else {}
-            else:
-                import urllib.request as _ur
-                req = _ur.Request(
-                    f"{base_url}/api/tokens/create",
-                    data=json.dumps({"clinic_label": label}).encode(),
-                    headers={"Content-Type": "application/json", "X-Master-Key": master_key},
-                    method="POST"
-                )
-                data = json.loads(_ur.urlopen(req, timeout=10).read())
-            token = data.get("token", "")
-            expires = data.get("expires_at", "")[:16] if data.get("expires_at") else "72h"
-            if token:
-                ok(f"Token generado para: {q(C.YLW, label)}")
-                print(f"\n    {q(C.YLW, token, bold=True)}\n")
-                info(f"Expira: {expires}")
-                info("Envialo al admin — lo escribe en el chat de WhatsApp/Telegram")
-            else:
-                fail(f"Error: {data}")
+            """)
+            cur.execute("""
+                INSERT INTO activation_tokens 
+                (token, clinic_label, expires_at, created_at)
+                VALUES (?, ?, ?, ?)
+            """, (token, label, expires_at, datetime.now().isoformat()))
+            conn.commit()
+            conn.close()
+            
+            ok(f"Token generado offline para: {q(C.YLW, label)}")
+            print(f"\n    {q(C.YLW, token, bold=True)}\n")
+            info(f"Expira: {expires_at[:16]}")
+            info("Envíalo al admin — lo usará para desbloquear el Dashboard o en WhatsApp")
         except Exception as e:
-            fail(f"No se pudo generar: {e}")
-            info(f"¿Está corriendo? conny restart {inst.name}")
+            fail(f"No se pudo generar offline: {e}")
 
     # Generar para todas
     if name.lower() in ("all", "todas", "todos"):

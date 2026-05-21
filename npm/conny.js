@@ -5,6 +5,9 @@ const os = require("os");
 const path = require("path");
 const { spawnSync } = require("child_process");
 
+const chalk = require("chalk");
+const ora = require("ora");
+
 const packageRoot = path.resolve(__dirname, "..");
 const metadata = JSON.parse(fs.readFileSync(path.join(packageRoot, "package.json"), "utf8"));
 const packageVersion = String(metadata.version || "").trim();
@@ -34,16 +37,137 @@ const SKIP_NAMES = new Set([
   "tmp",
 ]);
 
+const commandGroups = [
+  {
+    category: "Gestión",
+    cmds: [
+      ["init", "Primer setup guiado del producto"],
+      ["new [nombre]", "Crear instancia para un cliente (wizard)"],
+      ["list / ls", "Ver todas las instancias"],
+      ["dashboard", "Panel en tiempo real"],
+      ["template [sector]", "Ver/crear desde plantilla"],
+      ["interactive", "Modo interactivo (shell)"],
+      ["zero [n]", "Entregar instancia a nuevo cliente (borra todo)"],
+    ]
+  },
+  {
+    category: "Monitoreo",
+    cmds: [
+      ["status [n]", "Estado detallado de la instancia"],
+      ["health", "Health check rápido de los servicios"],
+      ["metrics [n]", "Métricas de uso y rendimiento"],
+      ["analytics [n]", "Análisis de conversaciones y datos"],
+      ["logs [n]", "Logs en tiempo real"],
+      ["alerts", "Sistema de alertas y notificaciones"],
+    ]
+  },
+  {
+    category: "Operaciones",
+    cmds: [
+      ["config [n]", "Editar configuración y variables de entorno"],
+      ["restart [n]", "Reiniciar procesos de la instancia (o 'all')"],
+      ["stop [n]", "Detener procesos de la instancia"],
+      ["scale [n] [num]", "Escalar workers de mensajería"],
+      ["clone [n]", "Clonar configuración e instancia"],
+      ["reset [n]", "Resetear base de datos/sesión de testing"],
+      ["delete [n]", "Eliminar instancia permanentemente"],
+      ["batch", "Operaciones en lote sobre múltiples instancias"],
+    ]
+  },
+  {
+    category: "Datos & Testing",
+    cmds: [
+      ["backup [n]", "Crear snapshot de seguridad de la instancia"],
+      ["restore [file]", "Restaurar instancia desde un snapshot"],
+      ["export [n]", "Exportar conversaciones a JSON/CSV"],
+      ["import [file]", "Importar configuración o base de datos"],
+      ["search [query]", "Buscar términos en logs/mensajes"],
+      ["test [n]", "Probar respuestas y flujos conversacionales"],
+    ]
+  },
+  {
+    category: "Sistema & Seguridad",
+    cmds: [
+      ["doctor", "Diagnóstico completo del sistema y dependencias"],
+      ["audit", "Auditoría de seguridad y chequeo de vulnerabilidades"],
+      ["benchmark", "Test de rendimiento de CPU/DB/Red"],
+      ["secure", "Guía y validación de seguridad de endpoints"],
+      ["rotate-keys", "Rotar claves de API y tokens de acceso"],
+      ["upgrade", "Actualizar código base de Conny"],
+      ["cleanup", "Limpiar archivos de log y caché temporal"],
+      ["diff", "Comparar diferencias entre dos instancias"],
+      ["guide", "Guía interactiva de operación de Conny"],
+    ]
+  },
+  {
+    category: "Black Boss (Personalización)",
+    cmds: [
+      ["bb config [n]", "Crear y ajustar agente, prompt y personalidad"],
+      ["bb chat [n]", "Abrir chat operativo directo con el agente"],
+      ["bb doctor", "Diagnóstico rápido del Black Boss Engine"],
+      ["bb sync", "Propagar runtime exacto a todas las instancias"],
+      ["bb new", "Crear nueva instancia bajo el Black Boss Engine"],
+      ["bb guide", "Abrir guía operativa avanzada"],
+    ]
+  },
+  {
+    category: "Modelo & Calidad V8",
+    cmds: [
+      ["modelo [n]", "Ver/cambiar el LLM de una instancia en caliente"],
+      ["simular [n]", "Simular 10 conversaciones para detectar alucinaciones"],
+      ["v8 [n]", "Estado de los 15 sistemas inteligentes V8"],
+      ["quality [n]", "Score de humanidad de las últimas respuestas"],
+      ["briefing [n]", "Briefing diario con leads calientes detectados"],
+      ["campana [n]", "Campañas de seguimiento y reactivación saliente"],
+      ["latency [n]", "Test de latencia HTTP + LLM en tiempo real"],
+      ["cost [n]", "Estimación de costos mensuales del LLM"],
+      ["warmup [n]", "Pre-calentar la instancia antes de lanzar a prod"],
+      ["watchdog", "Monitor continuo con auto-restart inteligente"],
+    ]
+  },
+  {
+    category: "Canales & Activación V7",
+    cmds: [
+      ["token [n]", "Generar código de activación"],
+      ["tokens [n]", "Listar tokens de activación generados"],
+      ["activar [n]", "Activar instancia directamente (sin token)"],
+      ["bridge", "Estado y monitoreo del WhatsApp Bridge"],
+      ["bridge fix", "Fix de configuración del bridge de WhatsApp"],
+      ["bridge qr", "Ver código QR para enlazar número de WhatsApp"],
+      ["instagram [n]", "Conectar y monitorear Instagram DMs"],
+      ["pagos [n]", "Configurar/monitorear pagos desde el chat"],
+    ]
+  }
+];
+
+function printBanner() {
+  console.log();
+  console.log(chalk.hex('#EC4899').bold('  conny-agent') + 
+              chalk.hex('#8B5CF6').dim(` · v${packageVersion} · kimika.ai`));
+  console.log(chalk.hex('#444')('  ─────────────────────────'));
+  console.log();
+}
+
+function printCommands() {
+  for (const group of commandGroups) {
+    console.log(`  ${chalk.hex('#8B5CF6').bold(group.category)}`);
+    for (const [cmd, desc] of group.cmds) {
+      const formattedCmd = `conny ${cmd}`;
+      console.log(`    ${chalk.white.bold(formattedCmd.padEnd(25))} ${chalk.dim(desc)}`);
+    }
+    console.log();
+  }
+  
+  console.log(`  ${chalk.hex('#8B5CF6').bold("Sectores disponibles")}`);
+  console.log(`    ${chalk.dim("salud, inmobiliario, e-commerce, educacion, legal, finanzas, turismo, gastronomia, belleza, automotriz, gimnasios, soporte, otro")}\n`);
+}
+
 function ensureDir(target) {
   fs.mkdirSync(target, { recursive: true });
 }
 
-function status(message) {
-  console.error(`[conny] ${message}`);
-}
-
 function fail(message) {
-  console.error(`ERR ${message}`);
+  console.error(chalk.red(`ERR ${message}`));
   process.exit(1);
 }
 
@@ -127,78 +251,122 @@ function findSystemPython() {
   return null;
 }
 
-function ensureRuntime() {
+function ensureRuntime(spinner) {
   let runtime = resolveRuntime();
   if (runtime) {
     return runtime;
   }
-  status("Preparando runtime aislado de Conny. El primer arranque puede tardar 30-90s.");
-  ensureDir(connyHome);
+
+  let localSpinner = spinner;
+  if (!localSpinner) {
+    localSpinner = ora({
+      text: chalk.hex('#8B5CF6')("Iniciando Conny..."),
+      color: "magenta"
+    }).start();
+  }
+
   const python = findSystemPython();
   if (!python) {
-    fail(
-      process.platform === "win32"
-        ? "No encontré Python 3.11+ en este host. Instálalo y vuelve a ejecutar `conny`."
-        : "No encontré python3/python en este host. Instálalo y vuelve a ejecutar `conny`."
-    );
+    const errMsg = process.platform === "win32"
+      ? "✕ No encontré Python 3.11+ en este host. Instálalo y vuelve a ejecutar `conny`."
+      : "✕ No encontré python3/python en este host. Instálalo y vuelve a ejecutar `conny`.";
+    localSpinner.fail(chalk.red(errMsg));
+    process.exit(1);
   }
-  let result = runAndReturn(python.command, [...python.prefixArgs, "-m", "venv", runtimeDir]);
-  if (typeof result.status === "number" && result.status !== 0) {
-    process.exit(result.status);
+
+  localSpinner.text = chalk.hex('#8B5CF6')("Creando entorno virtual de Python...");
+  let result = spawnSync(python.command, [...python.prefixArgs, "-m", "venv", runtimeDir], {
+    stdio: ["ignore", "pipe", "pipe"],
+    env: process.env,
+  });
+  if (result.status !== 0) {
+    localSpinner.fail(chalk.red("✕ No se pudo crear el entorno virtual de Python."));
+    if (result.stderr) console.error(chalk.red(result.stderr.toString()));
+    process.exit(1);
   }
+
   runtime = resolveRuntime();
   if (!runtime) {
-    fail(`No pude crear el runtime aislado en ${runtimeDir}`);
+    localSpinner.fail(chalk.red(`✕ No pude crear el runtime aislado en ${runtimeDir}`));
+    process.exit(1);
   }
-  status("Instalando dependencias base de Conny...");
-  result = runAndReturn(runtime, ["-m", "pip", "install", "--disable-pip-version-check", "--upgrade", "pip"]);
-  if (typeof result.status === "number" && result.status !== 0) {
-    process.exit(result.status);
+
+  localSpinner.text = chalk.hex('#8B5CF6')("Actualizando pip...");
+  result = spawnSync(runtime, ["-m", "pip", "install", "--disable-pip-version-check", "--upgrade", "pip"], {
+    stdio: ["ignore", "pipe", "pipe"],
+    env: process.env,
+  });
+  if (result.status !== 0) {
+    localSpinner.fail(chalk.red("✕ Falló la actualización de pip."));
+    if (result.stderr) console.error(chalk.red(result.stderr.toString()));
+    process.exit(1);
   }
-  result = runAndReturn(runtime, ["-m", "pip", "install", "--disable-pip-version-check", "-r", path.join(repoDir, "requirements.txt")]);
-  if (typeof result.status === "number" && result.status !== 0) {
-    process.exit(result.status);
+
+  localSpinner.text = chalk.hex('#8B5CF6')("Instalando dependencias base (requirements.txt)...");
+  result = spawnSync(runtime, ["-m", "pip", "install", "--disable-pip-version-check", "-r", path.join(repoDir, "requirements.txt")], {
+    stdio: ["ignore", "pipe", "pipe"],
+    env: process.env,
+  });
+  if (result.status !== 0) {
+    localSpinner.fail(chalk.red("✕ Falló la instalación de las dependencias."));
+    if (result.stderr) console.error(chalk.red(result.stderr.toString()));
+    process.exit(1);
   }
+
+  if (!spinner) {
+    localSpinner.succeed(chalk.green("✓ Lista."));
+  }
+
   return runtime;
 }
 
 function bootstrapFromPackage() {
-  status(`Sincronizando Conny ${packageVersion} en ${connyHome}...`);
-  ensureDir(connyHome);
-  syncTree(packageRoot, repoDir);
-  if (!fs.existsSync(workspaceConfigPath)) {
-    fs.writeFileSync(
-      workspaceConfigPath,
-      JSON.stringify(
-        {
-          owner_name: "",
-          default_business_name: "",
-          default_sector: "",
-          default_platform: "telegram",
-          public_base_url: "",
-          telegram_token: "",
-          telegram_shared: false,
-          llm_keys: {},
-          search_keys: {},
-          meta: {},
-          nova: {},
-          omni: {},
-          agent: {
-            display_name: "Conny",
-            role: "asesora virtual",
-            prompt_master: "",
+  const spinner = ora({
+    text: chalk.hex('#8B5CF6')("Iniciando Conny..."),
+    color: "magenta"
+  }).start();
+
+  try {
+    ensureDir(connyHome);
+    syncTree(packageRoot, repoDir);
+    if (!fs.existsSync(workspaceConfigPath)) {
+      fs.writeFileSync(
+        workspaceConfigPath,
+        JSON.stringify(
+          {
+            owner_name: "",
+            default_business_name: "",
+            default_sector: "",
+            default_platform: "telegram",
+            public_base_url: "",
+            telegram_token: "",
+            telegram_shared: false,
+            llm_keys: {},
+            search_keys: {},
+            meta: {},
+            nova: {},
+            omni: {},
+            agent: {
+              display_name: "Conny",
+              role: "asesora virtual",
+              prompt_master: "",
+            },
           },
-        },
-        null,
-        2
-      )
-    );
+          null,
+          2
+        )
+      );
+    }
+    if (!fs.existsSync(sharedTelegramRoutesPath)) {
+      fs.writeFileSync(sharedTelegramRoutesPath, JSON.stringify({ default_instance: "", routes: {} }, null, 2));
+    }
+    ensureDir(path.join(connyHome, "instances"));
+    ensureRuntime(spinner);
+    spinner.succeed(chalk.green("✓ Lista."));
+  } catch (err) {
+    spinner.fail(chalk.red(`✕ Error durante el onboarding: ${err.message}`));
+    process.exit(1);
   }
-  if (!fs.existsSync(sharedTelegramRoutesPath)) {
-    fs.writeFileSync(sharedTelegramRoutesPath, JSON.stringify({ default_instance: "", routes: {} }, null, 2));
-  }
-  ensureDir(path.join(connyHome, "instances"));
-  ensureRuntime();
 }
 
 function needsBootstrap() {
@@ -238,10 +406,34 @@ function execConny(argv) {
   process.exit(1);
 }
 
+const args = process.argv.slice(2);
+const isHelp = args.length === 0 || args.includes("-h") || args.includes("--help") || args.includes("help");
+const isVersion = args.includes("-v") || args.includes("--version") || args.includes("version");
+const isJson = args.includes("--json");
+
+if (isVersion) {
+  if (isJson) {
+    console.log(JSON.stringify({ version: packageVersion }));
+  } else {
+    console.log(`conny ${packageVersion}`);
+  }
+  process.exit(0);
+}
+
 if (needsBootstrap()) {
   bootstrapFromPackage();
 }
 
-if (!execConny(process.argv.slice(2))) {
+if (isHelp) {
+  printBanner();
+  printCommands();
+  process.exit(0);
+}
+
+if (!isJson && process.stdout.isTTY) {
+  printBanner();
+}
+
+if (!execConny(args)) {
   fail(`No pude iniciar Conny desde ${connyHome}`);
 }

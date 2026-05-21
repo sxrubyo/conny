@@ -171,11 +171,33 @@ class SessionManager:
         self._demo_sessions: Dict[str, float] = sessions_dict if sessions_dict is not None else {}
         self._emoji_chats_off: set = emoji_chats_off if emoji_chats_off is not None else set()
     
+    def _get_ttl(self, chat_id: str = None) -> int:
+        ttl = Config.DEMO_SESSION_TTL
+        if chat_id:
+            sk = f"demo_{chat_id}"
+            if self._demo_sessions.get(sk + "_ttl"):
+                try:
+                    return int(self._demo_sessions[sk + "_ttl"])
+                except Exception:
+                    pass
+        try:
+            from src.core.globals import db
+            if db:
+                clinic = db.get_clinic()
+                if clinic and clinic.get("demo_session_ttl"):
+                    return int(clinic.get("demo_session_ttl"))
+                db_ttl = db.recall("demo_session_ttl")
+                if db_ttl:
+                    return int(db_ttl)
+        except Exception:
+            pass
+        return ttl
+
     def is_demo_mode_active(self) -> bool:
         """Verifica si hay sesiones demo activas."""
         now = time.time()
         return any(
-            k.endswith("_ts") and (now - v) < Config.DEMO_SESSION_TTL
+            k.endswith("_ts") and (now - v) < self._get_ttl(k.replace("_ts", "").replace("demo_", ""))
             for k, v in self._demo_sessions.items()
         )
     
@@ -297,7 +319,7 @@ class SessionManager:
         que deben borrarse si is_new=True.
         """
         now = time.time()
-        ttl = Config.DEMO_SESSION_TTL
+        ttl = self._get_ttl(chat_id)
         sk = f"demo_{chat_id}"
         last_seen = self._demo_sessions.get(sk + "_ts", 0)
         is_new = (now - last_seen) > ttl
@@ -315,9 +337,50 @@ class SessionManager:
             for kd in keys_to_del:
                 self._demo_sessions.pop(kd, None)
 
+            # Borrar la caché de sesión y la base de datos para la sesión expirada
+            try:
+                from conny_memory import get_memory
+                instance_id = "default"
+                from src.core.globals import db
+                if db:
+                    remembered_slug = (db.recall("instance_slug") or "").strip()
+                    if remembered_slug:
+                        instance_id = remembered_slug.lower()
+                mem = get_memory(instance_id)
+                mem.delete_session_cache(expired_chat_id)
+            except Exception:
+                pass
+            try:
+                from src.core.globals import db
+                if db:
+                    with db._conn() as c:
+                        c.execute("DELETE FROM conversations WHERE chat_id=?", (expired_chat_id,))
+            except Exception:
+                pass
+
         if is_new:
             keys_to_delete = [k for k in list(self._demo_sessions)
                               if k.startswith(sk + "_") and not k.endswith("_ts")]
+            # Borrar la caché de sesión y la base de datos para este chat_id al iniciar una nueva sesión
+            try:
+                from conny_memory import get_memory
+                instance_id = "default"
+                from src.core.globals import db
+                if db:
+                    remembered_slug = (db.recall("instance_slug") or "").strip()
+                    if remembered_slug:
+                        instance_id = remembered_slug.lower()
+                mem = get_memory(instance_id)
+                mem.delete_session_cache(chat_id)
+            except Exception:
+                pass
+            try:
+                from src.core.globals import db
+                if db:
+                    with db._conn() as c:
+                        c.execute("DELETE FROM conversations WHERE chat_id=?", (chat_id,))
+            except Exception:
+                pass
         else:
             keys_to_delete = []
         return is_new, keys_to_delete

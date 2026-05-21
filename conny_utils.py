@@ -18,6 +18,18 @@ def is_invite_token(text: str) -> bool:
     t = text.strip().upper()
     return t.startswith(INVITE_PREFIX) and len(t) >= 15
 
+def generate_activation_token(label: str) -> str:
+    """
+    Genera un token de activacion de alta entropia.
+    Formato: ACTV-[label_sanitizado]-[32_chars_hex]
+    """
+    import string
+    sanitized = re.sub(r'[^a-zA-Z0-9]', '', label.lower())[:10]
+    if not sanitized:
+        sanitized = "generic"
+    entropy = secrets.token_hex(16).upper()
+    return f"{ACTIVATION_PREFIX}{sanitized}-{entropy}"
+
 def hash_password(password: str) -> str:
     """Hash de contrasena con PBKDF2 + salt."""
     salt = secrets.token_hex(16)

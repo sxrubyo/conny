@@ -15,11 +15,18 @@
 
 set -e
 
+# Obtener la ruta absoluta del directorio del script actual
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+COMMAND="${1:-}"
+if [ -t 0 ] || [[ "$COMMAND" != "nuevo-cliente" && "$COMMAND" != "new" && "$COMMAND" != "nuevo" ]]; then
+    exec node "$SCRIPT_DIR/npm/conny.js" "$@"
+fi
 # ── Configuración ──────────────────────────────────────────────────────────────
-CONNY_TEMPLATE="/home/ubuntu/conny"          # instancia base/template
-INSTANCES_DIR="/home/ubuntu/conny-instances"   # donde viven los clientes
-PORT_START=8002                                  # primer puerto disponible (8001 = template)
-PORT_MAX=8099                                    # máximo 98 instancias
+CONNY_TEMPLATE="$SCRIPT_DIR"                                               # instancia base/template
+INSTANCES_DIR="${CONNY_INSTANCES_DIR:-$(dirname "$SCRIPT_DIR")/conny-instances}" # donde viven los clientes
+PORT_START=8002                                                              # primer puerto disponible (8001 = template)
+PORT_MAX=8099                                                                # máximo 98 instancias
 
 # ── Colores ────────────────────────────────────────────────────────────────────
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
@@ -66,6 +73,10 @@ cmd_nuevo_cliente() {
 
     # ── Nombre del cliente ────────────────────────────────────────────────────
     if [ -z "$client_name" ]; then
+        if [ ! -t 0 ]; then
+            error "Necesitas dar un nombre para el cliente en modo no interactivo."
+            exit 1
+        fi
         echo ""
         read -p "  Nombre del cliente (ej: clinica-bella): " client_name
     fi
@@ -104,7 +115,11 @@ cmd_nuevo_cliente() {
     echo -e "${YELLOW}  Necesito el Telegram Bot Token para este cliente.${NC}"
     echo    "  Cómo obtenerlo: abre @BotFather en Telegram → /newbot → copia el token"
     echo ""
-    read -p "  Token de Telegram: " TELEGRAM_TOKEN
+    if [ ! -t 0 ]; then
+        TELEGRAM_TOKEN="PROGRAMMATIC_TOKEN_PLACEHOLDER"
+    else
+        read -p "  Token de Telegram: " TELEGRAM_TOKEN
+    fi
 
     if [ -z "$TELEGRAM_TOKEN" ]; then
         error "El Token de Telegram es obligatorio."
@@ -121,7 +136,11 @@ cmd_nuevo_cliente() {
     fi
 
     echo ""
-    read -p "  URL pública de este cliente [$DEFAULT_URL]: " BASE_URL
+    if [ ! -t 0 ]; then
+        BASE_URL="$DEFAULT_URL"
+    else
+        read -p "  URL pública de este cliente [$DEFAULT_URL]: " BASE_URL
+    fi
     BASE_URL="${BASE_URL:-$DEFAULT_URL}"
 
     # ── Master API Key ────────────────────────────────────────────────────────
@@ -267,7 +286,11 @@ ENVEOF
     
     if [ "$NOVA_HEALTH" = "200" ]; then
       echo -e "  ${P}Nova está activo en el servidor.${NC}"
-      read -p "  ¿Quieres que Nova gobierne esta instancia? (s/N): " WANT_NOVA
+      if [ ! -t 0 ]; then
+        WANT_NOVA="n"
+      else
+        read -p "  ¿Quieres que Nova gobierne esta instancia? (s/N): " WANT_NOVA
+      fi
       if [[ "$WANT_NOVA" =~ ^[sS] ]]; then
         # Crear agente Nova para esta instancia
         NOVA_DIR_REF="$(dirname "$0")"
@@ -487,7 +510,11 @@ cmd_eliminar() {
     fi
 
     echo -e "${RED}  Esto eliminará la instancia '$name' y TODOS sus datos (DB, conversaciones, config).${NC}"
-    read -p "  Confirmar (escribe el nombre '$name' para confirmar): " confirm
+    if [ ! -t 0 ]; then
+        confirm="$name"
+    else
+        read -p "  Confirmar (escribe el nombre '$name' para confirmar): " confirm
+    fi
 
     if [ "$confirm" != "$name" ]; then
         info "Cancelado."

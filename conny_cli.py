@@ -28,6 +28,7 @@ Comandos:
   conny logs [n]          Logs en tiempo real
   conny restart [n]       Reiniciar (o 'all')
   conny webhooks [n]      Ver/reconfigurar webhook de Telegram
+  conny mcp               Inicia el servidor Model Context Protocols [n]
   conny config [n]        Hub de configuración o edición de instancia
   conny guide             Guía completa de operación
   conny doctor            Diagnóstico del sistema
@@ -215,9 +216,12 @@ WORKSPACE_CONFIG_PATH = Path(os.getenv("CONNY_WORKSPACE_CONFIG", f"{CONNY_HOME}/
 
 SYNC_RUNTIME_FILES = [
     "conny.py",
-    "conny_admin.py",
-    "conny_production.py",
-    "conny_demo.py",
+    "src/core/globals.py",
+    "src/core/runtime.py",
+    "src/interfaces/web/app.py",
+    "src/core/admin_engines.py",
+    "src/core/production_monitor.py",
+    "src/interfaces/web/demo_handler.py",
     "conny_config.py",
     "conny_router.py",
     "conny_utils.py",
@@ -611,9 +615,9 @@ class C:
     DIM = _e("2")
     ITALIC = _e("3")
     
-    # Paleta principal - Púrpura
-    P1 = _e("38;5;183")   # Lavanda brillante
-    P2 = _e("38;5;141")   # Púrpura suave
+    # Paleta principal - Morado y Rosa consistentes
+    P1 = _e("38;2;139;92;246")   # Morado #8B5CF6
+    P2 = _e("38;2;236;72;153")   # Rosa #EC4899
     P3 = _e("38;5;135")   # Púrpura medio
     P4 = _e("38;5;99")    # Púrpura profundo
     P5 = _e("38;5;57")    # Púrpura oscuro
@@ -656,43 +660,49 @@ def _get_terminal_width() -> int:
         return 80
 
 def print_logo(compact=False, sector=None):
-    print()
-    YLW = _e("38;5;220")
-
     if compact:
+        print()
         print(f"  {q(C.P1, '✦', bold=True)}  "
               f"{q(C.W, 'conny', bold=True)}  "
-              f"{q(C.G3, f'v{VERSION}')}")
+              f"{q(C.P2, f'v{VERSION}')}")
         print()
         return
 
-    ROWS = [
-        ("38;5;183", "  ██████╗  ██████╗ ███╗   ██╗███╗   ██╗██╗   ██╗"),
-        ("38;5;183", " ██╔════╝ ██╔═══██╗████╗  ██║████╗  ██║╚██╗ ██╔╝"),
-        ("38;5;141", " ██║      ██║   ██║██╔██╗ ██║██╔██╗ ██║ ╚████╔╝ "),
-        ("38;5;141", " ██║      ██║   ██║██║╚██╗██║██║╚██╗██║  ╚██╔╝  "),
-        ("38;5;99",  " ╚██████╗ ╚██████╔╝██║ ╚████║██║ ╚████║   ██║   "),
-        ("38;5;99",  "  ╚═════╝  ╚═════╝ ╚═╝  ╚═══╝╚═╝  ╚═══╝   ╚═╝   "),
-    ]
-    for col_code, row in ROWS:
-        print(f"{C.BOLD}{_e(col_code)}{row}{C.R}")
-    print()
+    try:
+        from src.conny.channels.logo_art import LOGO_ART_LINES
+    except ImportError:
+        try:
+            from conny.channels.logo_art import LOGO_ART_LINES
+        except ImportError:
+            LOGO_ART_LINES = ["Conny"]
 
-    if sector and sector in SECTORS:
-        s = SECTORS[sector]
-        print(f"  {s.emoji}  {q(sector_color(sector), s.tagline, bold=True)}")
-    else:
-        taglines = [
-            "Enterprise AI Receptionist",
-            "Smart Conversational Interface",
-            "Omni-channel Business Intelligence",
-            "Autonomous Customer Engagement",
-            "Scalable AI Agent Infrastructure",
-        ]
-        print(f"  {q(C.P2, taglines[hash(datetime.now().strftime('%Y%m%d')) % len(taglines)])}")
-    print(f"  {q(C.P1, '✦')} {q(C.G2, f'Conny v{VERSION}')}  "
-          f"{q(C.G3, '·')}  {q(C.G3, f'{len(SECTORS)} sectores')}")
-    print(f"  {q(C.G4, '─────────────────────────────────────────────────────')}")
+    C_BLUE = _e("38;2;59;130;246")
+    
+    sector_str = "Instance Manager"
+    if sector:
+        sector_str = f"Sector: {sector.capitalize()}"
+
+    text_lines = [
+        "",
+        "",
+        f"  {C.P1}{C.BOLD}Conny CLI {VERSION}{C.R}",
+        f"  {C.P2}Autonomous Dynamic Receptionist{C.R}",
+        f"  {C_BLUE}Target:{C.R} {C.W}Local Environment{C.R}",
+        f"  {C_BLUE}Node:{C.R} {C.G1}{sector_str}{C.R}",
+        f"  {C_BLUE}Status:{C.R} {C.G1}System Ready{C.R}",
+        f"  {C_BLUE}~{C.R}"
+    ]
+    
+    print()
+    print(f"  {C.G4}{'─' * 100}{C.R}")
+    print()
+    max_len = max(len(LOGO_ART_LINES), len(text_lines))
+    for i in range(max_len):
+        left = LOGO_ART_LINES[i] if i < len(LOGO_ART_LINES) else " " * 18
+        right = text_lines[i] if i < len(text_lines) else ""
+        print(f"      {left}        {right}")
+    print()
+    print(f"  {C.G4}{'─' * 100}{C.R}")
     print()
 
 def ok(m):    print(f"  {q(C.GRN, '✓')}  {q(C.W, _I18N.ui('success') + ': ' + str(m))}")
@@ -7076,6 +7086,18 @@ def cmd_bb_config(args):
     return _cmd_bb_config_impl(_bb_context(), args)
 
 
+def cmd_mcp(args):
+    """Inicia el servidor Model Context Protocol de Conny."""
+    info("Iniciando servidor MCP de Conny V3 en stdio...")
+    try:
+        from src.interfaces.mcp_server import MCPServer
+        server = MCPServer()
+        server.start_stdio()
+    except KeyboardInterrupt:
+        pass
+    except Exception as e:
+        fail(f"Error MCP: {e}")
+
 ROUTES = {
     # Principal
     "init": cmd_init,
@@ -7117,6 +7139,7 @@ ROUTES = {
     "import": cmd_import_data, "importar": cmd_import_data,
     "template": cmd_template, "plantilla": cmd_template,
     "test": cmd_test, "probar": cmd_test,
+    "mcp": cmd_mcp,
 
     # Sistema
     "doctor": cmd_doctor,

@@ -108,3 +108,16 @@ model_configs/
 teachings/
 memory_store/
 knowledge_gaps/
+
+# ── Gemini / Agentic / AI files ─────────────────────────────────────────────
+.claude-flow/
+.swarm/
+=2.0.0
+google-service-account.json
+conny_private_full.tar.gz
+scratch/
+scratch_regex.py
+test_browser.js
+test_browser.py
+test_llm_prod.py
+fix_init.py

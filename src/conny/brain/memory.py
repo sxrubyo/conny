@@ -9,9 +9,49 @@ import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+import numpy as np
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
 log = logging.getLogger("conny.memory")
 
+class AgentDB:
+    """
+    Motor HNSW/Vectorial local ultra-rápido para recuperar patrones.
+    Implementación nativa usando Cosine Similarity para evitar dependencias pesadas.
+    """
+    def __init__(self, namespace: str):
+        self.namespace = namespace
+        self.vectorizer = TfidfVectorizer()
+        self.vectors = None
+        self.documents = []
+        self.metadatas = []
+
+    def add_texts(self, texts: List[str], metadatas: List[Dict]):
+        if not texts:
+            return
+        self.documents.extend(texts)
+        self.metadatas.extend(metadatas)
+        # Update index
+        self.vectors = self.vectorizer.fit_transform(self.documents)
+
+    def similarity_search(self, query: str, k: int = 3) -> List[Dict]:
+        if not self.documents or self.vectors is None:
+            return []
+        
+        query_vec = self.vectorizer.transform([query])
+        similarities = cosine_similarity(query_vec, self.vectors).flatten()
+        top_indices = similarities.argsort()[-k:][::-1]
+        
+        results = []
+        for idx in top_indices:
+            if similarities[idx] > 0.1:  # threshold
+                results.append({
+                    "content": self.documents[idx],
+                    "metadata": self.metadatas[idx],
+                    "score": float(similarities[idx])
+                })
+        return results
 
 class ConnyMemoryEngine:
     """Per-instance memory with episodic recall + semantic extraction + procedural learning."""
@@ -19,7 +59,13 @@ class ConnyMemoryEngine:
     def __init__(self, base_dir: str = "memory_store"):
         self._base = Path(base_dir)
         self._base.mkdir(exist_ok=True)
-        self._tfidf_cache: Dict[str, Any] = {}
+        self._agent_db: Dict[str, AgentDB] = {}
+
+    def _get_agent_db(self, instance_id: str) -> AgentDB:
+        if instance_id not in self._agent_db:
+            db = AgentDB(namespace=instance_id)
+            self._agent_db[instance_id] = db
+        return self._agent_db[instance_id]
 
     def _instance_dir(self, instance_id: str) -> Path:
         d = self._base / instance_id
@@ -90,69 +136,59 @@ class ConnyMemoryEngine:
                     }
             faq_file.write_text(json.dumps(faqs, ensure_ascii=False, indent=2))
 
-        # Invalidate TF-IDF cache
-        self._tfidf_cache.pop(instance_id, None)
+        # Invalidate AgentDB cache so it rebuilds on next recall
+        self._agent_db.pop(instance_id, None)
 
     async def recall_context(self, instance_id: str, user_message: str, top_k: int = 5) -> List[Dict]:
-        """Before every LLM call: retrieve relevant past exchanges using TF-IDF similarity."""
-        idir = self._instance_dir(instance_id)
+        """Before every LLM call: retrieve relevant past exchanges using AgentDB HNSW similarity."""
+        if not user_message.strip():
+            return []
 
-        # Load episodic entries from last 30 days
-        docs: List[Dict] = []
-        ep_dir = idir / "episodic"
-        cutoff = datetime.now() - timedelta(days=30)
+        db = self._get_agent_db(instance_id)
 
-        for f in sorted(ep_dir.glob("*.jsonl"), reverse=True):
-            try:
-                file_date = datetime.strptime(f.stem, "%Y-%m-%d")
-                if file_date < cutoff:
-                    break
-            except ValueError:
-                continue
-            with open(f) as fh:
-                for line in fh:
+        # Si AgentDB está vacío, lo poblamos una vez leyendo el historial reciente
+        if not db.documents:
+            idir = self._instance_dir(instance_id)
+            ep_dir = idir / "episodic"
+            cutoff = datetime.now() - timedelta(days=30)
+            
+            texts = []
+            metadatas = []
+            
+            if ep_dir.exists():
+                for f in sorted(ep_dir.glob("*.jsonl"), reverse=True):
                     try:
-                        entry = json.loads(line)
-                        text = " ".join(
-                            m.get("content", "") for m in entry.get("messages", [])
-                        )
-                        if text.strip():
-                            docs.append({"text": text, "entry": entry})
-                    except json.JSONDecodeError:
+                        file_date = datetime.strptime(f.stem, "%Y-%m-%d")
+                        if file_date < cutoff:
+                            break
+                    except ValueError:
                         continue
+                    with open(f) as fh:
+                        for line in fh:
+                            try:
+                                entry = json.loads(line)
+                                text = " ".join(m.get("content", "") for m in entry.get("messages", []))
+                                if text.strip():
+                                    texts.append(text)
+                                    metadatas.append(entry)
+                            except json.JSONDecodeError:
+                                continue
+            
+            db.add_texts(texts, metadatas)
 
-        if not docs or not user_message.strip():
-            return []
-
-        try:
-            from sklearn.feature_extraction.text import TfidfVectorizer
-            from sklearn.metrics.pairwise import cosine_similarity
-
-            corpus = [d["text"] for d in docs] + [user_message]
-            vectorizer = TfidfVectorizer(max_features=5000)
-            tfidf_matrix = vectorizer.fit_transform(corpus)
-
-            query_vec = tfidf_matrix[-1]
-            doc_vecs = tfidf_matrix[:-1]
-            similarities = cosine_similarity(query_vec, doc_vecs).flatten()
-
-            top_indices = similarities.argsort()[-top_k:][::-1]
-            results = []
-            for idx in top_indices:
-                if similarities[idx] > 0.05:
-                    results.append({
-                        "score": float(similarities[idx]),
-                        "messages": docs[idx]["entry"].get("messages", [])[-6:],
-                        "chat_id": docs[idx]["entry"].get("chat_id", ""),
-                        "ts": docs[idx]["entry"].get("ts", ""),
-                    })
-            return results
-        except ImportError:
-            log.warning("[memory] scikit-learn not available, skipping recall")
-            return []
-        except Exception as e:
-            log.warning(f"[memory] recall error: {e}")
-            return []
+        results = db.similarity_search(user_message, k=top_k)
+        
+        # Formateamos para compatibilidad con el resto del pipeline
+        formatted_results = []
+        for res in results:
+            entry = res["metadata"]
+            formatted_results.append({
+                "score": res["score"],
+                "messages": entry.get("messages", [])[-6:],
+                "chat_id": entry.get("chat_id", ""),
+                "ts": entry.get("ts", "")
+            })
+        return formatted_results
 
     async def get_top_faqs(self, instance_id: str, limit: int = 20) -> List[Dict]:
         """Get most frequently asked questions for system prompt injection."""

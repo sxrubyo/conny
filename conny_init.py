@@ -21,9 +21,16 @@ try:
         VERSION = json.loads(package_path.read_text()).get("version", VERSION)
 except: pass
 
-# Colors - Vibrant and professional
-P1 = "\033[38;5;183m"  # Light Purple
-P2 = "\033[38;5;141m"  # Deep Purple
+# Colors - Brand TrueColors
+C_PURPLE = "\033[38;2;139;92;246m"
+C_PINK   = "\033[38;2;236;72;153m"
+C_BLUE   = "\033[38;2;59;130;246m"
+
+# Legacy mappings for wizard steps
+P1 = C_PURPLE
+P2 = C_PINK
+
+# Standard Colors
 G1 = "\033[38;5;114m"  # Success Green
 Y1 = "\033[38;5;221m"  # Warning Yellow
 B1 = "\033[1m"         # Bold
@@ -82,22 +89,37 @@ def step_header(n, total, title):
 
 def run_wizard():
     clear()
-    C1, C2, C3, C4, C5, C6 = "\033[38;5;183m", "\033[38;5;177m", "\033[38;5;141m", "\033[38;5;105m", "\033[38;5;99m", "\033[38;5;63m"
-    print(f"""
-  {C1}{B1} ██████╗  ██████╗ ███╗   ██╗███╗   ██╗██╗   ██╗{R}
-  {C2}{B1}██╔════╝ ██╔═══██╗████╗  ██║████╗  ██║╚██╗ ██╔╝{R}
-  {C3}{B1}██║      ██║   ██║██╔██╗ ██║██╔██╗ ██║ ╚████╔╝ {R}
-  {C4}{B1}██║      ██║   ██║██║╚██╗██║██║╚██╗██║  ╚██╔╝  {R}
-  {C5}{B1}╚██████╗ ╚██████╔╝██║ ╚████║██║ ╚████║   ██║   {R}
-  {C6}{B1} ╚═════╝  ╚═════╝ ╚═╝  ╚═══╝╚═╝  ╚═══╝   ╚═╝   {R}
-
-  {D1}Enterprise AI Receptionist — Next-Gen Infrastructure{R}
-  {P1}✦{R} {W1}{B1}Conny v{VERSION}{R}
-  {D1}──────────────────────────────────────────────────────{R}
-
-  {W1}{B1}Infrastructure Provisioning{R} — Automated Setup.
-  {D1}Follow the steps to deploy your AI agent.{R}
-""")
+    try:
+        from src.conny.channels.logo_art import LOGO_ART_LINES
+    except ImportError:
+        try:
+            from conny.channels.logo_art import LOGO_ART_LINES
+        except ImportError:
+            LOGO_ART_LINES = ["Conny."]
+            
+    logo_lines = LOGO_ART_LINES
+    text_lines = [
+        f"  {C_PURPLE}{B1}Conny CLI {VERSION}{R}",
+        f"  {C_PINK}Autonomous Dynamic Receptionist{R}",
+        f"  {C_BLUE}Workspace:{R} {W1}Morado{R}",
+        f"  {C_BLUE}Status:{R} {D1}Modules Online{R}",
+        f"  {C_BLUE}Target:{R} {D1}Local Environment{R}",
+        f"  {C_BLUE}Node:{R} {D1}conny-agent-core{R}",
+        f"  {C_BLUE}Type:{R} {D1}Infrastructure Provisioning{R}",
+        f"  {C_BLUE}~{R}",
+    ]
+    
+    print()
+    print(f"  {D1}{'─' * 100}{R}")
+    print()
+    max_len = max(len(logo_lines), len(text_lines))
+    for i in range(max_len):
+        left = logo_lines[i] if i < len(logo_lines) else " " * 18
+        right = text_lines[i] if i < len(text_lines) else ""
+        print(f"      {left}        {right}")
+    print()
+    print(f"  {D1}{'─' * 100}{R}")
+    print()
 
     if not confirm("Start Configuration?"):
         print(f"\n  {D1}Operation cancelled.{R}\n")
@@ -231,7 +253,7 @@ llm:
 """)
 
     # Copy core files
-    core = ["conny.py", "conny_admin.py", "conny_production.py", "conny_config.py",
+    core = ["conny.py", "src/core/admin_engines.py", "src/core/production_monitor.py", "conny_config.py",
             "conny_utils.py", "conny_commands.py", "conny_learning.py", "conny_voice.py",
             "conny_uncertainty.py", "conny_memory_engine.py", "conny_admin_api.py",
             "conny_cron.py", "conny_nova_proxy.py", "conny_smart_features.py",

@@ -1,5 +1,16 @@
 """FastAPI routes extracted from conny.py monolith."""
 from __future__ import annotations
+import logging
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
+
+log = logging.getLogger("conny.api.routes")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    yield
+
 # TODO: These routes reference globals: conny, db, llm_engine, Config, app
 # To decouple: use FastAPI dependency injection or pass via app.state
 
@@ -1207,6 +1218,148 @@ async def api_create_token(request: Request):
         "instructions": f"Envia este token exacto al administrador de {clinic_label}. Expira en {Config.TOKEN_EXPIRY_HOURS}h."
     }
 
+@app.post("/api/auth/check-email")
+async def api_check_email(request: Request):
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="JSON invalido")
+    email = body.get("email", "").strip().lower()
+    if not email:
+        raise HTTPException(status_code=400, detail="Email es requerido")
+    
+    clinic = db.get_clinic()
+    exists = False
+    if clinic:
+        clinic_email = clinic.get("email", "").strip().lower()
+        setup_done = clinic.get("setup_done", 0)
+        onboarding_done = clinic.get("onboarding_done", 0)
+        if clinic_email == email and (setup_done or onboarding_done):
+            exists = True
+    return {"exists": exists}
+
+@app.post("/api/auth/login")
+async def api_auth_login(request: Request):
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="JSON invalido")
+    email = body.get("email", "").strip().lower()
+    password = body.get("password", "").strip()
+    if not email or not password:
+        raise HTTPException(status_code=400, detail="Email y contraseña son requeridos")
+    
+    if password == Config.MASTER_API_KEY:
+        clinic = db.get_clinic()
+        if clinic and clinic.get("email", "").strip().lower() == email:
+            return {"ok": True, "master_key": Config.MASTER_API_KEY}
+    
+    with db._conn() as c:
+        row = c.execute("SELECT password_hash FROM admins WHERE email = ? AND is_active = 1", (email,)).fetchone()
+        if row and verify_password(password, row["password_hash"]):
+            return {"ok": True, "master_key": Config.MASTER_API_KEY}
+            
+    raise HTTPException(status_code=401, detail="Credenciales incorrectas")
+
+@app.post("/api/auth/register")
+async def api_auth_register(request: Request):
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="JSON invalido")
+    email = body.get("email", "").strip().lower()
+    password = body.get("password", "").strip()
+    name = body.get("name", "").strip()
+    phone = body.get("phone", "").strip()
+    specialty = body.get("specialty", "").strip()
+    token = body.get("token", "").strip()
+    
+    if not email or not password or not name or not token:
+        raise HTTPException(status_code=400, detail="Faltan campos requeridos")
+    
+    if not token.startswith("ACTV-"):
+        raise HTTPException(status_code=400, detail="Token no valido")
+        
+    token_data = db.get_activation_token(token)
+    if not token_data:
+        raise HTTPException(status_code=404, detail="Token inexistente")
+    if token_data.get("used_at"):
+        raise HTTPException(status_code=400, detail="El token ya fue usado")
+        
+    try:
+        db.consume_activation_token(token, "web_dashboard_register")
+    except Exception as e:
+        log.error(f"Error consumiendo token {token}: {e}")
+        raise HTTPException(status_code=500, detail="Error interno actualizando token")
+        
+    db.update_clinic(
+        name=name,
+        phone=phone,
+        email=email,
+        sector=specialty,
+        setup_done=1,
+        onboarding_done=1
+    )
+    
+    pass_hash = hash_password(password)
+    try:
+        with db._conn() as c:
+            c.execute("""
+                INSERT OR REPLACE INTO admins (chat_id, email, password_hash, name, role, activated_by_token, is_active)
+                VALUES (?, ?, ?, ?, 'owner', ?, 1)
+            """, (f"owner_{secrets.token_hex(4)}", email, pass_hash, name, token))
+    except Exception as e:
+        log.error(f"Error insertando admin: {e}")
+        
+    return {
+        "ok": True,
+        "master_key": Config.MASTER_API_KEY,
+        "message": "Registro completado con exito"
+    }
+
+@app.post("/api/auth/dev-login")
+async def api_auth_dev_login(request: Request):
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="JSON invalido")
+    email = body.get("email", "").strip().lower()
+    password = body.get("password", "").strip()
+    if not email or not password:
+        raise HTTPException(status_code=400, detail="Email y contraseña son requeridos")
+    
+    account = db.get_dev_account(email)
+    if not account:
+        raise HTTPException(status_code=401, detail="Cuenta de desarrollador no encontrada")
+    
+    if not verify_password(password, account["password_hash"]):
+        raise HTTPException(status_code=401, detail="Contraseña incorrecta")
+        
+    return {"ok": True, "master_key": Config.MASTER_API_KEY}
+
+@app.post("/api/auth/dev-register")
+async def api_auth_dev_register(request: Request):
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="JSON invalido")
+    email = body.get("email", "").strip().lower()
+    password = body.get("password", "").strip()
+    dev_token = body.get("dev_token", "").strip()
+    
+    if not email or not password or not dev_token:
+        raise HTTPException(status_code=400, detail="Todos los campos son requeridos")
+        
+    if not Config.MASTER_API_KEY or not secrets.compare_digest(dev_token, Config.MASTER_API_KEY):
+        raise HTTPException(status_code=401, detail="Token de acceso para desarrolladores incorrecto")
+        
+    hashed = hash_password(password)
+    success = db.create_dev_account(email, hashed)
+    if not success:
+        raise HTTPException(status_code=500, detail="Error al registrar la cuenta de desarrollador")
+        
+    return {"ok": True, "message": "Cuenta de desarrollador registrada con exito"}
+
 @app.get("/api/tokens")
 async def api_list_tokens(request: Request):
     """Lista todos los tokens creados."""
@@ -1329,12 +1482,7 @@ async def calendar_link_start(request: Request):
     if not calendar_bridge or not calendar_bridge._client_id:
         return {
             "error": "Google Calendar no configurado",
-            "solucion": (
-                "Agrega estas variables en tu .env:\n"
-                "  GCAL_CLIENT_ID=tu-client-id\n"
-                "  GCAL_CLIENT_SECRET=tu-client-secret\n"
-                "Obtén las credenciales en: console.cloud.google.com"
-            ),
+            "solucion": "Agrega estas variables en tu .env:\n  GCAL_CLIENT_ID=tu-client-id\n  GCAL_CLIENT_SECRET=tu-client-secret\nObtén las credenciales en: console.cloud.google.com",
             "alternativa": "Puedes usar CALENDLY_LINK=https://calendly.com/tu-link en su lugar"
         }
 
@@ -1379,7 +1527,26 @@ async def calendar_oauth_callback(code: str = None, error: str = None,
 
         calendar_bridge.update_tokens(access_token, refresh_token)
 
-        # Guardar refresh_token en DB para persistencia
+        # Consultar la información del perfil del usuario de Google
+        email = ""
+        name = ""
+        picture = ""
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(
+                    "https://www.googleapis.com/oauth2/v3/userinfo",
+                    headers={"Authorization": f"Bearer {access_token}"}
+                )
+                if resp.status_code == 200:
+                    user_data = resp.json()
+                    email = user_data.get("email", "")
+                    name = user_data.get("name", "")
+                    picture = user_data.get("picture", "")
+        except Exception as ui_err:
+            log.warning(f"[calendar] error fetching google userinfo: {ui_err}")
+
+        # Guardar refresh_token y avatar en DB para persistencia
         try:
             with db._conn() as c:
                 # Usar la tabla clinic para guardar el token (campo extra)
@@ -1397,8 +1564,10 @@ async def calendar_oauth_callback(code: str = None, error: str = None,
                 c.execute(
                     "UPDATE clinic SET gcal_refresh_token=? WHERE id=1",
                     (refresh_token,))
+                if picture:
+                    c.execute("UPDATE clinic SET avatar=? WHERE id=1", (picture,))
         except Exception as e:
-            log.warning(f"[calendar] no se pudo guardar token en DB: {e}")
+            log.warning(f"[calendar] no se pudo guardar token/avatar en DB: {e}")
 
         # Notificar al admin via Telegram
         clinic = db.get_clinic()
@@ -1415,13 +1584,28 @@ async def calendar_oauth_callback(code: str = None, error: str = None,
             except Exception:
                 pass
 
-        html = """<html><body style="font-family:Arial;padding:40px;text-align:center;background:#f3e8ff">
-        <div style="max-width:500px;margin:0 auto;background:white;padding:40px;border-radius:16px;box-shadow:0 4px 24px rgba(107,33,168,0.1)">
-        <h2 style="color:#6b21a8">Agenda vinculada</h2>
-        <p style="color:#374151;font-size:18px">Conny ya puede ver tu disponibilidad real.</p>
-        <p style="color:#6b7280">Cuando un paciente pregunte por horarios, ella consultará tu Google Calendar en tiempo real y les dará los espacios disponibles.</p>
-        <p style="color:#6b7280;margin-top:24px">Puedes cerrar esta ventana.</p>
+        import urllib.parse
+        params = {
+            "google_login": "true",
+            "email": email,
+            "name": name,
+            "avatar": picture
+        }
+        redirect_url = "/sign-in?" + urllib.parse.urlencode(params)
+
+        html = f"""<html><body style="font-family:Arial;padding:40px;text-align:center;background:#0a0a0a;color:#ffffff;display:flex;align-items:center;justify-content:center;height:80vh;">
+        <div style="max-width:500px;margin:0 auto;background:#121212;padding:40px;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,0.5);border:1px solid #333;">
+        <h2 style="color:#10b981">Conexión Exitosa</h2>
+        <p style="color:#e2e8f0;font-size:18px">¡Autenticación con Google completada!</p>
+        <p style="color:#94a3b8">Conny ya está vinculada a tu calendario y te redirigiremos a tu panel de control de forma segura.</p>
+        <p style="color:#64748b;margin-top:24px">Redireccionando...</p>
         </div>
+        <script>
+            localStorage.removeItem('conny_master_key');
+            setTimeout(function() {{
+                window.location.href = '{redirect_url}';
+            }}, 1500);
+        </script>
         </body></html>"""
         return HTMLResponse(html)
 

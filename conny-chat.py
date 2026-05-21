@@ -34,7 +34,8 @@ R  = "\033[0;31m"   # rojo
 G  = "\033[0;32m"   # verde
 Y  = "\033[1;33m"   # amarillo
 B  = "\033[0;34m"   # azul
-P  = "\033[0;35m"   # morado
+P  = "\033[38;2;139;92;246m"   # morado
+ROSA = "\033[38;2;236;72;153m" # rosa
 C  = "\033[0;36m"   # cyan
 W  = "\033[1;37m"   # blanco brillante
 DIM= "\033[2m"      # dimmed
@@ -456,7 +457,7 @@ async def repl(instance: dict):
 
     # Header
     print(f"\n{P}{'═'*54}{NC}")
-    print(f"{P}  CONNY CHAT{NC} — {W}{name}{NC}")
+    print(f"{ROSA}  CONNY CHAT{NC} — {W}{name}{NC}")
     print(f"  Puerto: {C}{instance['port']}{NC}  Clínica: {W}{clinic}{NC}")
     status_color = G if status == "online" else R
     print(f"  Estado: {status_color}{status}{NC}")

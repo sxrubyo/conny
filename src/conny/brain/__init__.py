@@ -1,6 +1,6 @@
 """Brain subsystem: reasoning, memory, learning, and uncertainty detection."""
 
-from conny.brain.uncertainty import (
+from .uncertainty import (
     UncertaintyDetector,
     uncertainty_detector,
     UNCERTAINTY_MARKERS_ES,

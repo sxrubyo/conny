@@ -23,12 +23,33 @@ async def handle_demo_message(
     now_col = conny_module.now_col
     PersonalityProfile = conny_module.PersonalityProfile
     llm_engine = conny_module.llm_engine
-    v8_process_response = conny_module.v8_process_response
-    SendGuard = conny_module.SendGuard
-    is_prospect_confused = conny_module.is_prospect_confused
-    _SMART_HANDOFF = conny_module._SMART_HANDOFF
-    handoff_manager = conny_module.handoff_manager
-    _normalize_conv_text = conny_module._normalize_conv_text
+    try:
+        from src.core.globals import v8_process_response, _normalize_first_contact_response
+    except ImportError:
+        v8_process_response = getattr(conny_module, "v8_process_response", lambda r, **kwargs: r)
+        _normalize_first_contact_response = getattr(conny_module, "_normalize_first_contact_response", lambda r, **kwargs: r)
+    try:
+        from src.domain.send_guard import SendGuard
+    except ImportError:
+        try:
+            from src.conny.production.guard import SendGuard
+        except ImportError:
+            SendGuard = getattr(conny_module, "SendGuard", None)
+    try:
+        from src.domain.prompts.prospect_pitch import is_prospect_confused
+    except ImportError:
+        is_prospect_confused = getattr(conny_module, "is_prospect_confused", lambda x, y: False)
+        
+    try:
+        from src.core.globals import _SMART_HANDOFF, handoff_manager
+    except ImportError:
+        _SMART_HANDOFF = getattr(conny_module, "_SMART_HANDOFF", False)
+        handoff_manager = getattr(conny_module, "handoff_manager", None)
+        
+    try:
+        from src.domain.send_guard import _normalize_conv_text
+    except ImportError:
+        _normalize_conv_text = getattr(conny_module, "_normalize_conv_text", lambda x: x.lower().strip())
 
     from src.domain.onboarding_flow import (
         llm_classify_business_name,
@@ -125,6 +146,22 @@ async def handle_demo_message(
         now = time.time()
         ttl = Config.DEMO_SESSION_TTL
         sk  = f"demo_{chat_id}"
+        if self._demo_sessions.get(sk + "_ttl"):
+            try:
+                ttl = int(self._demo_sessions[sk + "_ttl"])
+            except Exception: pass
+        else:
+            try:
+                if db:
+                    clinic = db.get_clinic()
+                    if clinic and clinic.get("demo_session_ttl"):
+                        ttl = int(clinic.get("demo_session_ttl"))
+                    else:
+                        db_ttl = db.recall("demo_session_ttl")
+                        if db_ttl:
+                            ttl = int(db_ttl)
+            except Exception: pass
+
         last_seen = self._demo_sessions.get(sk + "_ts", 0)
         is_new    = (now - last_seen) > ttl
         self._demo_sessions[sk + "_ts"] = now
@@ -135,6 +172,16 @@ async def handle_demo_message(
         if is_new:
             keys_del = [k for k in list(self._demo_sessions) if k.startswith(sk+"_") and not k.endswith("_ts")]
             for k in keys_del: del self._demo_sessions[k]
+            try:
+                from conny_memory import get_memory
+                instance_id = "default"
+                if db:
+                    remembered_slug = (db.recall("instance_slug") or "").strip()
+                    if remembered_slug:
+                        instance_id = remembered_slug.lower()
+                mem = get_memory(instance_id)
+                mem.delete_session_cache(chat_id)
+            except Exception: pass
             try:
                 with db._conn() as c:
                     c.execute("DELETE FROM conversations WHERE chat_id=?", (chat_id,))
@@ -1306,7 +1353,7 @@ CÓMO SUENAS: como una persona real de Medellín escribiendo en WhatsApp.
 - Si te hablan en inglés, respondes en inglés perfecto, súper casual y natural de WhatsApp.
 
 TU ESTRATEGIA DE DEMO (no la menciones, solo ejecútala):
-1. PRIMERO: saluda de forma muy relajada ("holaa", "hola cómo vas", "conny por acá..."), preséntate brevemente y pide el nombre del negocio.
+1. PRIMERO: Si te saludan por primera vez o preguntan qué haces, DEBES EXPLICAR CLARAMENTE PARA QUÉ ESTÁS AQUÍ ANTES de pedir el negocio (ej. "soy Conny, una IA que responde chats de WhatsApp, y estoy aquí para hacerte una demo de cómo puedo atender a tus clientes en automático. Para personalizarla, ¿cómo se llama tu negocio?"). No pidas el negocio sin explicar qué eres primero.
 2. SEGUNDO: cuando te lo den, busca info del negocio y entra en personaje.
 3. TERCERO: invita a que te escriban como si fueran un cliente real.
 4. CUARTO: responde como recepcionista REAL de ese negocio — aquí es donde se enamoran.
@@ -1387,19 +1434,19 @@ Una respuesta de 1 sola burbuja sin "?" es una respuesta INCOMPLETA — agrégal
 
 EJEMPLOS DE RESPUESTAS BUENAS vs MALAS:
   MALO: "soy la que responde acá"
-  BUENO: "hola, Conny por acá ||| cuéntame cómo se llama tu negocio y te muestro cómo sonaría"
+  BUENO: "hola, soy Conny, una asistente de IA ||| estoy configurada para mostrarte cómo puedo atender el WhatsApp de tu negocio ||| para arrancar la demo, ¿cómo se llama tu empresa?"
 
   MALO: "la idea es que yo me encargue"
-  BUENO: "respondo clientes, filtro interesados y muevo citas por WhatsApp ||| dime el nombre del negocio y te lo aterrizo"
+  BUENO: "respondo clientes, filtro interesados y agendo citas automáticamente por WhatsApp ||| si me dices el nombre de tu negocio te muestro una demo real"
 
   MALO: "aquí me encargo de atender el chat"
-  BUENO: "me encargo de atender el chat como si fuera parte del equipo ||| cuál es el nombre de tu negocio"
+  BUENO: "me encargo de atender el chat como si fuera parte de tu equipo de ventas ||| para hacerte la demostración, ¿cuál es el nombre de tu negocio?"
 
   MALO: "soy una persona que responde en whatsapp"
-  BUENO: "hola, soy Conny — respondo por WhatsApp como si llevara tiempo en tu equipo ||| cómo se llama tu negocio para mostrarte cómo quedaría"
+  BUENO: "hola, soy Conny, una IA que responde por WhatsApp — trabajo en automático ||| para hacerte una demo personalizada, ¿cómo se llama tu negocio?"
 
   MALO: "hola! pues mira ||| la idea es que yo me encargue..."
-  BUENO: "te lo pido para aterrizar la demo al tono real de tu negocio ||| apenas me lo digas te muestro cómo respondería"
+  BUENO: "soy una inteligencia artificial creada para atender a tus clientes ||| te pido el nombre para aterrizar la demo al tono real de tu negocio"
 """
         def _owner_validator(candidate: Optional[str]) -> bool:
             lowered_candidate = _normalize_conv_text(candidate or "")

@@ -109,8 +109,14 @@ class GeminiProvider(LLMProvider):
                 contents.append({"role": "user",  "parts": [{"text": m["content"]}]})
             elif m["role"] == "assistant":
                 contents.append({"role": "model", "parts": [{"text": m["content"]}]})
-        payload = {"contents": contents,
-                   "generationConfig": {"temperature": temperature, "maxOutputTokens": max_tokens}}
+        gen_config = {"temperature": temperature, "maxOutputTokens": max_tokens}
+        if "gemini-2.5-flash" in gm:
+            gen_config["thinkingConfig"] = {"thinkingBudget": 0}
+        elif "gemini-2.5-pro" in gm:
+            # Pro utiliza razonamiento obligatorio que cuenta hacia maxOutputTokens; subimos el límite
+            gen_config["maxOutputTokens"] = max(max_tokens, 4000)
+            
+        payload = {"contents": contents, "generationConfig": gen_config}
         if system_parts:
             payload["systemInstruction"] = {"parts": system_parts}
         url = f"{self.BASE}/models/{gm}:generateContent?key={self.key}"

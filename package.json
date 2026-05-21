@@ -1,5 +1,5 @@
 {
-  "name": "conny-ai",
+  "name": "@blackboss/conny",
   "version": "9.6.1",
   "description": "Open-source CLI and runtime for building Conny AI receptionist agents on WhatsApp and Telegram.",
   "license": "MIT",
@@ -43,10 +43,10 @@
     "LICENSE",
     "install.sh",
     "package.json",
-    "conny_admin.py",
+    "src/core/admin_engines.py",
     "conny_config.py",
-    "conny_demo.py",
-    "conny_production.py",
+    "src/interfaces/web/demo_handler.py",
+    "src/core/production_monitor.py",
     "conny_router.py",
     "conny_utils.py",
     "conny_memory_engine.py",
@@ -86,5 +86,11 @@
     "receptionist",
     "cli",
     "automation"
-  ]
+  ],
+  "dependencies": {
+    "boxen": "^5.1.2",
+    "chalk": "^4.1.2",
+    "figlet": "^1.11.0",
+    "ora": "^5.4.1"
+  }
 }

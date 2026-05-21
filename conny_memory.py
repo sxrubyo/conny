@@ -40,7 +40,21 @@ class ConnyMemory:
 
     def __init__(self, instance_id: str = "default"):
         self.instance_id = instance_id
-        self.base = Path(f"instances/{instance_id}")
+        
+        # Check standard paths in order of preference
+        paths_to_try = [
+            Path(f"/home/ubuntu/conny-instances/{instance_id}"),
+            Path(f"/home/ubuntu/conny/instances/{instance_id}"),
+            Path(f"instances/{instance_id}"),
+        ]
+        
+        selected_base = paths_to_try[-1] # fallback
+        for p in paths_to_try:
+            if p.exists() and p.is_dir():
+                selected_base = p
+                break
+                
+        self.base = selected_base
         self.memory_file = self.base / "knowledge" / "MEMORY.md"
         self.knowledge_dir = self.base / "knowledge"
         self.learned_dir = self.base / "learned"
@@ -145,6 +159,15 @@ class ConnyMemory:
         cache = self.get_session_cache(chat_id)
         cache.append({"role": role, "content": content})
         self.save_session_cache(chat_id, cache)
+
+    def delete_session_cache(self, chat_id: str) -> None:
+        """Borra la caché de sesión y archivos de aprendizaje temporal para un chat_id en modo demo."""
+        try:
+            cache_file = self.cache_dir / f"{chat_id}.json"
+            if cache_file.exists():
+                cache_file.unlink()
+        except Exception as e:
+            log.warning(f"Error deleting session cache for {chat_id}: {e}")
 
     def get_persona_tone(self) -> str:
         """Load persona tone file."""

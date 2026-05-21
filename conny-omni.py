@@ -151,13 +151,13 @@ def _e(c): return f"\033[{c}m" if _tty() else ""
 
 class C:
     R = _e("0"); BOLD = _e("1"); DIM = _e("2"); ITALIC = _e("3")
-    P1 = _e("38;5;183"); P2 = _e("38;5;141"); P3 = _e("38;5;135")
+    P1 = _e("38;2;139;92;246"); P2 = _e("38;2;236;72;153"); P3 = _e("38;5;135")
     P4 = _e("38;5;99"); P5 = _e("38;5;57")
     W = _e("38;5;15"); G0 = _e("38;5;252"); G1 = _e("38;5;248")
     G2 = _e("38;5;244"); G3 = _e("38;5;240"); G4 = _e("38;5;236")
     GRN = _e("38;5;114"); RED = _e("38;5;203")
-    YLW = _e("38;5;221"); CYN = _e("38;5;117"); AMB = _e("38;5;179")
-    BLU = _e("38;5;75"); MAG = _e("38;5;177"); ORG = _e("38;5;208")
+    YLW = _e("38;5;221"); CYN = _e("38;5;117"); AMB = _e("38;2;236;72;153")
+    BLU = _e("38;5;75"); MAG = _e("38;2;139;92;246"); ORG = _e("38;2;236;72;153")
 
 def q(color, text, bold=False):
     return f"{C.BOLD if bold else ''}{color}{text}{C.R}"
@@ -322,28 +322,43 @@ class Spinner:
         sys.stdout.flush()
 
 def print_logo(compact=False):
-    print()
     if compact:
-        print(f"  {q(C.AMB, '◉', bold=True)}  {q(C.W, 'conny omni', bold=True)}  "
+        print(f"  {q(C.P2, '◉', bold=True)}  {q(C.W, 'conny omni', bold=True)}  "
               f"{q(C.G3, f'v{OMNI_VERSION}')}")
         print()
         return
+        
+    try:
+        from src.conny.channels.logo_art import LOGO_ART_LINES
+    except ImportError:
+        try:
+            from conny.channels.logo_art import LOGO_ART_LINES
+        except ImportError:
+            LOGO_ART_LINES = ["Conny OMNI"]
+            
+    C_BLUE = _e("38;2;59;130;246")
     
-    rows = [
-        ("38;5;208", "   ██████╗ ███╗   ███╗███╗   ██╗██╗"),
-        ("38;5;179", "  ██╔═══██╗████╗ ████║████╗  ██║██║"),
-        ("38;5;221", "  ██║   ██║██╔████╔██║██╔██╗ ██║██║"),
-        ("38;5;214", "  ██║   ██║██║╚██╔╝██║██║╚██╗██║██║"),
-        ("38;5;208", "  ╚██████╔╝██║ ╚═╝ ██║██║ ╚████║██║"),
-        ("38;5;202", "   ╚═════╝ ╚═╝     ╚═╝╚═╝  ╚═══╝╚═╝"),
+    text_lines = [
+        "",
+        "",
+        f"  {C.P1}{C.BOLD}Conny OMNI {OMNI_VERSION}{C.R}",
+        f"  {C.P2}The All-Seeing Eye{C.R}",
+        f"  {C_BLUE}Target:{C.R} {C.W}Fleet Orchestrator{C.R}",
+        f"  {C_BLUE}Status:{C.R} {C.G1}Live Monitoring{C.R}",
+        f"  {C_BLUE}Node:{C.R} {C.G2}omni-server{C.R}",
+        f"  {C_BLUE}~{C.R}"
     ]
-    for col, row in rows:
-        print(f"{C.BOLD}{_e(col)}{row}{C.R}")
+    
     print()
-    print(f"  {q(C.AMB, '◉')} {q(C.W, 'OMNI', bold=True)}  {q(C.G3, '·')}  "
-          f"{q(C.G2, 'El Ojo que Todo lo Ve')}  "
-          f"{q(C.G3, f'v{OMNI_VERSION}')}")
-    print(f"  {q(C.G4, '─' * 40)}")
+    print(f"  {C.G4}{'─' * 100}{C.R}")
+    print()
+    max_len = max(len(LOGO_ART_LINES), len(text_lines))
+    for i in range(max_len):
+        left = LOGO_ART_LINES[i] if i < len(LOGO_ART_LINES) else " " * 18
+        right = text_lines[i] if i < len(text_lines) else ""
+        print(f"      {left}        {right}")
+    print()
+    print(f"  {C.G4}{'─' * 100}{C.R}")
     print()
 
 # ══════════════════════════════════════════════════════════════════════════════
