@@ -22,11 +22,11 @@ fi
 if ! command -v chafa &> /dev/null; then
     echo -e "\n  ${BOLD}1. Instalando motor True-Color (chafa)...${RESET}"
     if command -v pkg &> /dev/null; then
-        pkg install -y chafa
+        pkg install -y chafa || true
     elif command -v apt-get &> /dev/null; then
-        $SUDO apt-get update -yqq && $SUDO apt-get install -yqq chafa
+        $SUDO apt-get update -yqq && $SUDO apt-get install -yqq chafa || true
     elif command -v brew &> /dev/null; then
-        brew install chafa
+        brew install chafa || true
     else
         echo -e "  ${C_MUTED}No se pudo instalar chafa automáticamente. Se usará el logo clásico.${RESET}"
     fi
@@ -40,7 +40,10 @@ if ! command -v npm &> /dev/null; then
     exit 1
 fi
 
-echo -e "\n  ${BOLD}2. Instalando Conny CLI y Motor AI desde GitHub...${RESET}"
+echo -e "\n  ${BOLD}2. Limpiando versiones anteriores...${RESET}"
+npm uninstall -g conny-ai @blackboss/conny || true
+
+echo -e "\n  ${BOLD}3. Instalando Conny CLI y Motor AI desde GitHub...${RESET}"
 npm install -g "git+https://github.com/sxrubyo/conny.git#refactor-v10"
 
 echo -e "\n  ${C_SUCCESS}${BOLD}✔ ¡Conny instalado con éxito!${RESET}"
