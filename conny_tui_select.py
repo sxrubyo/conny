@@ -12,6 +12,8 @@ IS_WINDOWS = sys.platform.startswith("win")
 if not IS_WINDOWS:
     import termios
     import tty
+else:
+    import msvcrt
 
 # Brand colors
 PURPLE = "\033[38;5;141m"
@@ -82,7 +84,7 @@ def select_menu(
         sys.stdout.write("".join(out))
         sys.stdout.flush()
 
-    def read_key():
+    def read_key_unix():
         fd = sys.stdin.fileno()
         old = termios.tcgetattr(fd)
         tty.setraw(fd)
@@ -109,6 +111,22 @@ def select_menu(
             return ch.decode(errors="ignore")
         finally:
             termios.tcsetattr(fd, termios.TCSADRAIN, old)
+
+    def read_key_win():
+        while True:
+            if msvcrt.kbhit():
+                ch = msvcrt.getch()
+                if ch in (b"\r", b"\n"):
+                    return "ENTER"
+                if ch == b"\x03":
+                    return "CTRL_C"
+                if ch in (b"\x00", b"\xe0"):
+                    ch2 = msvcrt.getch()
+                    if ch2 == b"H": return "UP"
+                    if ch2 == b"P": return "DOWN"
+                return ch.decode(errors="ignore")
+
+    read_key = read_key_win if IS_WINDOWS else read_key_unix
 
     draw(first=True)
     while True:
