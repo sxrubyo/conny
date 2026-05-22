@@ -10,3 +10,5 @@ apscheduler>=3.10.0
 scikit-learn>=1.4.0
 numpy>=1.26.0
 questionary>=2.0.0
+rich>=13.0.0
+deep-translator>=1.11.0
