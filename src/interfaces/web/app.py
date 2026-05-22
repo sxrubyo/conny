@@ -1656,6 +1656,8 @@ async def api_dev_list_instances(request: Request):
                                 port = line.split("=", 1)[1].strip()
                 sector = "Desconocido"
                 db_path = os.path.join(inst_path, "conny_ultra.db")
+                if not os.path.isfile(db_path):
+                    db_path = os.path.join(inst_path, "conny.db")
                 if os.path.isfile(db_path):
                     try:
                         conn = sqlite3.connect(db_path)
@@ -1696,6 +1698,8 @@ async def api_dev_new_instance(request: Request):
         subprocess.run(["bash", cli_path, "new", name], check=True, cwd="/home/ubuntu/conny")
         
         db_path = f"/home/ubuntu/conny-instances/{name}/conny_ultra.db"
+        if not os.path.isfile(db_path):
+            db_path = f"/home/ubuntu/conny-instances/{name}/conny.db"
         if os.path.isfile(db_path):
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
@@ -1737,6 +1741,8 @@ async def api_dev_get_prompt(name: str, request: Request):
         db_path = "/home/ubuntu/conny/conny_ultra.db"
     else:
         db_path = f"/home/ubuntu/conny-instances/{name}/conny_ultra.db"
+        if not os.path.isfile(db_path):
+            db_path = f"/home/ubuntu/conny-instances/{name}/conny.db"
         
     if not os.path.isfile(db_path):
         raise HTTPException(status_code=404, detail="Instancia no encontrada")
@@ -1772,6 +1778,8 @@ async def api_dev_set_prompt(name: str, request: Request):
         db_path = "/home/ubuntu/conny/conny_ultra.db"
     else:
         db_path = f"/home/ubuntu/conny-instances/{name}/conny_ultra.db"
+        if not os.path.isfile(db_path):
+            db_path = f"/home/ubuntu/conny-instances/{name}/conny.db"
         
     if not os.path.isfile(db_path):
         raise HTTPException(status_code=404, detail="Instancia no encontrada")
@@ -9317,9 +9325,9 @@ async def serve_isotype():
 
 @app.get("/bg-placeholder")
 async def serve_bg_placeholder():
-    bg_path = Path("/home/ubuntu/conny/brand-assets/A_dark_luxury_web_background_202605210700.jpeg")
+    bg_path = Path("/home/ubuntu/conny/brand-assets/web.background.png")
     if bg_path.exists():
-        return FileResponse(bg_path, media_type="image/jpeg")
+        return FileResponse(bg_path, media_type="image/png")
     return Response("", status_code=404)
 
 # Mount /static for JS/CSS assets

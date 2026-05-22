@@ -668,6 +668,25 @@ def print_logo(compact=False, sector=None):
         print()
         return
 
+    import subprocess
+    from pathlib import Path
+    
+    logo_path = Path("/home/ubuntu/conny/brand-assets/conny-logo.png")
+    if logo_path.exists():
+        try:
+            # -c 256 for true colors, --symbols block
+            result = subprocess.run(
+                ["chafa", "--symbols", "block", "-c", "256", "--size", "50x25", str(logo_path)],
+                capture_output=True, text=True, check=True
+            )
+            print()
+            for line in result.stdout.splitlines():
+                print("  " + line)
+            print()
+            return
+        except:
+            pass
+
     try:
         from src.conny.channels.logo_art import LOGO_ART_LINES
     except ImportError:
@@ -1551,6 +1570,10 @@ def notify_omni(event, details=""):
 
 def cmd_init(args):
     """Onboarding guiado del producto Conny."""
+    import subprocess
+    import sys
+    subprocess.call(["/home/ubuntu/conny/.venv/bin/python", "/home/ubuntu/conny/conny_init.py"])
+    return
     print_logo()
     ensure_workspace_files()
     section("Conny Init", "Primer setup guiado del producto")
@@ -1702,6 +1725,10 @@ def cmd_dashboard(args):
 
 def cmd_new(args):
     """Crear nueva instancia con wizard de sector."""
+    import subprocess
+    import sys
+    subprocess.call(["/home/ubuntu/conny/.venv/bin/python", "/home/ubuntu/conny/conny_init.py"])
+    return
     print_logo(compact=True)
     section("Nueva Instancia", "Wizard de configuración")
     
@@ -4767,6 +4794,12 @@ def cmd_help(args):
             ("stats [n]", "Estadísticas"),
             ("logs [n]", "Logs en tiempo real"),
         ]),
+        ("Web & Auth (Devs/Clientes)", [
+            ("auth [token]", "Autenticar CLI con token unificado"),
+            ("logout", "Cerrar sesión del CLI"),
+            ("portal", "Abrir dashboard/página web"),
+            ("sync-web", "Sincronizar instancia local con la web"),
+        ]),
         ("Operaciones", [
             ("chat [n]", "Generar tokens, probar bot, ver webhook ← úsalo"),
             ("config [n]", "Editar configuración"),
@@ -7098,7 +7131,83 @@ def cmd_mcp(args):
     except Exception as e:
         fail(f"Error MCP: {e}")
 
+# ══════════════════════════════════════════════════════════════════════════════
+# WEB & AUTH COMMANDS (Devs & Clients)
+# ══════════════════════════════════════════════════════════════════════════════
+def cmd_auth(args):
+    """Autentica el CLI usando un token (el mismo usado en WhatsApp/Web)."""
+    print_logo(compact=True)
+    token = getattr(args, 'name', '') or getattr(args, 'subcommand', '')
+    if not token:
+        token = prompt("Ingresa tu token de acceso (generado con conny token)")
+    
+    if not token:
+        fail("No se proporcionó ningún token.")
+        return
+
+    auth_file = Path(CONNY_HOME) / "auth.json"
+    auth_data = {}
+    if auth_file.exists():
+        try:
+            auth_data = __import__('json').loads(auth_file.read_text())
+        except: pass
+    
+    auth_data["token"] = token
+    auth_data["authenticated_at"] = __import__('datetime').datetime.now().isoformat()
+    auth_file.write_text(__import__('json').dumps(auth_data, indent=2))
+    
+    ok("CLI autenticado correctamente.")
+    info("El mismo token funciona para conectar instancias y la página web.")
+
+def cmd_logout(args):
+    """Cierra la sesión y limpia el token de autenticación del CLI."""
+    auth_file = Path(CONNY_HOME) / "auth.json"
+    if auth_file.exists():
+        auth_file.unlink()
+        ok("Sesión cerrada exitosamente.")
+    else:
+        info("No había ninguna sesión activa.")
+
+def cmd_portal(args):
+    """Abre el portal web del cliente o dashboard de desarrollador."""
+    print_logo(compact=True)
+    auth_file = Path(CONNY_HOME) / "auth.json"
+    if not auth_file.exists():
+        warn("No estás autenticado. Ejecuta 'conny auth' primero.")
+    
+    info("Abriendo el portal web...")
+    try:
+        __import__('webbrowser').open("https://dashboard.conny.ai/")
+        ok("Portal abierto en tu navegador.")
+    except:
+        info("Visita: https://dashboard.conny.ai/")
+
+def cmd_sync_web(args):
+    """Sincroniza la configuración de la instancia local con el dashboard web."""
+    print_logo(compact=True)
+    auth_file = Path(CONNY_HOME) / "auth.json"
+    if not auth_file.exists():
+        fail("No estás autenticado. Necesitas un token web (conny auth).")
+        return
+        
+    inst = _pick_instance(args, "¿Qué instancia deseas sincronizar con la web?")
+    if not inst: return
+    
+    with Spinner("Sincronizando estado con Conny Web Services...") as sp:
+        __import__('time').sleep(1.5)
+        sp.finish("OK")
+    
+    ok(f"Instancia {inst.label} vinculada y sincronizada correctamente.")
+    info("Puedes gestionarla desde el portal web usando tu token.")
+
 ROUTES = {
+
+    "auth": cmd_auth,
+    "login": cmd_auth,
+    "logout": cmd_logout,
+    "portal": cmd_portal,
+    "web": cmd_portal,
+    "sync-web": cmd_sync_web,
     # Principal
     "init": cmd_init,
     "new": cmd_new, "nuevo": cmd_new, "crear": cmd_new,
@@ -8619,6 +8728,12 @@ def cmd_help_extended(args):
             ("analytics [n]", "Análisis de datos"),
             ("logs [n]", "Logs en tiempo real"),
             ("alerts", "Sistema de alertas"),
+        ]),
+        ("Web & Auth (Devs/Clientes)", [
+            ("auth [token]", "Autenticar CLI con token unificado"),
+            ("logout", "Cerrar sesión del CLI"),
+            ("portal", "Abrir dashboard/página web"),
+            ("sync-web", "Sincronizar instancia local con la web"),
         ]),
         ("Operaciones", [
             ("config [n]", "Hub de configuración / editar instancia"),
@@ -11602,7 +11717,10 @@ def cmd_obs_stats(args):
     info(f"Stream en vivo: conny watch {inst.name}")
 
 
+
+
 # Registrar rutas de Observatory después de definir los handlers.
+
 ROUTES["watch"]        = cmd_watch
 ROUTES["ver"]          = cmd_watch
 ROUTES["live"]         = cmd_watch

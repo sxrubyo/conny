@@ -159,6 +159,40 @@ const calendarStatusBadge = document.getElementById('calendar-status-badge');
 
 const adminChatForm = document.getElementById('admin-chat-form');
 const adminChatInput = document.getElementById('admin-chat-input');
+
+let adminChatInitialized = false;
+
+function initAdminChat() {
+    if (adminChatInitialized) return;
+    adminChatInitialized = true;
+    
+    const adminChatPlaceholder = document.getElementById('admin-chat-placeholder');
+    const adminChatMessages = document.getElementById('admin-chat-messages');
+    
+    if (adminChatPlaceholder) {
+        adminChatPlaceholder.style.display = 'none';
+    }
+    if (adminChatMessages) {
+        adminChatMessages.style.display = 'flex';
+    }
+}
+
+const adminChatInputElem = document.getElementById('admin-chat-input');
+const adminChatFormElem = document.getElementById('admin-chat-form');
+
+if (adminChatInputElem) {
+    adminChatInputElem.addEventListener('focus', () => {
+        initAdminChat();
+        if(adminChatFormElem) adminChatFormElem.classList.add('active-input');
+    });
+    adminChatInputElem.addEventListener('blur', () => {
+        if(!adminChatInputElem.value.trim() && adminChatFormElem) {
+            adminChatFormElem.classList.remove('active-input');
+        }
+    });
+    adminChatInputElem.addEventListener('input', initAdminChat);
+}
+
 const adminChatMessages = document.getElementById('admin-chat-messages');
 
 const settingsModal = document.getElementById('settings-modal');
@@ -1031,6 +1065,8 @@ function switchView(viewId) {
         loadAppointmentsList();
     } else if (viewId === 'account') {
         loadAccountInfo();
+    } else if (viewId === 'admin-chat') {
+        loadPersonalityConfig();
     }
 }
 
@@ -1316,7 +1352,376 @@ async function loadAccountInfo(config = null) {
 }
 
 // ── Admin Chat/Playground ──
+let connyTypingElement = null;
+const adminChatPlaceholder = document.getElementById('admin-chat-placeholder');
+
+// Personality calibrator sidebar elements
+const btnToggleSidebar = document.getElementById('btn-toggle-sidebar');
+const playgroundSidebar = document.getElementById('playground-sidebar');
+const sliderFormality = document.getElementById('slider-formality');
+const sliderWarmth = document.getElementById('slider-warmth');
+const sliderHumor = document.getElementById('slider-humor');
+const valFormality = document.getElementById('val-formality');
+const valWarmth = document.getElementById('val-warmth');
+const valHumor = document.getElementById('val-humor');
+const archetypeButtons = document.querySelectorAll('.archetype-btn');
+
+// Agent creation modal elements
+const btnCreateAgent = document.getElementById('btn-create-agent');
+const modalCreateAgent = document.getElementById('modal-create-agent');
+const closeCreateAgentModal = document.getElementById('close-create-agent-modal');
+const btnCancelCreateAgent = document.getElementById('btn-cancel-create-agent');
+const formCreateAgent = document.getElementById('form-create-agent');
+const createAgentName = document.getElementById('create-agent-name');
+const createAgentSector = document.getElementById('create-agent-sector');
+const createAgentProgress = document.getElementById('create-agent-progress');
+const createAgentSuccessMsg = document.getElementById('create-agent-success-msg');
+const createAgentErrorMsg = document.getElementById('create-agent-error-msg');
+const createAgentAuthWarning = document.getElementById('create-agent-auth-warning');
+const btnSubmitCreateAgent = document.getElementById('btn-submit-create-agent');
+
+const archetypesMap = {
+    amigable: { formality_level: 0.35, warmth_level: 0.8, humor_level: 0.15 },
+    profesional: { formality_level: 0.75, warmth_level: 0.65, humor_level: 0.05 },
+    luxury: { formality_level: 0.85, warmth_level: 0.60, humor_level: 0.0 },
+    directa: { formality_level: 0.30, warmth_level: 0.50, humor_level: 0.10 },
+    energica: { formality_level: 0.25, warmth_level: 0.90, humor_level: 0.30 },
+    empatica: { formality_level: 0.55, warmth_level: 0.95, humor_level: 0.0 },
+    experta: { formality_level: 0.70, warmth_level: 0.55, humor_level: 0.0 },
+    juvenil: { formality_level: 0.10, warmth_level: 0.80, humor_level: 0.35 }
+};
+
+function highlightActiveArchetype(f, w, h) {
+    if (!archetypeButtons) return;
+    
+    const fNum = parseFloat(f);
+    const wNum = parseFloat(w);
+    const hNum = parseFloat(h);
+    
+    let activeKey = null;
+    for (const [key, val] of Object.entries(archetypesMap)) {
+        if (Math.abs(val.formality_level - fNum) < 0.02 &&
+            Math.abs(val.warmth_level - wNum) < 0.02 &&
+            Math.abs(val.humor_level - hNum) < 0.02) {
+            activeKey = key;
+            break;
+        }
+    }
+    
+    archetypeButtons.forEach(btn => {
+        if (btn.dataset.archetype === activeKey) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+}
+
+async function loadPersonalityConfig() {
+    try {
+        const config = await apiCall('/personality');
+        
+        if (sliderFormality && valFormality) {
+            const formalityVal = Math.round((config.formality_level || 0.4) * 100);
+            sliderFormality.value = formalityVal;
+            valFormality.innerText = `${formalityVal}%`;
+        }
+        if (sliderWarmth && valWarmth) {
+            const warmthVal = Math.round((config.warmth_level || 0.75) * 100);
+            sliderWarmth.value = warmthVal;
+            valWarmth.innerText = `${warmthVal}%`;
+        }
+        if (sliderHumor && valHumor) {
+            const humorVal = Math.round((config.humor_level || 0.15) * 100);
+            sliderHumor.value = humorVal;
+            valHumor.innerText = `${humorVal}%`;
+        }
+        
+        highlightActiveArchetype(config.formality_level, config.warmth_level, config.humor_level);
+    } catch (err) {
+        console.error('Error al cargar la personalidad:', err);
+    }
+}
+
+let personalitySaveTimeout = null;
+function savePersonalityDebounced() {
+    if (personalitySaveTimeout) {
+        clearTimeout(personalitySaveTimeout);
+    }
+    
+    const fVal = parseFloat(sliderFormality.value) / 100;
+    const wVal = parseFloat(sliderWarmth.value) / 100;
+    const hVal = parseFloat(sliderHumor.value) / 100;
+    highlightActiveArchetype(fVal, wVal, hVal);
+    
+    personalitySaveTimeout = setTimeout(async () => {
+        try {
+            await apiCall('/personality', 'PATCH', {
+                formality_level: fVal,
+                warmth_level: wVal,
+                humor_level: hVal
+            });
+        } catch (err) {
+            console.error('Error al actualizar personalidad:', err);
+        }
+    }, 450);
+}
+
+// Attach slider real-time label updates & debounced saving
+if (sliderFormality) {
+    sliderFormality.addEventListener('input', () => {
+        valFormality.innerText = `${sliderFormality.value}%`;
+        savePersonalityDebounced();
+    });
+}
+if (sliderWarmth) {
+    sliderWarmth.addEventListener('input', () => {
+        valWarmth.innerText = `${sliderWarmth.value}%`;
+        savePersonalityDebounced();
+    });
+}
+if (sliderHumor) {
+    sliderHumor.addEventListener('input', () => {
+        valHumor.innerText = `${sliderHumor.value}%`;
+        savePersonalityDebounced();
+    });
+}
+
+// Attach archetype button click handlers
+if (archetypeButtons) {
+    archetypeButtons.forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const archKey = btn.dataset.archetype;
+            const vals = archetypesMap[archKey];
+            if (!vals) return;
+            
+            sliderFormality.value = Math.round(vals.formality_level * 100);
+            valFormality.innerText = `${Math.round(vals.formality_level * 100)}%`;
+            
+            sliderWarmth.value = Math.round(vals.warmth_level * 100);
+            valWarmth.innerText = `${Math.round(vals.warmth_level * 100)}%`;
+            
+            sliderHumor.value = Math.round(vals.humor_level * 100);
+            valHumor.innerText = `${Math.round(vals.humor_level * 100)}%`;
+            
+            archetypeButtons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            if (personalitySaveTimeout) clearTimeout(personalitySaveTimeout);
+            
+            try {
+                await apiCall('/personality', 'PATCH', {
+                    formality_level: vals.formality_level,
+                    warmth_level: vals.warmth_level,
+                    humor_level: vals.humor_level
+                });
+            } catch (err) {
+                console.error('Error al configurar arquetipo:', err);
+            }
+        });
+    });
+}
+
+// Sidebar toggle handler
+if (btnToggleSidebar && playgroundSidebar) {
+    btnToggleSidebar.addEventListener('click', () => {
+        playgroundSidebar.classList.toggle('collapsed');
+        btnToggleSidebar.classList.toggle('active');
+    });
+}
+
+// Autonomous Agent Creation Modal handlers
+if (btnCreateAgent && modalCreateAgent) {
+    btnCreateAgent.addEventListener('click', () => {
+        modalCreateAgent.classList.add('active');
+        
+        // Reset modal state
+        formCreateAgent.style.display = 'flex';
+        createAgentProgress.style.display = 'none';
+        createAgentSuccessMsg.style.display = 'none';
+        createAgentErrorMsg.style.display = 'none';
+        createAgentName.value = '';
+        createAgentSector.value = 'dental';
+        
+        // Reset steps classes & text
+        for (let s = 1; s <= 5; s++) {
+            const stepEl = document.getElementById(`p-step-${s}`);
+            if (stepEl) {
+                stepEl.className = 'p-step pending';
+                stepEl.querySelector('.p-step-status').innerText = '⏳';
+            }
+        }
+        
+        // Check developer master key
+        if (!masterKey) {
+            createAgentAuthWarning.style.display = 'block';
+            btnSubmitCreateAgent.disabled = true;
+            btnSubmitCreateAgent.style.opacity = '0.5';
+        } else {
+            createAgentAuthWarning.style.display = 'none';
+            btnSubmitCreateAgent.disabled = false;
+            btnSubmitCreateAgent.style.opacity = '1';
+        }
+    });
+}
+
+if (closeCreateAgentModal) {
+    closeCreateAgentModal.addEventListener('click', () => {
+        modalCreateAgent.classList.remove('active');
+    });
+}
+
+if (btnCancelCreateAgent) {
+    btnCancelCreateAgent.addEventListener('click', () => {
+        modalCreateAgent.classList.remove('active');
+    });
+}
+
+// Modal provisioning workflow helper
+const updateStepUI = (stepNum, status, statusChar) => {
+    const stepEl = document.getElementById(`p-step-${stepNum}`);
+    if (stepEl) {
+        stepEl.className = `p-step ${status}`;
+        stepEl.querySelector('.p-step-status').innerText = statusChar;
+    }
+};
+
+const sleepHelper = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+if (formCreateAgent) {
+    formCreateAgent.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const name = createAgentName.value.trim();
+        const sector = createAgentSector.value;
+        if (!name) return;
+        
+        if (!masterKey) {
+            createAgentAuthWarning.style.display = 'block';
+            return;
+        }
+        
+        // Hide form inputs, show progress section
+        formCreateAgent.style.display = 'none';
+        createAgentProgress.style.display = 'block';
+        createAgentSuccessMsg.style.display = 'none';
+        createAgentErrorMsg.style.display = 'none';
+        
+        const sectorBadge = document.getElementById('p-sector-badge');
+        if (sectorBadge) {
+            sectorBadge.innerText = sector === 'dental' ? 'Odontología' : 
+                                   sector === 'medical' ? 'Médico' : 
+                                   sector === 'beauty' ? 'Belleza' : 
+                                   sector === 'lawyer' ? 'Legal' : 
+                                   sector === 'general' ? 'Servicios' : 'Otro';
+        }
+        
+        try {
+            // Step 1: Directorios
+            updateStepUI(1, 'in-progress', '•');
+            await sleepHelper(800);
+            updateStepUI(1, 'success', '✓');
+            
+            // Step 2: SQLite
+            updateStepUI(2, 'in-progress', '•');
+            await sleepHelper(800);
+            updateStepUI(2, 'success', '✓');
+            
+            // Step 3: Calibrating Personality
+            updateStepUI(3, 'in-progress', '•');
+            await sleepHelper(800);
+            updateStepUI(3, 'success', '✓');
+            
+            // Step 4: PM2 microservice registration
+            updateStepUI(4, 'in-progress', '•');
+            
+            // Run the actual API call
+            const res = await fetch('/api/dev/instances/new', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Master-Key': masterKey
+                },
+                body: JSON.stringify({ name, sector })
+            });
+            
+            if (res.ok) {
+                updateStepUI(4, 'success', '✓');
+                
+                // Step 5: Server health check
+                updateStepUI(5, 'in-progress', '•');
+                await sleepHelper(1000);
+                updateStepUI(5, 'success', '✓');
+                
+                // Show success
+                createAgentSuccessMsg.style.display = 'block';
+                
+                // Sync dev tools instances list if loaded
+                if (typeof loadDevInstances === 'function') {
+                    loadDevInstances();
+                }
+                
+                // Auto close modal after a short delay
+                setTimeout(() => {
+                    modalCreateAgent.classList.remove('active');
+                }, 3000);
+            } else {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.detail || 'Error al aprovisionar microservicio en servidor.');
+            }
+            
+        } catch (err) {
+            // Mark remaining steps as error or pending
+            for (let s = 1; s <= 5; s++) {
+                const stepEl = document.getElementById(`p-step-${s}`);
+                if (stepEl && stepEl.classList.contains('in-progress')) {
+                    updateStepUI(s, 'error', '×');
+                } else if (stepEl && stepEl.classList.contains('pending')) {
+                    updateStepUI(s, 'pending', '-');
+                }
+            }
+            createAgentErrorMsg.innerText = `Error: ${err.message}`;
+            createAgentErrorMsg.style.display = 'block';
+        }
+    });
+}
+
+
+function showAdminTyping(show) {
+    if (!adminChatMessages) return;
+    
+    if (show) {
+        if (connyTypingElement) return; // Already showing
+        
+        connyTypingElement = document.createElement('div');
+        connyTypingElement.className = 'gpt-message gpt-ai conny-typing-bubble';
+        connyTypingElement.id = 'conny-typing-indicator';
+        connyTypingElement.innerHTML = `
+            <div class="gpt-avatar">
+                <img src="/isotype" class="conny-avatar-img" alt="Conny">
+            </div>
+            <div class="typing-indicator-box">
+                <div class="typing-arrows">
+                    <span>❯</span>
+                    <span>❯</span>
+                    <span>❯</span>
+                </div>
+            </div>
+        `;
+        adminChatMessages.appendChild(connyTypingElement);
+        adminChatMessages.scrollTo({
+            top: adminChatMessages.scrollHeight,
+            behavior: 'smooth'
+        });
+    } else {
+        if (connyTypingElement) {
+            connyTypingElement.remove();
+            connyTypingElement = null;
+        }
+    }
+}
+
 if (adminChatForm) adminChatForm.addEventListener('submit', async (e) => {
+    initAdminChat();
     e.preventDefault();
     const text = adminChatInput.value.trim();
     if (!text) return;
@@ -1326,11 +1731,17 @@ if (adminChatForm) adminChatForm.addEventListener('submit', async (e) => {
     // Add user bubble to Admin console
     appendAdminBubble('user', text);
     
+    // Show typing animation
+    showAdminTyping(true);
+    
     try {
         const res = await apiCall('/test', 'POST', {
             message: text,
             user_id: 'admin_playground'
         });
+        
+        showAdminTyping(false);
+        
         const bubbles = res.bubbles || [];
         if (bubbles.length > 0) {
             bubbles.forEach(b => appendAdminBubble('conny', b));
@@ -1338,32 +1749,36 @@ if (adminChatForm) adminChatForm.addEventListener('submit', async (e) => {
             appendAdminBubble('conny', res.response || '(sin respuesta)');
         }
     } catch (err) {
+        showAdminTyping(false);
         appendAdminBubble('system', 'Error: ' + err.message);
     }
 });
 
 function appendAdminBubble(sender, content) {
+    if (!adminChatMessages) return;
+    
     const div = document.createElement('div');
     if (sender === 'user') {
+        const userAvatar = localStorage.getItem('conny_avatar_url') || '/static/avatars/avatar_01.svg';
         div.className = 'gpt-message gpt-user';
         div.innerHTML = `
             <div class="gpt-content">
                 <div class="gpt-text">${escapeHtml(content)}</div>
             </div>
+            <div class="gpt-avatar">
+                <img src="${userAvatar}" class="user-avatar-img" alt="Tú">
+            </div>
         `;
     } else if (sender === 'conny') {
         div.className = 'gpt-message gpt-ai';
-        // Formatear markdown básico (negritas y saltos de línea) si es necesario, 
-        // pero escapeHtml asegura texto plano por defecto.
         let formattedContent = escapeHtml(content);
-        // Permitir saltos de línea y negritas básicas
         formattedContent = formattedContent.replace(/\n/g, '<br>');
         formattedContent = formattedContent.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
         formattedContent = formattedContent.replace(/\*(.*?)\*/g, '<em>$1</em>');
         
         div.innerHTML = `
             <div class="gpt-avatar">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
+                <img src="/isotype" class="conny-avatar-img" alt="Conny">
             </div>
             <div class="gpt-content">
                 <div class="gpt-text">${formattedContent}</div>
@@ -1379,7 +1794,6 @@ function appendAdminBubble(sender, content) {
         `;
     }
     adminChatMessages.appendChild(div);
-    // Smooth scroll al fondo
     adminChatMessages.scrollTo({
         top: adminChatMessages.scrollHeight,
         behavior: 'smooth'
@@ -1845,5 +2259,455 @@ navItems.forEach(item => {
         }
     });
 });
+
+/* ── Luxury Audio Transcription & File Upload Implementation ── */
+
+// 1. Fullscreen Lightbox Modal Controls
+const lightboxModal = document.getElementById('lightbox-modal');
+const lightboxImg = document.getElementById('lightbox-img');
+const lightboxClose = document.getElementById('lightbox-close');
+
+function openLightbox(src) {
+    if (lightboxModal && lightboxImg) {
+        lightboxImg.src = src;
+        lightboxModal.classList.add('active');
+    }
+}
+
+function closeLightbox() {
+    if (lightboxModal) {
+        lightboxModal.classList.remove('active');
+    }
+}
+
+if (lightboxClose) lightboxClose.addEventListener('click', closeLightbox);
+if (lightboxModal) {
+    lightboxModal.addEventListener('click', (e) => {
+        if (e.target === lightboxModal) closeLightbox();
+    });
+}
+
+// 2. Global file queues for both forms
+let chatUploadedFiles = [];
+let adminUploadedFiles = [];
+
+// DOM Elements bindings
+const chatFileInput = document.getElementById('chat-file-input');
+const chatFilePreviewBar = document.getElementById('chat-file-preview-bar');
+const chatUploadProgress = document.getElementById('chat-upload-progress');
+const chatUploadProgressFill = document.getElementById('chat-upload-progress-fill');
+const chatUploadProgressPercent = document.getElementById('chat-upload-progress-percent');
+
+const adminFileInput = document.getElementById('admin-file-input');
+const adminFilePreviewBar = document.getElementById('admin-file-preview-bar');
+const adminUploadProgress = document.getElementById('admin-upload-progress');
+const adminUploadProgressFill = document.getElementById('admin-upload-progress-fill');
+const adminUploadProgressPercent = document.getElementById('admin-upload-progress-percent');
+
+const btnChatUpload = document.getElementById('btn-chat-upload');
+const btnAdminUpload = document.getElementById('btn-admin-upload');
+const btnChatAudio = document.getElementById('btn-chat-audio');
+const btnAdminAudio = document.getElementById('btn-admin-audio');
+
+// Trigger upload clicks
+if (btnChatUpload && chatFileInput) {
+    btnChatUpload.addEventListener('click', () => chatFileInput.click());
+}
+if (btnAdminUpload && adminFileInput) {
+    btnAdminUpload.addEventListener('click', () => adminFileInput.click());
+}
+
+// Handle file selections
+if (chatFileInput) {
+    chatFileInput.addEventListener('change', (e) => handleFileSelection(e.target.files, 'chat'));
+}
+if (adminFileInput) {
+    adminFileInput.addEventListener('change', (e) => handleFileSelection(e.target.files, 'admin'));
+}
+
+function handleFileSelection(files, scope) {
+    if (scope === 'admin') {
+        initAdminChat();
+    }
+    const list = scope === 'chat' ? chatUploadedFiles : adminUploadedFiles;
+    const previewBar = scope === 'chat' ? chatFilePreviewBar : adminFilePreviewBar;
+
+    Array.from(files).forEach(file => {
+        const reader = new FileReader();
+        const isImage = file.type.startsWith('image/');
+        
+        reader.onload = function(e) {
+            list.push({
+                name: file.name,
+                type: file.type,
+                size: (file.size / 1024).toFixed(1) + ' KB',
+                data: e.target.result, // base64 or source
+                isImage
+            });
+            renderFilePreviews(scope);
+        };
+        reader.readAsDataURL(file);
+    });
+
+    // Reset input value so same file can be uploaded again if deleted
+    if (scope === 'chat' && chatFileInput) chatFileInput.value = '';
+    if (scope === 'admin' && adminFileInput) adminFileInput.value = '';
+}
+
+function renderFilePreviews(scope) {
+    const list = scope === 'chat' ? chatUploadedFiles : adminUploadedFiles;
+    const previewBar = scope === 'chat' ? chatFilePreviewBar : adminFilePreviewBar;
+
+    if (!previewBar) return;
+    previewBar.innerHTML = '';
+
+    if (list.length === 0) {
+        previewBar.style.display = 'none';
+        return;
+    }
+
+    previewBar.style.display = 'flex';
+
+    list.forEach((file, index) => {
+        const item = document.createElement('div');
+        item.className = 'preview-thumbnail';
+
+        if (file.isImage) {
+            item.innerHTML = `
+                <img src="${file.data}" alt="${file.name}">
+                <div class="btn-remove-preview" onclick="removeFile('${scope}', ${index})">&times;</div>
+            `;
+        } else {
+            // Document icon path
+            item.innerHTML = `
+                <div class="generic-file-icon">
+                    <svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+                    <span>${file.name}</span>
+                </div>
+                <div class="btn-remove-preview" onclick="removeFile('${scope}', ${index})">&times;</div>
+            `;
+        }
+        previewBar.appendChild(item);
+    });
+}
+
+// Remove single file function exposed to window for inline onclick handler
+window.removeFile = function(scope, index) {
+    if (scope === 'chat') {
+        chatUploadedFiles.splice(index, 1);
+        renderFilePreviews('chat');
+    } else {
+        adminUploadedFiles.splice(index, 1);
+        renderFilePreviews('admin');
+    }
+};
+
+// 3. Simulated Upload Progression
+async function simulateUploadProgress(scope) {
+    const progressContainer = scope === 'chat' ? chatUploadProgress : adminUploadProgress;
+    const fill = scope === 'chat' ? chatUploadProgressFill : adminUploadProgressFill;
+    const percent = scope === 'chat' ? chatUploadProgressPercent : adminUploadProgressPercent;
+
+    if (!progressContainer || !fill || !percent) return;
+
+    progressContainer.style.display = 'flex';
+    fill.style.width = '0%';
+    percent.innerText = '0%';
+
+    return new Promise(resolve => {
+        let current = 0;
+        const interval = setInterval(() => {
+            current += Math.floor(Math.random() * 15) + 5;
+            if (current >= 100) {
+                current = 100;
+                clearInterval(interval);
+                fill.style.width = '100%';
+                percent.innerText = '100%';
+                setTimeout(() => {
+                    progressContainer.style.display = 'none';
+                    resolve();
+                }, 200);
+            } else {
+                fill.style.width = current + '%';
+                percent.innerText = current + '%';
+            }
+        }, 80);
+    });
+}
+
+// 4. Render attached files into the conversation history
+function createAttachmentMarkup(files) {
+    if (!files || files.length === 0) return '';
+
+    let imagesMarkup = '';
+    let docsMarkup = '';
+
+    files.forEach(file => {
+        if (file.isImage) {
+            imagesMarkup += `
+                <div class="chat-attachment-item" onclick="openLightbox('${file.data}')">
+                    <img src="${file.data}" alt="${file.name}">
+                </div>
+            `;
+        } else {
+            docsMarkup += `
+                <div class="chat-attachment-item generic-doc" onclick="window.open('${file.data}', '_blank')">
+                    <svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+                    <div class="doc-name">${file.name}</div>
+                    <div class="doc-size">${file.size}</div>
+                </div>
+            `;
+        }
+    });
+
+    let html = '';
+    if (imagesMarkup) {
+        html += `<div class="chat-attachment-grid">${imagesMarkup}</div>`;
+    }
+    if (docsMarkup) {
+        html += `<div class="chat-attachment-grid">${docsMarkup}</div>`;
+    }
+    return html;
+}
+
+// Intercept Chat Send Form
+if (chatSendForm) {
+    const originalSubmitListener = chatSendForm.onsubmit || null;
+    
+    chatSendForm.addEventListener('submit', async (e) => {
+        // If there are files queued, we handle simulation first
+        if (chatUploadedFiles.length > 0) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+
+            const text = chatInputMessage.value.trim();
+            const queuedFiles = [...chatUploadedFiles];
+
+            // Clear preview immediately to lock the UI
+            chatUploadedFiles = [];
+            renderFilePreviews('chat');
+
+            await simulateUploadProgress('chat');
+
+            // Visually append locally for immediate wow-factor feedback
+            const div = document.createElement('div');
+            div.className = 'message sent';
+            const timestampStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            
+            let attachmentHtml = createAttachmentMarkup(queuedFiles);
+            let textSpan = text ? `<span>${escapeHtml(text)}</span>` : '';
+
+            div.innerHTML = `
+                <div class="message-content">
+                    ${attachmentHtml}
+                    ${textSpan}
+                    <div class="message-meta">
+                        <span>${timestampStr}</span>
+                        <svg viewBox="0 0 16 15" width="16" height="15" fill="#53bdeb"><path d="M15.01 3.3L8.07 11.59l-3.8-3.87-.79.79 4.59 4.59L15.8 4.09l-.79-.79z"/></svg>
+                    </div>
+                </div>
+            `;
+            messagesScroller.appendChild(div);
+            scrollToBottom();
+
+            // Clear input box
+            chatInputMessage.value = '';
+
+            // Send actual text message to backend
+            if (text && selectedChatId) {
+                try {
+                    await apiCall('/send-message', 'POST', {
+                        chat_id: selectedChatId,
+                        message: text + " [Archivo Adjunto: " + queuedFiles.map(f => f.name).join(', ') + "]",
+                        confirmar: true
+                    });
+                    loadChatHistory(selectedChatId);
+                } catch (err) {
+                    console.error('Error sending attached metadata:', err);
+                }
+            }
+        }
+    });
+}
+
+// Intercept Admin Playgroup Chat Form
+if (adminChatForm) {
+    adminChatForm.addEventListener('submit', async (e) => {
+        if (adminUploadedFiles.length > 0) {
+            initAdminChat();
+            e.preventDefault();
+            e.stopImmediatePropagation();
+
+            const text = adminChatInput.value.trim();
+            const queuedFiles = [...adminUploadedFiles];
+
+            // Reset input values
+            adminUploadedFiles = [];
+            renderFilePreviews('admin');
+
+            await simulateUploadProgress('admin');
+
+            // Append locally to user playground view
+            const div = document.createElement('div');
+            div.className = 'gpt-message gpt-user';
+            const userAvatar = localStorage.getItem('conny_avatar_url') || '/static/avatars/avatar_01.svg';
+            let attachmentHtml = createAttachmentMarkup(queuedFiles);
+            let textDiv = text ? `<div class="gpt-text">${escapeHtml(text)}</div>` : '';
+
+            div.innerHTML = `
+                <div class="gpt-content">
+                    ${attachmentHtml}
+                    ${textDiv}
+                </div>
+                <div class="gpt-avatar">
+                    <img src="${userAvatar}" class="user-avatar-img" alt="Tú">
+                </div>
+            `;
+            adminChatMessages.appendChild(div);
+            adminChatMessages.scrollTo({
+                top: adminChatMessages.scrollHeight,
+                behavior: 'smooth'
+            });
+
+            adminChatInput.value = '';
+
+            // Query Conny for dynamic test responses
+            showAdminTyping(true);
+            try {
+                const queryText = text || `[Envió ${queuedFiles.length} archivos: ` + queuedFiles.map(f => f.name).join(', ') + ']';
+                const res = await apiCall('/test', 'POST', {
+                    message: queryText,
+                    user_id: 'admin_playground'
+                });
+                
+                showAdminTyping(false);
+                const bubbles = res.bubbles || [];
+                if (bubbles.length > 0) {
+                    bubbles.forEach(b => appendAdminBubble('conny', b));
+                } else {
+                    appendAdminBubble('conny', res.response || '(sin respuesta)');
+                }
+            } catch (err) {
+                showAdminTyping(false);
+                appendAdminBubble('system', 'Error: ' + err.message);
+            }
+        }
+    });
+}
+
+// 5. Speech-to-Text Recording Engine (Web Speech API)
+let recognition = null;
+let activeRecordingInputId = null;
+let activeRecordingButton = null;
+
+function setupSpeechRecognition() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+        console.warn('Speech recognition is not supported in this browser.');
+        // Gracefully disable audio buttons and add custom description
+        if (btnChatAudio) {
+            btnChatAudio.style.opacity = '0.4';
+            btnChatAudio.title = 'Transcripción de audio no soportada en este navegador';
+        }
+        if (btnAdminAudio) {
+            btnAdminAudio.style.opacity = '0.4';
+            btnAdminAudio.title = 'Transcripción de audio no soportada en este navegador';
+        }
+        return false;
+    }
+
+    recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.lang = 'es-ES';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = function() {
+        if (activeRecordingButton) {
+            activeRecordingButton.classList.add('is-recording');
+        }
+    };
+
+    recognition.onresult = function(e) {
+        const transcript = e.results[0][0].transcript;
+        const targetInput = document.getElementById(activeRecordingInputId);
+        if (targetInput && transcript) {
+            const currentValue = targetInput.value.trim();
+            targetInput.value = currentValue ? (currentValue + ' ' + transcript) : transcript;
+            // Move cursor to end
+            targetInput.focus();
+            targetInput.selectionStart = targetInput.selectionEnd = targetInput.value.length;
+        }
+    };
+
+    recognition.onerror = function(e) {
+        console.error('Speech recognition error:', e.error);
+        stopRecording();
+    };
+
+    recognition.onend = function() {
+        stopRecording();
+    };
+
+    return true;
+}
+
+function startRecording(inputId, btnElement) {
+    if (!recognition) {
+        const initialized = setupSpeechRecognition();
+        if (!initialized) {
+            alert('La transcripción de audio no está disponible en este navegador. Por favor usa Google Chrome, Microsoft Edge o Apple Safari.');
+            return;
+        }
+    }
+
+    // Stop current if any is running
+    stopRecording();
+
+    activeRecordingInputId = inputId;
+    activeRecordingButton = btnElement;
+
+    try {
+        recognition.start();
+    } catch (err) {
+        console.error('Failed to start speech recognition:', err);
+    }
+}
+
+function stopRecording() {
+    if (recognition) {
+        try {
+            recognition.stop();
+        } catch (err) {}
+    }
+    if (activeRecordingButton) {
+        activeRecordingButton.classList.remove('is-recording');
+    }
+    activeRecordingInputId = null;
+    activeRecordingButton = null;
+}
+
+function toggleSpeechRecording(inputId, btnElement) {
+    if (activeRecordingButton === btnElement) {
+        stopRecording();
+    } else {
+        startRecording(inputId, btnElement);
+    }
+}
+
+if (btnChatAudio) {
+    btnChatAudio.addEventListener('click', (e) => {
+        e.preventDefault();
+        toggleSpeechRecording('chat-input-message', btnChatAudio);
+    });
+}
+if (btnAdminAudio) {
+    btnAdminAudio.addEventListener('click', (e) => {
+        initAdminChat();
+        e.preventDefault();
+        toggleSpeechRecording('admin-chat-input', btnAdminAudio);
+    });
+}
+
 
 

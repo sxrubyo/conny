@@ -1308,11 +1308,11 @@ async def handle_demo_message(
             )
         ):
             return _lang_text(
-                "hola, soy Conny, la asesora virtual que llevaría tu chat ||| respondo clientes, filtro interesados, ubico servicios y ayudo con citas ||| pásame el nombre de tu negocio y arranco",
+                "Hola, soy Conny, una IA asistente. Me han configurado para hacerte una demostración de cómo puedo atender a tus clientes de WhatsApp automáticamente sin que tengas que estar pendiente del chat. Para personalizar esta demo y que veas cómo respondería en tu caso real, ¿me podrías decir cómo se llama tu negocio?",
                 "hi, I'm Conny, the assistant who would handle your business chat ||| I reply to clients, filter leads, explain services and help move appointments ||| send me your business name and I'll build the demo around it",
             )
         return _lang_text(
-            "hola, soy Conny, la asesora virtual que llevaría tu chat ||| pásame el nombre de tu negocio y arranco",
+            "Hola, soy Conny, una IA asistente. Me han configurado para hacerte una demostración de cómo puedo atender a tus clientes de WhatsApp automáticamente sin que tengas que estar pendiente del chat. Para personalizar esta demo y que veas cómo respondería en tu caso real, ¿me podrías decir cómo se llama tu negocio?",
             "hi, I'm Conny, the assistant who would handle your business chat ||| send me your business name and I'll start from there",
         )
 

@@ -1,6 +1,7 @@
 """conny_tui_select.py — Arrow-key interactive selection menu (Nova-style)."""
 from __future__ import annotations
 
+import getpass
 import os
 import sys
 import shutil
@@ -159,14 +160,17 @@ def confirm(text: str, default: bool = True) -> bool:
         return idx == 1
 
 
-def text_input(label: str, default: str = "", required: bool = True) -> str:
+def text_input(label: str, default: str = "", required: bool = True, is_password: bool = False) -> str:
     """Text input that stays visible."""
-    suffix = f" {DIM}(default: {default}){RESET}" if default else ""
+    suffix = f" {DIM}(default: {default}){RESET}" if default and not is_password else ""
     while True:
         try:
-            sys.stdout.write(f"\n  {MAGENTA}▶{RESET} {WHITE}{BOLD}{label}{RESET}{suffix}: ")
+            sys.stdout.write(f"  {MAGENTA}▶{RESET} {WHITE}{BOLD}{label}{RESET}{suffix}: ")
             sys.stdout.flush()
-            val = sys.stdin.readline().strip()
+            if is_password:
+                val = getpass.getpass(prompt="")
+            else:
+                val = sys.stdin.readline().strip()
         except (EOFError, KeyboardInterrupt):
             print()
             return default
