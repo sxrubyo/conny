@@ -1,9 +1,20 @@
 Write-Host "✦ Conny AI - Python Native Installer (Windows)" -ForegroundColor Magenta
 Write-Host "─────────────────────────────────────────" -ForegroundColor DarkGray
 
-# 1. Check Python
-if (-Not (Get-Command python -ErrorAction SilentlyContinue)) {
-    Write-Host "Error: Python no está instalado o no está en el PATH." -ForegroundColor Red
+# 1. Check Python robustly
+$PythonCmd = $null
+foreach ($cmd in @("py", "python3", "python")) {
+    try {
+        $out = & $cmd --version 2>&1
+        if ($LASTEXITCODE -eq 0 -or $?) {
+            $PythonCmd = $cmd
+            break
+        }
+    } catch {}
+}
+
+if (-Not $PythonCmd) {
+    Write-Host "Error: Python no está instalado o no está configurado en tu PATH. Descárgalo de python.org" -ForegroundColor Red
     exit 1
 }
 
@@ -18,11 +29,21 @@ git clone -b refactor-v10 https://github.com/sxrubyo/conny.git $InstallDir | Out
 
 Set-Location $InstallDir
 
-Write-Host "2. Creando entorno virtual aislado de Python..." -ForegroundColor Cyan
-python -m venv .venv
+Write-Host "2. Creando entorno virtual aislado de Python con '$PythonCmd'..." -ForegroundColor Cyan
+try {
+    & $PythonCmd -m venv .venv
+} catch {
+    Write-Host "Error al crear el entorno virtual. Revisa tu instalación de Python." -ForegroundColor Red
+    exit 1
+}
 
 Write-Host "3. Instalando dependencias de IA..." -ForegroundColor Cyan
-& ".\.venv\Scripts\pip.exe" install -r requirements.txt deep-translator | Out-Null
+if (Test-Path ".\.venv\Scripts\pip.exe") {
+    & ".\.venv\Scripts\pip.exe" install -r requirements.txt deep-translator | Out-Null
+} else {
+    Write-Host "Error: No se encontró pip en el entorno virtual." -ForegroundColor Red
+    exit 1
+}
 
 Write-Host "4. Creando atajo global 'conny'..." -ForegroundColor Cyan
 $ProfilePath = if (Test-Path $PROFILE) { $PROFILE } else { New-Item -ItemType File -Path $PROFILE -Force }
