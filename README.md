@@ -242,7 +242,7 @@ backups/                 # Local backups
 ## 🎮 CLI Reference
 
 ```bash
-npm install -g conny-ai          # Install globally
+curl -fsSL https://raw.githubusercontent.com/sxrubyo/conny/main/install.sh | bash
 conny --version                  # Check version
 
 conny sync --list                # List all client instances
