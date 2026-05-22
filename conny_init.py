@@ -158,7 +158,7 @@ def run_wizard():
     from pathlib import Path
     import re
     
-    logo_path = Path("/home/ubuntu/conny/brand-assets/conny-logo.png")
+    logo_path = Path(os.environ.get("CONNY_DIR", "/home/ubuntu/conny")) / "brand-assets" / "conny-logo.png"
     if logo_path.exists():
         try:
             result = subprocess.run(

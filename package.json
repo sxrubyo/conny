@@ -19,6 +19,8 @@
     "npm/conny.js",
     "conny",
     "conny.py",
+    "*.py",
+    "brand-assets/**/*",
     "conny_cli.py",
     "conny_cli_bb.py",
     "conny_tui.py",
