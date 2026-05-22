@@ -1,4 +1,4 @@
-#!/home/ubuntu/conny/.venv/bin/python
+#!/usr/bin/env python3
 """conny init — Infrastructure Provisioning Wizard v2."""
 from __future__ import annotations
 
@@ -61,8 +61,8 @@ C_ACCENT  = "\033[38;5;159m"         # Cyan
 B1 = "\033[1m"
 R = "\033[0m"
 
-INSTANCES_DIR = Path("/home/ubuntu/conny-instances")
-CONNY_DIR = Path("/home/ubuntu/conny")
+INSTANCES_DIR = Path(os.environ.get("INSTANCES_DIR", str(Path.home() / ".conny-instances")))
+CONNY_DIR = Path(os.environ.get("CONNY_DIR", os.path.dirname(os.path.abspath(__file__))))
 
 SECTORS = [
     ("clinica", "Clínica / Centro médico"),
@@ -158,7 +158,7 @@ def run_wizard():
     from pathlib import Path
     import re
     
-    logo_path = Path(os.environ.get("CONNY_DIR", "/home/ubuntu/conny")) / "brand-assets" / "conny-logo.png"
+    logo_path = Path(os.environ.get("CONNY_DIR", os.path.dirname(os.path.abspath(__file__)))) / "brand-assets" / "conny-logo.png"
     if logo_path.exists():
         try:
             result = subprocess.run(
@@ -478,7 +478,7 @@ llm:
     for d in ["soul", "teachings", "memory_store", "knowledge_gaps", "integrations/vault", "logs"]:
         (idir / d).mkdir(parents=True, exist_ok=True)
 
-    (idir / "run.sh").write_text(f"#!/bin/bash\ncd {idir}\nexec {CONNY_DIR}/.venv/bin/python conny.py\n")
+    (idir / "run.sh").write_text(f"#!/bin/bash\ncd {idir}\nexec {sys.executable} conny.py\n")
     os.chmod(idir / "run.sh", 0o755)
 
     # State

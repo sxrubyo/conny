@@ -671,7 +671,7 @@ def print_logo(compact=False, sector=None):
     import subprocess
     from pathlib import Path
     
-    logo_path = Path(os.environ.get("CONNY_DIR", ".")) / "brand-assets" / "conny-logo.png"
+    logo_path = Path(os.environ.get("CONNY_DIR", os.path.dirname(os.path.abspath(__file__)))) / "brand-assets" / "conny-logo.png"
     if logo_path.exists():
         try:
             # -c 256 for true colors, --symbols block
@@ -1572,7 +1572,7 @@ def cmd_init(args):
     """Onboarding guiado del producto Conny."""
     import subprocess
     import sys
-    subprocess.call([sys.executable, str(Path(os.environ.get("CONNY_DIR", ".")) / "conny_init.py")])
+    subprocess.call([sys.executable, str(Path(os.environ.get("CONNY_DIR", os.path.dirname(os.path.abspath(__file__)))) / "conny_init.py")])
     return
     print_logo()
     ensure_workspace_files()
@@ -1727,7 +1727,7 @@ def cmd_new(args):
     """Crear nueva instancia con wizard de sector."""
     import subprocess
     import sys
-    subprocess.call([sys.executable, str(Path(os.environ.get("CONNY_DIR", ".")) / "conny_init.py")])
+    subprocess.call([sys.executable, str(Path(os.environ.get("CONNY_DIR", os.path.dirname(os.path.abspath(__file__)))) / "conny_init.py")])
     return
     print_logo(compact=True)
     section("Nueva Instancia", "Wizard de configuración")
