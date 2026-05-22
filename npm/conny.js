@@ -357,7 +357,11 @@ function bootstrapFromPackage() {
         )
       );
     }
-    if (!fs.existsSync(sharedTelegramRoutesPath)) {
+    console.log(chalk.hex("#8B5CF6")("Verificando dependencias (pip)..."));
+  const runtime = resolveRuntime() || ensureRuntime(spinner);
+  spawnSync(runtime, ["-m", "pip", "install", "--disable-pip-version-check", "-r", path.join(repoDir, "requirements.txt")], { stdio: "ignore" });
+
+  if (!fs.existsSync(sharedTelegramRoutesPath)) {
       fs.writeFileSync(sharedTelegramRoutesPath, JSON.stringify({ default_instance: "", routes: {} }, null, 2));
     }
     ensureDir(path.join(connyHome, "instances"));
