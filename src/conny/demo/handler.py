@@ -1140,12 +1140,12 @@ async def _handle_demo_message(self, chat_id: str, text: str,
             )
         ):
             return _lang_text(
-                "¡Hola! soy Conny 👋 Me crearon para responder los chats de WhatsApp de los negocios de forma 100% automática, así los dueños no tienen que estar todo el día pegados al celular. Me pasaron tu contacto para hacerte una demostración en vivo de cómo trabajaría. Para personalizar esta demo, ¿me podrías decir cómo se llama tu negocio o de qué se trata?",
-                "hi, I'm Conny 👋 I was built to handle business WhatsApp chats automatically so owners don't have to be glued to their phones all day. I'm here to give you a live demo of how I would work for you. To customize the demo, could you tell me your business name or what it is about?",
+                "¡hola! soy Conny 👋 ||| me crearon para responder los chats de WhatsApp de los negocios de forma 100% automática, así los dueños no tienen que estar todo el día pegados al celular ||| me pasaron tu contacto para hacerte una demostración rápida de cómo trabajaría contigo ||| para personalizar la demo, cuéntame, ¿cómo se llama tu negocio?",
+                "hi, I'm Conny 👋 ||| I was built to handle business WhatsApp chats automatically so owners don't have to be glued to their phones all day ||| I'm here to give you a quick live demo of how I would work for you ||| to customize the demo, could you tell me your business name?",
             )
         return _lang_text(
-            "¡Hola! soy Conny 👋 Me crearon para responder los chats de WhatsApp de los negocios de forma automática, así los dueños no tienen que estar todo el día pegados al celular. Me pasaron tu contacto para hacerte una demostración en vivo de cómo trabajaría. Para personalizar esta demo, ¿me podrías decir cómo se llama tu negocio o de qué se trata?",
-            "hi, I'm Conny 👋 I was built to handle business WhatsApp chats automatically. To give you a custom live demo, could you tell me your business name?",
+            "¡hola! soy Conny 👋 ||| me crearon para responder los chats de WhatsApp de negocios de forma automática, así los dueños no tienen que estar todo el día pegados al celular ||| te escribo para hacerte una demostración en vivo de cómo trabajaría ||| para personalizar esta demo, cuéntame, ¿cómo se llama tu negocio?",
+            "hi, I'm Conny 👋 ||| I was built to handle business WhatsApp chats automatically ||| I'm here to give you a custom live demo ||| could you tell me your business name?",
         )
 
     async def _demo_owner_onboarding_reply(*, explain_name: bool = False, force_stage: Optional[str] = None) -> List[str]:
