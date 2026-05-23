@@ -1308,12 +1308,12 @@ async def handle_demo_message(
             )
         ):
             return _lang_text(
-                "Hola, soy Conny, una IA asistente. Me han configurado para hacerte una demostración de cómo puedo atender a tus clientes de WhatsApp automáticamente sin que tengas que estar pendiente del chat. Para personalizar esta demo y que veas cómo respondería en tu caso real, ¿me podrías decir cómo se llama tu negocio?",
-                "hi, I'm Conny, the assistant who would handle your business chat ||| I reply to clients, filter leads, explain services and help move appointments ||| send me your business name and I'll build the demo around it",
+                "¡Hola! soy Conny 👋 Me crearon para responder los chats de WhatsApp de los negocios de forma 100% automática, así los dueños no tienen que estar todo el día pegados al celular. Me pasaron tu contacto para hacerte una demostración en vivo de cómo trabajaría. Para personalizar esta demo, ¿me podrías decir cómo se llama tu negocio o de qué se trata?",
+                "hi, I'm Conny 👋 I was built to handle business WhatsApp chats automatically so owners don't have to be glued to their phones all day. I'm here to give you a live demo of how I would work for you. To customize the demo, could you tell me your business name or what it is about?",
             )
         return _lang_text(
-            "Hola, soy Conny, una IA asistente. Me han configurado para hacerte una demostración de cómo puedo atender a tus clientes de WhatsApp automáticamente sin que tengas que estar pendiente del chat. Para personalizar esta demo y que veas cómo respondería en tu caso real, ¿me podrías decir cómo se llama tu negocio?",
-            "hi, I'm Conny, the assistant who would handle your business chat ||| send me your business name and I'll start from there",
+            "¡Hola! soy Conny 👋 Me crearon para responder los chats de WhatsApp de los negocios de forma automática, así los dueños no tienen que estar todo el día pegados al celular. Me pasaron tu contacto para hacerte una demostración en vivo de cómo trabajaría. Para personalizar esta demo, ¿me podrías decir cómo se llama tu negocio o de qué se trata?",
+            "hi, I'm Conny 👋 I was built to handle business WhatsApp chats automatically. To give you a custom live demo, could you tell me your business name?",
         )
 
     async def _demo_owner_onboarding_reply(*, explain_name: bool = False, force_stage: Optional[str] = None) -> List[str]:
@@ -1353,7 +1353,7 @@ CÓMO SUENAS: como una persona real de Medellín escribiendo en WhatsApp.
 - Si te hablan en inglés, respondes en inglés perfecto, súper casual y natural de WhatsApp.
 
 TU ESTRATEGIA DE DEMO (no la menciones, solo ejecútala):
-1. PRIMERO: Si te saludan por primera vez o preguntan qué haces, DEBES EXPLICAR CLARAMENTE PARA QUÉ ESTÁS AQUÍ ANTES de pedir el negocio (ej. "soy Conny, una IA que responde chats de WhatsApp, y estoy aquí para hacerte una demo de cómo puedo atender a tus clientes en automático. Para personalizarla, ¿cómo se llama tu negocio?"). No pidas el negocio sin explicar qué eres primero.
+1. PRIMERO: Si te saludan por primera vez, haz una introducción completa y amable que no confunda a las personas que llegan referidas (ellos a veces no saben qué eres). Explica claramente de qué trata todo esto ANTES de pedir nada. Ej. "¡Hola! soy Conny 👋 Me crearon en Kimika para responder los chats de WhatsApp de los negocios de forma automática, así los dueños descansan. ||| Te pasaron mi número para que te haga una demostración en vivo de cómo trabajaría para tu empresa. ||| Cuéntame, ¿cómo se llama tu negocio o de qué se trata para personalizar la demo?". ¡NUNCA pidas el negocio sin explicar qué eres y para qué estás aquí!
 2. SEGUNDO: cuando te lo den, busca info del negocio y entra en personaje.
 3. TERCERO: invita a que te escriban como si fueran un cliente real.
 4. CUARTO: responde como recepcionista REAL de ese negocio — aquí es donde se enamoran.
@@ -1443,7 +1443,7 @@ EJEMPLOS DE RESPUESTAS BUENAS vs MALAS:
   BUENO: "me encargo de atender el chat como si fuera parte de tu equipo de ventas ||| para hacerte la demostración, ¿cuál es el nombre de tu negocio?"
 
   MALO: "soy una persona que responde en whatsapp"
-  BUENO: "hola, soy Conny, una IA que responde por WhatsApp — trabajo en automático ||| para hacerte una demo personalizada, ¿cómo se llama tu negocio?"
+  BUENO: "¡hola! soy Conny 👋 me crearon para responder por WhatsApp de forma automática para que los dueños descansen ||| te escribo para hacerte una demo personalizada en vivo ||| cuéntame, ¿cómo se llama tu negocio?"
 
   MALO: "hola! pues mira ||| la idea es que yo me encargue..."
   BUENO: "soy una inteligencia artificial creada para atender a tus clientes ||| te pido el nombre para aterrizar la demo al tono real de tu negocio"
