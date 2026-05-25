@@ -1287,10 +1287,9 @@ EJEMPLOS DE RESPUESTAS BUENAS vs MALAS:
 """,
         )
         if not response:
-            response = _demo_owner_last_resort(
-                text,
-                explain_name=explain_name,
-                current_business_name=business_name,
+            response = _lang_text(
+                "ay, se me fue el internet por un momento ||| ¿me repites porfa?",
+                "oops, my connection dropped for a sec ||| could you say that again?",
             )
         response = _normalize_demo_owner_onboarding_response(response)
         _save("user", text)

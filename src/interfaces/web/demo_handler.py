@@ -1248,73 +1248,7 @@ async def handle_demo_message(
                     return candidate, True
         return None, had_output
 
-    def _demo_owner_last_resort(
-        user_text: str,
-        *,
-        explain_name: bool = False,
-        current_business_name: str = "",
-        current_owner_name: str = "",
-    ) -> str:
-        """
-        Fallback REAL — solo se ejecuta cuando TODOS los modelos LLM fallan.
-        No intenta ser inteligente. El domino (LLM) maneja todo lo demás.
-        """
-        _biz = (current_business_name or business_name or "").strip()
-        _owner = (current_owner_name or owner_name or "").strip()
-        _owner_first = _owner.split()[0] if _owner else ""
-        _user = _normalize_conv_text(user_text or "")
-        if any(token in _user for token in ("eres una ia", "eres ia", "eres un bot", "eres bot", "eres real", "eres humano")):
-            return _lang_text(
-                "sí, soy una IA ||| pero la idea es que el chat se sienta natural, útil y bien llevado ||| si quieres, dime el nombre de tu negocio y te muestro cómo respondería de verdad",
-                "yes, I am AI ||| but the point is for the chat to feel natural, useful and well handled ||| if you want, send me your business name and I’ll show you how I’d actually reply",
-            )
-        if any(token in _user for token in ("modo bot", "como llevarias", "cómo llevarías", "como responderias", "cómo responderías")):
-            return _lang_text(
-                "lo llevaría como si ya fuera parte del equipo ||| respondería dudas de clientes, filtraría interesados, movería citas y te dejaría claro quién va en serio y quién solo está mirando ||| si quieres, dime el nombre de tu negocio y te lo aterrizo con ejemplos reales",
-                "I’d handle it like I was already part of your team ||| I’d answer client questions, filter leads, move appointments and make it clear who is serious and who is just browsing ||| if you want, send me your business name and I’ll ground it with real examples",
-            )
-        if any(token in _user for token in ("para que", "para qué", "por que", "por qué")):
-            if _biz:
-                return _lang_text(
-                    f"te lo pido para hablar como si ya llevara el chat de {_biz} ||| así la demo te muestra mejor cómo respondería de verdad",
-                    f"i ask for it so I can sound like I already handle {_biz}'s chat ||| that way the demo feels real and properly grounded",
-                )
-            if _owner_first:
-                return _lang_text(
-                    f"{_owner_first}, te lo pido para ubicar el tono, el contexto y cómo tendría que responder ||| apenas me digas el nombre del negocio te muestro la demo bien aterrizada",
-                    f"{_owner_first}, I ask for it so I can match the tone, the context and the way I'd actually reply ||| as soon as you send the business name, I'll make the demo feel real",
-                )
-            return _lang_text(
-                "te lo pido para ubicar el tono, el contexto y cómo tendría que responder ||| apenas me digas el nombre del negocio te muestro la demo bien aterrizada",
-                "i ask for it so I can match the tone, the context and the way I'd actually reply ||| as soon as you send the business name, I'll make the demo feel real",
-            )
-        if "esto es real" in _user:
-            return _lang_text(
-                "sí, esto funciona de verdad ||| puedo llevar el chat con el tono de tu negocio, responder clientes y filtrar interesados sin que tú estés pegado al WhatsApp ||| si quieres, dime el nombre de tu negocio y te muestro cómo sonaría",
-                "yes, this is real ||| I can run the chat with your business tone, reply to clients and filter leads without you being stuck on WhatsApp ||| if you want, send me your business name and I’ll show you how it would sound",
-            )
-        if _biz:
-            return _lang_text(
-                f"Escríbeme algo como cliente de {_biz} y arranco",
-                f"send me something like a real client from {_biz} and I'll jump in",
-            )
-        if any(
-            token in _user
-            for token in (
-                "me mandaron tu numero", "me mandaron tu número", "me pasaron tu numero",
-                "me pasaron tu número", "que haces", "qué haces", "no entiendo que haces",
-                "no entiendo qué haces", "quien eres", "quién eres",
-                "what is this", "what do you do", "who are you", "i dont understand", "i don't understand",
-            )
-        ):
-            return _lang_text(
-                "¡hola! soy Conny 👋 ||| me crearon para responder los chats de WhatsApp de los negocios de forma 100% automática, así los dueños no tienen que estar todo el día pegados al celular ||| me pasaron tu contacto para hacerte una demostración rápida de cómo trabajaría contigo ||| para personalizar la demo, cuéntame, ¿cómo se llama tu negocio?",
-                "hi, I'm Conny 👋 ||| I was built to handle business WhatsApp chats automatically so owners don't have to be glued to their phones all day ||| I'm here to give you a quick live demo of how I would work for you ||| to customize the demo, could you tell me your business name?",
-            )
-        return _lang_text(
-            "¡hola! soy Conny 👋 ||| me crearon para responder los chats de WhatsApp de negocios de forma automática, así los dueños no tienen que estar todo el día pegados al celular ||| te escribo para hacerte una demostración en vivo de cómo trabajaría ||| para personalizar esta demo, cuéntame, ¿cómo se llama tu negocio?",
-            "hi, I'm Conny 👋 ||| I was built to handle business WhatsApp chats automatically ||| I'm here to give you a custom live demo ||| could you tell me your business name?",
-        )
+
 
     async def _demo_owner_onboarding_reply(*, explain_name: bool = False, force_stage: Optional[str] = None) -> List[str]:
         user_block = text
@@ -1476,13 +1410,6 @@ EJEMPLOS DE RESPUESTAS BUENAS vs MALAS:
                     for marker in repeated_intro_starts
                 ):
                     return True
-            if explain_name and any(
-                lowered_candidate == marker or lowered_candidate.startswith(marker + " ")
-                for marker in repeated_intro_starts
-            ):
-                return True
-            if explain_name and lowered_candidate.startswith("hola "):
-                return True
             if owner_name and explain_name and not business_name:
                 owner_tokens = [token for token in _normalize_conv_text(owner_name).split() if len(token) >= 3]
                 if owner_tokens and not any(token in lowered_candidate for token in owner_tokens):
@@ -1518,11 +1445,9 @@ EJEMPLOS DE RESPUESTAS BUENAS vs MALAS:
 """,
         )
         if not response:
-            response = _demo_owner_last_resort(
-                text,
-                explain_name=explain_name,
-                current_business_name=business_name,
-                current_owner_name=owner_name,
+            response = _lang_text(
+                "ay, se me fue el internet por un momento ||| ¿me repites porfa?",
+                "oops, my connection dropped for a sec ||| could you say that again?",
             )
         response = _normalize_demo_owner_onboarding_response(response)
         _save("user", text)
