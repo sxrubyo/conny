@@ -17,7 +17,9 @@ async def handle_demo_message(
 ) -> List[str]:
     # Local imports from conny.py to avoid circular dependencies
     import sys
-    conny_module = sys.modules[self.__class__.__module__]
+    runtime_module = sys.modules[self.__class__.__module__]
+    facade_name = getattr(runtime_module, "__facade_name__", "")
+    conny_module = sys.modules.get(facade_name) or runtime_module
     Config = conny_module.Config
     db = conny_module.db
     now_col = conny_module.now_col
@@ -1249,6 +1251,61 @@ async def handle_demo_message(
         return None, had_output
 
 
+    def _demo_owner_last_resort(
+        user_text: str,
+        *,
+        explain_name: bool = False,
+        current_business_name: str = "",
+    ) -> str:
+        """
+        Last resort only when no usable model response exists.
+        It must keep the demo moving without pretending the network failed.
+        """
+        _biz = (current_business_name or business_name or "").strip()
+        _user = _normalize_conv_text(user_text or "")
+        if any(token in _user for token in ("para que", "para qué", "por que", "por qué")):
+            if _biz:
+                return _lang_text(
+                    f"te lo pido para hablar como si ya llevara el chat de {_biz} ||| así la demo te muestra mejor cómo respondería de verdad",
+                    f"i ask for it so I can sound like I already handle {_biz}'s chat ||| that way the demo feels real and properly grounded",
+                )
+            return _lang_text(
+                "te lo pido para ubicar el tono, el contexto y cómo tendría que responder ||| apenas me digas el nombre del negocio te muestro la demo bien aterrizada",
+                "i ask for it so I can match the tone, context and way I should reply ||| send me the business name and I’ll make the demo feel real",
+            )
+        if any(token in _user for token in ("eres ia", "eres una ia", "eres bot", "eres un bot", "ai", "bot")):
+            if _owner_already_knows_ai_identity() or _owner_already_got_capability_pitch():
+                return _lang_text(
+                    "lo llevaría con el tono de tu negocio, filtrando clientes, respondiendo dudas y moviendo citas sin sonar rígida ||| dime el nombre de tu negocio y te muestro cómo respondería",
+                    "I’d handle it with your business tone, filtering customers, answering questions and moving appointments without sounding robotic ||| send me the business name and I’ll show you how I’d reply",
+                )
+            return _lang_text(
+                "sí, soy una IA ||| pero estoy hecha para llevar chats de negocio con tono natural, como si fuera parte del equipo ||| dime el nombre de tu negocio y te muestro cómo respondería",
+                "yes, I’m an AI ||| but I’m built to handle business chats naturally, like someone inside the team ||| send me the business name and I’ll show you how I’d reply",
+            )
+        if _biz:
+            return _lang_text(
+                f"escríbeme algo como cliente de {_biz} y arranco",
+                f"send me something like a real client from {_biz} and I’ll jump in",
+            )
+        if any(
+            token in _user
+            for token in (
+                "me mandaron tu numero", "me mandaron tu número", "me pasaron tu numero",
+                "me pasaron tu número", "que haces", "qué haces", "no entiendo que haces",
+                "no entiendo qué haces", "quien eres", "quién eres",
+                "what is this", "what do you do", "who are you", "i dont understand", "i don't understand",
+            )
+        ):
+            return _lang_text(
+                "Hola, soy Conny 👋 ||| respondo clientes, filtro interesados y ayudo con citas por WhatsApp como si fuera parte del equipo ||| me pasaron tu contacto para hacerte una demostración rápida ||| pásame el nombre de tu negocio y la aterrizo a tu caso",
+                "hi, I’m Conny 👋 ||| I handle customer chats, questions and appointment flow for businesses ||| I’m here to show you a quick live demo ||| to customize it, what’s the business name?",
+            )
+        return _lang_text(
+            "Hola, soy Conny 👋 ||| respondo clientes, filtro interesados y ayudo con citas por WhatsApp como si fuera parte del equipo ||| para mostrarte una demo real, cuéntame, ¿cómo se llama tu negocio?",
+            "hi, I’m Conny 👋 ||| I handle customer chats and appointment flow for businesses ||| to make the demo real, what’s the business name?",
+        )
+
 
     async def _demo_owner_onboarding_reply(*, explain_name: bool = False, force_stage: Optional[str] = None) -> List[str]:
         user_block = text
@@ -1445,10 +1502,7 @@ EJEMPLOS DE RESPUESTAS BUENAS vs MALAS:
 """,
         )
         if not response:
-            response = _lang_text(
-                "ay, se me fue el internet por un momento ||| ¿me repites porfa?",
-                "oops, my connection dropped for a sec ||| could you say that again?",
-            )
+            response = _demo_owner_last_resort(text, explain_name=explain_name)
         response = _normalize_demo_owner_onboarding_response(response)
         _save("user", text)
         return _send(response)

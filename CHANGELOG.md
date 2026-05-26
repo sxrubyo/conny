@@ -1,5 +1,12 @@
 # Changelog
 
+## 9.7.6 - 2026-05-26
+
+- fixed demo LLM resolution through the Conny facade so tests and runtime use the configured engine instead of a stale runtime module
+- removed the fake “internet dropped” demo fallback and replaced it with contextual owner onboarding when every model response is empty or unusable
+- preserved continuity in owner demo flows so Conny does not repeat “soy una IA” after capability context was already explained
+- verified Python, Node/npm and shell entrypoints for Linux/macOS/PowerShell-compatible npm usage
+
 ## 9.7.5 - 2026-05-26
 
 - unified `conny init`, `conny config` and `conny doctor` around the active instance `.env`
