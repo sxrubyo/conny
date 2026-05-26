@@ -6,11 +6,54 @@ set -e
 C_PRIMARY="\033[38;5;135m"
 C_SUCCESS="\033[38;5;46m"
 C_MUTED="\033[38;5;240m"
+C_WARN="\033[38;5;214m"
 BOLD="\033[1m"
 RESET="\033[0m"
 
-echo -e "\n  ${C_PRIMARY}${BOLD}✦ Conny AI - Ultimate Installer${RESET}"
-echo -e "  ${C_MUTED}─────────────────────────────────────────${RESET}"
+echo -e "\n  ${C_PRIMARY}${BOLD}✦ Conny AI Installer${RESET}"
+echo -e "  ${C_MUTED}Production-ready AI receptionist runtime for WhatsApp and Telegram.${RESET}"
+echo -e "  ${C_MUTED}────────────────────────────────────────────────────────${RESET}"
+
+TMP_LOGS=()
+
+cleanup_logs() {
+    for log_file in "${TMP_LOGS[@]}"; do
+        [ -f "$log_file" ] && rm -f "$log_file"
+    done
+}
+trap cleanup_logs EXIT
+
+run_with_activity() {
+    local label="$1"
+    shift
+    local log_file
+    log_file="$(mktemp)"
+    TMP_LOGS+=("$log_file")
+
+    echo -ne "  ${C_PRIMARY}⠋${RESET} ${label}"
+    "$@" >"$log_file" 2>&1 &
+    local pid=$!
+    local frames=("⠋" "⠙" "⠹" "⠸" "⠼" "⠴" "⠦" "⠧" "⠇" "⠏")
+    local i=0
+    local elapsed=0
+
+    while kill -0 "$pid" 2>/dev/null; do
+        printf "\r  ${C_PRIMARY}%s${RESET} %s ${C_MUTED}(%ss)${RESET}" "${frames[$((i % ${#frames[@]}))]}" "$label" "$elapsed"
+        sleep 1
+        i=$((i + 1))
+        elapsed=$((elapsed + 1))
+    done
+
+    if wait "$pid"; then
+        printf "\r  ${C_SUCCESS}✓${RESET} %s ${C_MUTED}(%ss)${RESET}\n" "$label" "$elapsed"
+        return 0
+    fi
+
+    printf "\r  \033[31m✕${RESET} %s\n" "$label"
+    echo -e "  \033[31mCommand failed. Installer log:${RESET}"
+    sed 's/^/    /' "$log_file"
+    return 1
+}
 
 # Handle sudo gracefully (Termux / Root environments)
 SUDO=""
@@ -20,19 +63,20 @@ fi
 
 # 1. Install chafa if possible. In Termux/proot, `pkg` exists but cannot run as root.
 if ! command -v chafa &> /dev/null; then
-    echo -e "\n  ${BOLD}1. Instalando motor True-Color (chafa)...${RESET}"
+    echo -e "\n  ${BOLD}1. Preparing terminal visuals${RESET}"
     CURRENT_UID="$(id -u 2>/dev/null || echo 1)"
     if command -v pkg &> /dev/null && [ "$CURRENT_UID" != "0" ]; then
-        pkg install -y chafa || true
+        run_with_activity "Installing optional True-Color renderer with pkg" pkg install -y chafa || true
     elif command -v apt-get &> /dev/null; then
-        $SUDO apt-get update -yqq && $SUDO apt-get install -yqq chafa || true
+        run_with_activity "Installing optional True-Color renderer with apt" bash -c "$SUDO apt-get update -yqq && $SUDO apt-get install -yqq chafa" || true
     elif command -v brew &> /dev/null; then
-        brew install chafa || true
+        run_with_activity "Installing optional True-Color renderer with Homebrew" brew install chafa || true
     else
-        echo -e "  ${C_MUTED}No se pudo instalar chafa automáticamente. Se usará el logo clásico.${RESET}"
+        echo -e "  ${C_WARN}!${RESET} Optional renderer not available. Conny will use the classic logo."
     fi
 else
-    echo -e "\n  ${BOLD}1. Motor True-Color detectado (chafa).${RESET}"
+    echo -e "\n  ${BOLD}1. Terminal visuals ready${RESET}"
+    echo -e "  ${C_SUCCESS}✓${RESET} True-Color renderer detected."
 fi
 
 # 2. Verify Python sanely (3.9+), without hardcoding minor versions
@@ -52,34 +96,38 @@ done
 
 if [ -n "$PYTHON_BIN" ]; then
     PY_VERSION="$($PYTHON_BIN -c 'import sys; print(".".join(map(str, sys.version_info[:3])))')"
-    echo -e "\n  ${BOLD}2. Python detectado:${RESET} ${C_SUCCESS}${PYTHON_BIN} (${PY_VERSION})${RESET}"
+    echo -e "\n  ${BOLD}2. Runtime compatibility${RESET}"
+    echo -e "  ${C_SUCCESS}✓${RESET} Python runtime detected: ${C_SUCCESS}${PYTHON_BIN} ${PY_VERSION}${RESET}"
 else
-    echo -e "\n  ${BOLD}2. Python 3.9+ no detectado localmente.${RESET}"
-    echo -e "  ${C_MUTED}Conny intentará crear su runtime cuando se ejecute por primera vez.${RESET}"
+    echo -e "\n  ${BOLD}2. Runtime compatibility${RESET}"
+    echo -e "  ${C_WARN}!${RESET} Python 3.9+ was not detected locally."
+    echo -e "  ${C_MUTED}Conny will try to provision its isolated runtime on first launch.${RESET}"
 fi
 
 # 3. Install NPM Package
 if ! command -v npm &> /dev/null; then
-    echo -e "\n  \033[31mError: Node.js y npm son requeridos. Instálalos primero.\033[0m"
+    echo -e "\n  \033[31mError: Node.js and npm are required before installing Conny.\033[0m"
     exit 1
 fi
 
-echo -e "\n  ${BOLD}3. Limpiando versiones anteriores...${RESET}"
-npm uninstall -g conny-ai @innvisor/conny-ai @blackboss/conny || true
+echo -e "\n  ${BOLD}3. Removing previous global builds${RESET}"
+run_with_activity "Cleaning old Conny packages" npm uninstall -g conny-ai @innvisor/conny-ai @blackboss/conny || true
 
-echo -e "\n  ${BOLD}4. Instalando Conny CLI y Motor AI...${RESET}"
-npm install -g "${CONNY_INSTALL_PACKAGE:-github:sxrubyo/conny#main}"
+echo -e "\n  ${BOLD}4. Installing Conny from GitHub${RESET}"
+echo -e "  ${C_MUTED}Source: ${CONNY_INSTALL_PACKAGE:-github:sxrubyo/conny#main}${RESET}"
+run_with_activity "Downloading and linking Conny CLI" npm install -g "${CONNY_INSTALL_PACKAGE:-github:sxrubyo/conny#main}"
 
-echo -e "\n  ${BOLD}5. Verificando bootstrap del CLI...${RESET}"
+echo -e "\n  ${BOLD}5. Verifying the command line experience${RESET}"
 if command -v conny >/dev/null 2>&1; then
     if ! conny --version; then
-        echo -e "\n  \033[31mError: Conny se instaló, pero el CLI no pudo arrancar.\033[0m"
+        echo -e "\n  \033[31mError: Conny was installed, but the CLI could not start.\033[0m"
         exit 1
     fi
 else
-    echo -e "\n  \033[31mError: npm terminó, pero el comando 'conny' no quedó disponible en PATH.\033[0m"
+    echo -e "\n  \033[31mError: npm finished, but the 'conny' command is not available in PATH.\033[0m"
     exit 1
 fi
 
-echo -e "\n  ${C_SUCCESS}${BOLD}✔ ¡Conny instalado con éxito!${RESET}"
-echo -e "  Ejecuta ${C_PRIMARY}conny init${RESET} en tu terminal para empezar la magia.\n"
+echo -e "\n  ${C_SUCCESS}${BOLD}✓ Conny is installed and ready.${RESET}"
+echo -e "  Start your first guided setup with ${C_PRIMARY}conny init${RESET}."
+echo -e "  For system repair and diagnostics, run ${C_PRIMARY}conny doctor --fix${RESET}.\n"
