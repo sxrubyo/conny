@@ -29,6 +29,14 @@ TRANSLATIONS = {
         "Sector Principal": "Primary sector",
         "Canales de Conectividad": "Connectivity channels",
         "Canal Principal de Acceso": "Primary access channel",
+        "Gateway público": "Public gateway",
+        "¿Cómo deseas configurar el enlace público (BASE_URL)?": "How do you want to configure the public link (BASE_URL)?",
+        "Generar túnel automático (localhost.run)": "Generate automatic tunnel (localhost.run)",
+        "Configurar enlace manualmente (ingresar URL personalizada)": "Configure manually (enter a custom URL)",
+        "Introduce la URL pública de tu webhook": "Enter your public webhook URL",
+        "Levantando túnel seguro hacia localhost.run...": "Starting secure tunnel through localhost.run...",
+        "Túnel activo:": "Tunnel active:",
+        "No pude obtener un túnel automático. Ingresa una URL manual.": "I could not get an automatic tunnel. Enter a manual URL.",
         "Motor de Inteligencia": "Intelligence engine",
         "Tipo de proveedor": "Provider type",
         "Proveedor Cloud": "Cloud provider",
@@ -76,6 +84,10 @@ from datetime import datetime
 sys.path.insert(0, str(Path(__file__).parent))
 
 from conny_tui_select import select_menu as _orig_select_menu, confirm as _orig_confirm, text_input as _orig_text_input
+try:
+    from conny_runtime_ops import start_localhost_run_tunnel
+except Exception:
+    start_localhost_run_tunnel = None
 
 def select_menu(options, title="", **kwargs):
     if title: title = _t(title)
@@ -192,6 +204,54 @@ def validate_api_key(provider, key):
     return True
 
 
+def _next_available_port() -> int:
+    existing_ports = []
+    if INSTANCES_DIR.exists():
+        for d in INSTANCES_DIR.iterdir():
+            env = d / ".env"
+            if not env.exists():
+                continue
+            for line in env.read_text(encoding="utf-8", errors="replace").splitlines():
+                if line.startswith("PORT="):
+                    try:
+                        existing_ports.append(int(line.split("=", 1)[1].strip()))
+                    except Exception:
+                        pass
+    return max(existing_ports + [8003]) + 1
+
+
+def _configure_gateway(port: int) -> dict:
+    options = [
+        "Generar túnel automático (localhost.run)",
+        "Configurar enlace manualmente (ingresar URL personalizada)",
+    ]
+    choice = select_menu(options, title="¿Cómo deseas configurar el enlace público (BASE_URL)?")
+    if choice == 0 and start_localhost_run_tunnel:
+        print(f"\n  {C_MUTED}{_t('Levantando túnel seguro hacia localhost.run...')}{R}")
+        result = start_localhost_run_tunnel(port)
+        if result.get("ok") and result.get("url"):
+            print(f"  {C_SUCCESS}✓ {_t('Túnel activo:')} {result['url']}{R}")
+            return {
+                "mode": "localhost.run",
+                "base_url": str(result["url"]).rstrip("/"),
+                "tunnel_pid": str(result.get("pid") or ""),
+                "tunnel_command": str(result.get("command") or ""),
+            }
+        print(f"  {C_WARNING}⚠ {_t('No pude obtener un túnel automático. Ingresa una URL manual.')}{R}")
+
+    base_url = text_input(
+        "Introduce la URL pública de tu webhook",
+        default=os.environ.get("BASE_URL", ""),
+        required=False,
+    ).strip()
+    return {
+        "mode": "manual",
+        "base_url": base_url.rstrip("/"),
+        "tunnel_pid": "",
+        "tunnel_command": "",
+    }
+
+
 def run_wizard():
 
     clear()
@@ -255,7 +315,7 @@ def run_wizard():
         print(f"\n  {C_MUTED}{_t('Operación cancelada.')}{R}\n")
         return
 
-    TOTAL_STEPS = 7
+    TOTAL_STEPS = 8
     ctx = ""
 
     # 0. Language (Optional pre-step)
@@ -287,9 +347,15 @@ def run_wizard():
     i = select_menu([c[1] for c in CHANNELS], title="Canal Principal de Acceso")
     channel = CHANNELS[i][0]
 
-    # 4. Intelligence
+    # 4. Gateway / Webhook
+    port = _next_available_port()
     clear()
-    step_header(4, TOTAL_STEPS, "Motor de Inteligencia", ctx)
+    step_header(4, TOTAL_STEPS, "Gateway público", f"{ctx}Canal: {channel} | Puerto: {port}")
+    gateway = _configure_gateway(port)
+
+    # 5. Intelligence
+    clear()
+    step_header(5, TOTAL_STEPS, "Motor de Inteligencia", ctx)
     
     # Level 1
     llm_types = [
@@ -368,15 +434,15 @@ def run_wizard():
         provider_id = "manual"
         model_id = text_input("Model ID")
 
-    # 5. Personality
+    # 6. Personality
     clear()
-    step_header(5, TOTAL_STEPS, "Humanización y Tono", ctx)
+    step_header(6, TOTAL_STEPS, "Humanización y Tono", ctx)
     i = select_menu([t[1] for t in TONES], title="Perfil de Voz")
     tone = TONES[i][0]
 
-    # 6. Credentials
+    # 7. Credentials
     clear()
-    step_header(6, TOTAL_STEPS, "Infraestructura y Secretos", ctx)
+    step_header(7, TOTAL_STEPS, "Infraestructura y Secretos", ctx)
 
     secrets_map = {}
 
@@ -417,9 +483,9 @@ def run_wizard():
         secrets_map["WA_CLOUD_TOKEN"] = text_input("WA Cloud API Token", is_password=True)
         secrets_map["WA_PHONE_NUMBER_ID"] = text_input("Phone Number ID")
 
-    # 7. Confirmation
+    # 8. Confirmation
     clear()
-    step_header(7, TOTAL_STEPS, "Verificación Final")
+    step_header(8, TOTAL_STEPS, "Verificación Final")
     
     print(f"  ┌────────────────────────────────────────────────────────┐")
     print(f"  │ {C_PRIMARY}{B1}Resumen de Configuración{R}                               │")
@@ -431,6 +497,7 @@ def run_wizard():
     print(f"  │ {C_MUTED}Modelo:{R}    {model_id.ljust(44)}│")
     print(f"  │ {C_MUTED}Voz:{R}       {tone.ljust(44)}│")
     print(f"  │ {C_MUTED}Secretos:{R}  {str(len(secrets_map)).ljust(44)}│")
+    print(f"  │ {C_MUTED}BASE_URL:{R}  {(gateway.get('base_url') or 'pending').ljust(44)[:44]}│")
     print(f"  └────────────────────────────────────────────────────────┘\n")
 
     if not confirm("¿Procesar e Implementar Infraestructura?"):
@@ -438,7 +505,7 @@ def run_wizard():
         return
 
     print(f"\n  {C_PRIMARY}{_t('Creando recursos...')}{R}")
-    _create(name, instance_id, sector, channel, provider_id, model_id, tone, secrets_map, lang)
+    _create(name, instance_id, sector, channel, provider_id, model_id, tone, secrets_map, lang, port, gateway)
 
     print(f"""
   {C_SUCCESS}{B1}🚀 {_t('Infraestructura Desplegada Exitosamente')}{R}
@@ -453,34 +520,27 @@ def run_wizard():
     if is_local and provider_id == "ollama":
         print(f"  {C_WARNING}💡 Asegúrate de descargar el modelo: `ollama run {model_id}`{R}\n")
 
-def _create(name, iid, sector, channel, provider, model_id, tone, secrets_map, lang):
+def _create(name, iid, sector, channel, provider, model_id, tone, secrets_map, lang, port, gateway):
     idir = INSTANCES_DIR / iid
     idir.mkdir(parents=True, exist_ok=True)
 
-    existing_ports = []
-    if INSTANCES_DIR.exists():
-        for d in INSTANCES_DIR.iterdir():
-            env = d / ".env"
-            if env.exists():
-                for line in env.read_text().splitlines():
-                    if line.startswith("PORT="):
-                        try:
-                            parts = line.split("=")
-                            if len(parts) > 1:
-                                existing_ports.append(int(parts[1]))
-                        except: pass
-
-    port = max(existing_ports + [8003]) + 1
     webhook_secret = f"conny_{iid}_{secrets.token_hex(6)}"
+    base_url = str((gateway or {}).get("base_url") or "").rstrip("/")
+    tunnel_command = str((gateway or {}).get("tunnel_command") or "").replace('"', '\\"')
 
     env_lines = [
         f"INSTANCE_ID={iid}",
         f"PORT={port}",
+        f"BASE_URL={base_url}",
+        f"PUBLIC_BASE_URL={base_url}",
         "DEMO_MODE=false",
         f"PLATFORM={channel}",
         f"SECTOR={sector}",
         f"BUSINESS_NAME=\"{name}\"",
         f"WEBHOOK_SECRET={webhook_secret}",
+        f"TUNNEL_PROVIDER={(gateway or {}).get('mode', '')}",
+        f"TUNNEL_PID={(gateway or {}).get('tunnel_pid', '')}",
+        f"TUNNEL_COMMAND=\"{tunnel_command}\"",
         f"LLM_PROVIDER={provider}",
         f"LLM_MODEL={model_id}",
         "DEBUG=false"
@@ -535,7 +595,14 @@ llm:
         "status": "configured",
         "timestamp": datetime.now().isoformat(),
         "instance": iid,
-        "provider": provider
+        "provider": provider,
+        "port": port,
+        "base_url": base_url,
+        "tunnel": {
+            "provider": (gateway or {}).get("mode", ""),
+            "pid": (gateway or {}).get("tunnel_pid", ""),
+            "command": (gateway or {}).get("tunnel_command", ""),
+        },
     }
     (idir / "conny.state.json").write_text(json.dumps(state, indent=2))
 

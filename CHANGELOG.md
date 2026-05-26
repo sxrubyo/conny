@@ -1,5 +1,13 @@
 # Changelog
 
+## 9.7.2 - 2026-05-26
+
+- removed the obsolete boxed `CONNY ULTRA CONFIG v9.7.0` layout from `conny config`
+- added a Gateway/Webhook step to `conny init` with automatic `localhost.run` tunneling or manual `BASE_URL`
+- fixed tunnel routing to target the active instance `PORT` instead of stale defaults like `8002`
+- made webhook sync reload the real `.env` and restart PM2 with `--update-env` before calling Telegram `setWebhook`
+- unified the default instances path under `~/.conny/instances`
+
 ## 9.7.1 - 2026-05-26
 
 - fixed GitHub/npm bootstrap for fresh installs where `conny init` still tried to run from `/home/ubuntu/conny`

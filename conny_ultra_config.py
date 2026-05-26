@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CONNY ULTRA CONFIG v9.7.0 — interactive runtime control panel."""
+"""Interactive runtime control panel for Conny."""
 from __future__ import annotations
 
 import asyncio
@@ -72,12 +72,8 @@ def _load_state(instance_name: str) -> Dict[str, Any]:
 
 def _render_header(instance_name: str, subtitle: str) -> None:
     clear_screen()
-    print(f"┌{'─'*68}┐")
-    print(f"│{BOLD}                    CONNY ULTRA CONFIG v9.7.0                    {RESET}│")
-    print(f"├{'─'*68}┤")
-    print(f"│ {WHITE}{BOLD}Instancia:{RESET} {instance_name or 'base':<57}│")
-    print(f"│ {CYAN}{subtitle:<66}{RESET}│")
-    print(f"└{'─'*68}┘")
+    print(f"{MAGENTA}{BOLD}Conny Config{RESET}  {DIM}· {instance_name or 'base'} · {subtitle}{RESET}")
+    print(f"{DIM}{'─' * 60}{RESET}")
     print()
 
 
@@ -162,7 +158,7 @@ def _test_provider(provider_key: str, secret: str) -> Tuple[bool, str]:
 
 
 def _sync_telegram_webhook(state: Dict[str, Any]) -> Tuple[bool, str]:
-    info = state["info"]
+    info = instance_runtime_info(state["info"]["name"])
     token = info["telegram_token"]
     base_url = info["base_url"]
     secret = info["webhook_secret"]
@@ -170,6 +166,8 @@ def _sync_telegram_webhook(state: Dict[str, Any]) -> Tuple[bool, str]:
         return False, "faltan TELEGRAM_TOKEN, BASE_URL o WEBHOOK_SECRET"
     target_url = f"{base_url.rstrip('/')}/webhook/{secret}"
     try:
+        if info.get("pm2_name"):
+            subprocess.run(["pm2", "restart", info["pm2_name"], "--update-env"], capture_output=True, check=False, timeout=20)
         import httpx
         with httpx.Client(timeout=10.0) as client:
             response = client.post(
@@ -368,7 +366,7 @@ def module_doctor(instance_name: str) -> None:
 def run_ultra_config(instance_name: str = "") -> None:
     active = (instance_name or "base").strip()
     while True:
-        _render_header(active, "CONTROL TOTAL DEL USUARIO")
+        _render_header(active, "Runtime overview")
         state = _load_state(active)
         port = state["info"]["port"]
         health = "online" if state["health"].get("status") == "online" else "offline"

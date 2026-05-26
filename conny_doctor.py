@@ -21,6 +21,7 @@ from conny_runtime_ops import (
     port_is_open,
     python_candidates,
     resolve_python,
+    rewrite_tunnel_command_port,
     telegram_webhook_info,
 )
 
@@ -247,11 +248,36 @@ class ConnyDoctor:
                 )
                 if result.returncode == 0:
                     actions.append(f"PM2 re-registrado para {self.info['pm2_name']}")
+        if any(c.name == "Tunnel routing" and c.status == "error" for c in self.checks):
+            fixed = self._retarget_tunnels_to_active_port()
+            if fixed:
+                actions.append(f"{fixed} túnel(es) reorientados a :{self.info['port']}")
         if any(c.name == "Webhook" and c.status == "error" for c in self.checks):
             await self._auto_sync_webhook(actions)
         return actions
 
+    def _retarget_tunnels_to_active_port(self) -> int:
+        changed = 0
+        target_port = int(self.info["port"])
+        for tunnel in self.tunnels:
+            current_cmd = str(tunnel.get("command", "")).strip()
+            new_cmd = rewrite_tunnel_command_port(current_cmd, target_port)
+            if not current_cmd or new_cmd == current_cmd:
+                continue
+            try:
+                subprocess.run(["kill", str(tunnel["pid"])], capture_output=True, check=False, timeout=5)
+                subprocess.Popen(
+                    ["bash", "-lc", f"nohup {new_cmd} >/tmp/conny-tunnel-{self.info['name']}.log 2>&1 &"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                changed += 1
+            except Exception:
+                continue
+        return changed
+
     async def _auto_sync_webhook(self, actions: List[str]) -> None:
+        self.info = instance_runtime_info(self.instance_id)
         base_url = self.info["base_url"]
         secret = self.info["webhook_secret"]
         token = self.info["telegram_token"]
@@ -259,6 +285,7 @@ class ConnyDoctor:
             return
         target = f"{base_url.rstrip('/')}/webhook/{secret}"
         try:
+            subprocess.run(["pm2", "restart", self.info["pm2_name"], "--update-env"], capture_output=True, check=False, timeout=20)
             async with httpx.AsyncClient(timeout=10.0) as client:
                 response = await client.post(
                     f"https://api.telegram.org/bot{token}/setWebhook",

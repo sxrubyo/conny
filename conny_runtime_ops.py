@@ -6,18 +6,22 @@ import json
 import os
 import re
 import shutil
+import select
+import shlex
 import socket
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 
 CONNY_HOME = Path(os.getenv("CONNY_HOME", str(Path.home() / ".conny")))
 CONNY_DIR = Path(os.getenv("CONNY_DIR", str(Path(__file__).resolve().parent)))
-INSTANCES_DIR = Path(os.getenv("INSTANCES_DIR", str(Path.home() / "conny-instances")))
+INSTANCES_DIR = Path(os.getenv("INSTANCES_DIR", str(CONNY_HOME / "instances")))
 
 _TUNNEL_PORT_PATTERNS = (
+    re.compile(r"-R\s+\d+:(?:localhost|127\.0\.0\.1|0\.0\.0\.0):(\d+)", re.I),
     re.compile(r"localhost:(\d+)"),
     re.compile(r"127\.0\.0\.1:(\d+)"),
     re.compile(r"0\.0\.0\.0:(\d+)"),
@@ -25,6 +29,8 @@ _TUNNEL_PORT_PATTERNS = (
     re.compile(r"cloudflared\s+tunnel.*--url\s+(?:https?://)?(?:localhost:)?(\d+)", re.I),
     re.compile(r"lt\s+--port\s+(\d+)", re.I),
 )
+
+_PUBLIC_URL_PATTERN = re.compile(r"https://[a-zA-Z0-9.-]+(?:lhr\.life|localhost\.run)(?:/[^\s]*)?")
 
 
 def load_env_file(path: Path) -> Dict[str, str]:
@@ -186,6 +192,7 @@ def extract_tunnel_target_ports(command_line: str) -> List[int]:
 def rewrite_tunnel_command_port(command_line: str, new_port: int) -> str:
     updated = str(command_line or "")
     replacements = [
+        (re.compile(r"(-R\s+\d+:(?:localhost|127\.0\.0\.1|0\.0\.0\.0):)(\d+)", re.I), rf"\g<1>{int(new_port)}"),
         (re.compile(r"(localhost:)(\d+)"), rf"\g<1>{int(new_port)}"),
         (re.compile(r"(127\.0\.0\.1:)(\d+)"), rf"\g<1>{int(new_port)}"),
         (re.compile(r"(0\.0\.0\.0:)(\d+)"), rf"\g<1>{int(new_port)}"),
@@ -198,6 +205,78 @@ def rewrite_tunnel_command_port(command_line: str, new_port: int) -> str:
         if candidate != updated:
             updated = candidate
     return updated
+
+
+def localhost_run_command(port: int) -> List[str]:
+    return [
+        "ssh",
+        "-o", "StrictHostKeyChecking=no",
+        "-o", "UserKnownHostsFile=/dev/null",
+        "-o", "ServerAliveInterval=60",
+        "-N",
+        "-R", f"80:localhost:{int(port)}",
+        "nokey@localhost.run",
+    ]
+
+
+def start_localhost_run_tunnel(port: int, timeout: float = 25.0) -> Dict[str, Any]:
+    if not shutil.which("ssh"):
+        return {"ok": False, "url": "", "pid": None, "error": "ssh no está instalado"}
+    command = localhost_run_command(port)
+    try:
+        proc = subprocess.Popen(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+            start_new_session=True,
+        )
+    except Exception as exc:
+        return {"ok": False, "url": "", "pid": None, "error": str(exc)}
+
+    deadline = time.time() + float(timeout)
+    output: List[str] = []
+    stream = proc.stdout
+    while time.time() < deadline:
+        if proc.poll() is not None:
+            break
+        if stream is None:
+            time.sleep(0.25)
+            continue
+        try:
+            ready, _, _ = select.select([stream], [], [], 0.5)
+        except Exception:
+            ready = []
+        if not ready:
+            continue
+        line = stream.readline()
+        if not line:
+            continue
+        output.append(line.rstrip())
+        match = _PUBLIC_URL_PATTERN.search(line)
+        if match:
+            return {
+                "ok": True,
+                "url": match.group(0).rstrip("/"),
+                "pid": proc.pid,
+                "command": shlex.join(command),
+                "port": int(port),
+                "output": "\n".join(output[-10:]),
+            }
+
+    try:
+        proc.terminate()
+    except Exception:
+        pass
+    return {
+        "ok": False,
+        "url": "",
+        "pid": proc.pid,
+        "command": shlex.join(command),
+        "port": int(port),
+        "error": "\n".join(output[-10:]) or f"no public URL received after {int(timeout)}s",
+    }
 
 
 def detect_tunnel_processes() -> List[Dict[str, Any]]:
