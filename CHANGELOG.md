@@ -1,5 +1,18 @@
 # Changelog
 
+## 9.7.4 - 2026-05-26
+
+- fixed existing installs with a stale/incomplete Python runtime by making bootstrap health check required imports before every command
+- added `conny --bootstrap-check` and wired the shell installer to run it before reporting success
+- ensured missing `rich`/CLI dependencies are repaired during install instead of surfacing later at `conny init`
+
+## 9.7.3 - 2026-05-26
+
+- fixed Termux/proot installs where `conny init` could start without `rich` installed
+- made the npm bootstrap install critical CLI dependencies first and fail loudly if they are missing
+- kept heavy production dependencies best-effort so packages like `scikit-learn` cannot leave the CLI half-installed
+- expanded runtime health checks to include `rich`, `deep_translator`, `questionary`, `fastapi`, `httpx`, `dotenv` and `pydantic`
+
 ## 9.7.2 - 2026-05-26
 
 - removed the obsolete boxed `CONNY ULTRA CONFIG v9.7.0` layout from `conny config`

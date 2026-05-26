@@ -250,7 +250,7 @@ def build_pm2_start_command(instance_dir: str, pm2_name: str, log_dir: str) -> L
     ]
 
 
-VERSION = "9.7.2"
+VERSION = "9.7.4"
 CONNY_HOME = os.getenv("CONNY_HOME", str(Path.home() / ".conny"))
 CONNY_DIR = os.getenv("CONNY_DIR", str(Path(__file__).resolve().parent))
 INSTANCES_DIR = _default_instances_dir()

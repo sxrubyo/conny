@@ -123,6 +123,7 @@ if command -v conny >/dev/null 2>&1; then
         echo -e "\n  \033[31mError: Conny was installed, but the CLI could not start.\033[0m"
         exit 1
     fi
+    run_with_activity "Preparing Python runtime and required CLI packages" conny --bootstrap-check
 else
     echo -e "\n  \033[31mError: npm finished, but the 'conny' command is not available in PATH.\033[0m"
     exit 1

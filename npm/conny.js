@@ -18,6 +18,15 @@ const workspaceConfigPath = path.join(connyHome, "config.json");
 const sharedTelegramRoutesPath = path.join(connyHome, "shared_telegram_routes.json");
 const entrypoint = path.join(repoDir, "conny_app.py");
 const legacyEntrypoint = path.join(repoDir, "conny_cli.py");
+const criticalPythonPackages = [
+  "rich>=13.0.0",
+  "deep-translator>=1.11.0",
+  "httpx==0.27.0",
+  "python-dotenv==1.0.1",
+  "fastapi==0.115.0",
+  "pydantic>=2.0",
+  "questionary>=2.0.0",
+];
 
 const SKIP_NAMES = new Set([
   ".git",
@@ -265,10 +274,52 @@ function runtimeLooksHealthy(runtime) {
   }
   const probe = spawnSync(
     runtime,
-    ["-c", "import fastapi,httpx,dotenv; print('ok')"],
+    ["-c", "import rich,deep_translator,fastapi,httpx,dotenv,pydantic,questionary; print('ok')"],
     { stdio: ["ignore", "pipe", "pipe"], encoding: "utf8", env: process.env }
   );
   return probe.status === 0;
+}
+
+function installRuntimeDependencies(runtime, spinner, allowFullFailure = true) {
+  let result;
+  if (spinner) {
+    spinner.text = chalk.hex('#8B5CF6')("Installing Conny CLI runtime dependencies...");
+  }
+  result = spawnSync(
+    runtime,
+    ["-m", "pip", "install", "--disable-pip-version-check", ...criticalPythonPackages],
+    { stdio: ["ignore", "pipe", "pipe"], env: process.env }
+  );
+  if (result.status !== 0) {
+    if (spinner) spinner.fail(chalk.red("✕ Could not install Conny's required Python packages."));
+    if (result.stderr) console.error(chalk.red(result.stderr.toString()));
+    process.exit(1);
+  }
+
+  const requirementsPath = path.join(repoDir, "requirements.txt");
+  if (fs.existsSync(requirementsPath)) {
+    if (spinner) {
+      spinner.text = chalk.hex('#8B5CF6')("Installing optional production dependencies...");
+    }
+    result = spawnSync(
+      runtime,
+      ["-m", "pip", "install", "--disable-pip-version-check", "-r", requirementsPath],
+      { stdio: ["ignore", "pipe", "pipe"], env: process.env }
+    );
+    if (result.status !== 0 && !allowFullFailure) {
+      if (spinner) spinner.fail(chalk.red("✕ Could not install requirements.txt."));
+      if (result.stderr) console.error(chalk.red(result.stderr.toString()));
+      process.exit(1);
+    }
+    if (result.status !== 0 && spinner) {
+      spinner.text = chalk.hex('#8B5CF6')("Optional dependencies skipped; CLI runtime is ready.");
+    }
+  }
+
+  if (!runtimeLooksHealthy(runtime)) {
+    if (spinner) spinner.fail(chalk.red("✕ Runtime verification failed after dependency installation."));
+    process.exit(1);
+  }
 }
 
 function ensureRuntime(spinner) {
@@ -330,16 +381,7 @@ function ensureRuntime(spinner) {
     process.exit(1);
   }
 
-  localSpinner.text = chalk.hex('#8B5CF6')("Instalando dependencias base (requirements.txt)...");
-  result = spawnSync(runtime, ["-m", "pip", "install", "--disable-pip-version-check", "-r", path.join(repoDir, "requirements.txt")], {
-    stdio: ["ignore", "pipe", "pipe"],
-    env: process.env,
-  });
-  if (result.status !== 0) {
-    localSpinner.fail(chalk.red("✕ Falló la instalación de las dependencias."));
-    if (result.stderr) console.error(chalk.red(result.stderr.toString()));
-    process.exit(1);
-  }
+  installRuntimeDependencies(runtime, localSpinner, true);
 
   if (!spinner) {
     localSpinner.succeed(chalk.green("✓ Lista."));
@@ -385,11 +427,11 @@ function bootstrapFromPackage() {
         )
       );
     }
-    console.log(chalk.hex("#8B5CF6")("Verificando dependencias (pip)..."));
-  const runtime = resolveRuntime() || ensureRuntime(spinner);
-  spawnSync(runtime, ["-m", "pip", "install", "--disable-pip-version-check", "-r", path.join(repoDir, "requirements.txt")], { stdio: "ignore" });
+    console.log(chalk.hex("#8B5CF6")("Verifying Python dependencies..."));
+    const runtime = resolveRuntime() || ensureRuntime(spinner);
+    installRuntimeDependencies(runtime, spinner, true);
 
-  if (!fs.existsSync(sharedTelegramRoutesPath)) {
+    if (!fs.existsSync(sharedTelegramRoutesPath)) {
       fs.writeFileSync(sharedTelegramRoutesPath, JSON.stringify({ default_instance: "", routes: {} }, null, 2));
     }
     ensureDir(path.join(connyHome, "instances"));
@@ -405,7 +447,11 @@ function needsBootstrap() {
   if (!fs.existsSync(entrypoint)) {
     return true;
   }
-  if (!resolveRuntime()) {
+  const runtime = resolveRuntime();
+  if (!runtime) {
+    return true;
+  }
+  if (!runtimeLooksHealthy(runtime)) {
     return true;
   }
   if (readInstalledVersion() !== packageVersion) {
@@ -441,6 +487,7 @@ function execConny(argv) {
 const args = process.argv.slice(2);
 const isHelp = args.length === 0 || args.includes("-h") || args.includes("--help") || args.includes("help");
 const isVersion = args.includes("-v") || args.includes("--version") || args.includes("version");
+const isBootstrapCheck = args.includes("--bootstrap-check");
 const isJson = args.includes("--json");
 
 if (isVersion) {
@@ -454,6 +501,15 @@ if (isVersion) {
 
 if (needsBootstrap()) {
   bootstrapFromPackage();
+}
+
+if (isBootstrapCheck) {
+  const runtime = resolveRuntime();
+  if (!runtime || !runtimeLooksHealthy(runtime)) {
+    fail(`Conny runtime is not ready in ${connyHome}`);
+  }
+  console.log(`conny runtime ok ${packageVersion}`);
+  process.exit(0);
 }
 
 if (isHelp) {
