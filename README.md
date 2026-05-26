@@ -126,7 +126,7 @@ It's a **white-label AI receptionist platform** that lets you sell branded conve
 Recommended GitHub installer (always tracks the current `main` branch):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/sxrubyo/conny/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/sxrubyo/conny/latest/install.sh | bash
 conny --version
 ```
 
@@ -258,7 +258,7 @@ backups/                 # Local backups
 ## 🎮 CLI Reference
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/sxrubyo/conny/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/sxrubyo/conny/latest/install.sh | bash
 conny --version                  # Check version
 
 conny sync --list                # List all client instances
