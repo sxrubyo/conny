@@ -15,6 +15,7 @@ from conny_runtime_ops import (
     find_pm2_processes,
     health_payload,
     instance_runtime_info,
+    mirror_instance_env_to_base,
     port_is_open,
     python_candidates,
     resolve_python,
@@ -68,6 +69,15 @@ def _load_state(instance_name: str) -> Dict[str, Any]:
         "webhook": webhook,
         "tunnels": tunnels,
     }
+
+
+def _mirror_if_needed(info: Dict[str, Any]) -> None:
+    if info["name"] == "base":
+        return
+    try:
+        mirror_instance_env_to_base(info["name"])
+    except Exception:
+        pass
 
 
 def _render_header(instance_name: str, subtitle: str) -> None:
@@ -233,6 +243,7 @@ def module_network(instance_name: str) -> None:
         new_port = text_input("Nuevo puerto", default=str(port))
         if new_port.isdigit():
             write_env_value(info["env_path"], "PORT", new_port)
+            _mirror_if_needed(info)
             meta_path = Path(info["root"]) / "instance.json"
             if meta_path.exists():
                 try:
@@ -276,6 +287,7 @@ def module_models(instance_name: str) -> None:
         current = env.get(key, "")
         new_value = text_input(f"{label} API key", default=current, is_password=bool(current), required=False)
         write_env_value(info["env_path"], key, new_value)
+        _mirror_if_needed(info)
         print(f"\n{GREEN}✓ {label} actualizada{RESET}")
     elif choice == 1:
         idx = select_menu([label for _, label in _provider_env_keys()], title="¿Cuál key quieres probar?")
@@ -289,6 +301,7 @@ def module_models(instance_name: str) -> None:
         current = env.get(selected, "")
         new_value = text_input(f"{selected}", default=current or "google/gemini-2.5-flash")
         write_env_value(info["env_path"], selected, new_value)
+        _mirror_if_needed(info)
         print(f"\n{GREEN}✓ {selected} actualizado{RESET}")
     wait_for_enter()
 
@@ -316,6 +329,8 @@ def module_gateway(instance_name: str) -> None:
     elif choice == 1:
         new_url = text_input("Nueva BASE_URL", default=info["base_url"], required=False)
         write_env_value(info["env_path"], "BASE_URL", new_url)
+        write_env_value(info["env_path"], "PUBLIC_BASE_URL", new_url)
+        _mirror_if_needed(info)
         print(f"\n{GREEN}✓ BASE_URL actualizada{RESET}")
     wait_for_enter()
 
@@ -343,6 +358,7 @@ def module_environment(instance_name: str) -> None:
             idx = select_menu([f"{c['source']} :: {c['path']}" for c in valid], title="Selecciona intérprete")
             selected = valid[idx]
             write_env_value(info["env_path"], "CONNY_PYTHON_BIN", selected["path"])
+            _mirror_if_needed(info)
             print(f"\n{GREEN}✓ CONNY_PYTHON_BIN fijado a {selected['path']}{RESET}")
     elif choice == 1:
         run_path = Path(info["root"]) / "run.sh"
@@ -356,7 +372,7 @@ def module_doctor(instance_name: str) -> None:
     print(f"{MAGENTA}Iniciando Self-Healing...{RESET}\n")
     try:
         import conny_doctor
-        doctor = conny_doctor.ConnyDoctor(instance_name or "base")
+        doctor = conny_doctor.ConnyDoctor(instance_name or "conny")
         asyncio.run(doctor.run_self_healing())
     except Exception as exc:
         print(f"{MAGENTA}Error ejecutando doctor: {exc}{RESET}")
@@ -364,7 +380,7 @@ def module_doctor(instance_name: str) -> None:
 
 
 def run_ultra_config(instance_name: str = "") -> None:
-    active = (instance_name or "base").strip()
+    active = (instance_name or "conny").strip()
     while True:
         _render_header(active, "Runtime overview")
         state = _load_state(active)

@@ -178,7 +178,7 @@ except ImportError:
 # ══════════════════════════════════════════════════════════════════════════════
 # CONFIGURACIÓN
 # ══════════════════════════════════════════════════════════════════════════════
-VERSION = "9.7.4"
+VERSION = "9.7.5"
 CONNY_HOME = os.getenv("CONNY_HOME", str(Path.home() / ".conny"))
 CONNY_DIR = os.getenv("CONNY_DIR", str(Path(__file__).resolve().parent))
 INSTANCES_DIR = os.getenv("INSTANCES_DIR", str(Path.home() / "conny-instances"))

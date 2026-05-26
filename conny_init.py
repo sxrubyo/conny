@@ -12,6 +12,7 @@ import shutil
 import urllib.request
 import urllib.error
 import subprocess
+import socket
 from deep_translator import GoogleTranslator
 
 CURRENT_LANG = os.environ.get("CONNY_INIT_LANG", "en").lower()
@@ -37,6 +38,13 @@ TRANSLATIONS = {
         "Levantando túnel seguro hacia localhost.run...": "Starting secure tunnel through localhost.run...",
         "Túnel activo:": "Tunnel active:",
         "No pude obtener un túnel automático. Ingresa una URL manual.": "I could not get an automatic tunnel. Enter a manual URL.",
+        "Dashboard web": "Web dashboard",
+        "¿Cómo quieres exponer la página web de Conny?": "How do you want to expose Conny's web dashboard?",
+        "Solo local (localhost)": "Local only (localhost)",
+        "Red/IP externa de este dispositivo": "Network/external IP for this device",
+        "URL pública personalizada": "Custom public URL",
+        "No configurar dashboard ahora": "Do not configure dashboard now",
+        "Introduce la URL pública del dashboard": "Enter the public dashboard URL",
         "Motor de Inteligencia": "Intelligence engine",
         "Tipo de proveedor": "Provider type",
         "Proveedor Cloud": "Cloud provider",
@@ -85,8 +93,10 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from conny_tui_select import select_menu as _orig_select_menu, confirm as _orig_confirm, text_input as _orig_text_input
 try:
-    from conny_runtime_ops import start_localhost_run_tunnel
+    from conny_runtime_ops import mirror_instance_env_to_base, set_active_instance, start_localhost_run_tunnel
 except Exception:
+    mirror_instance_env_to_base = None
+    set_active_instance = None
     start_localhost_run_tunnel = None
 
 def select_menu(options, title="", **kwargs):
@@ -252,6 +262,50 @@ def _configure_gateway(port: int) -> dict:
     }
 
 
+def _local_ip() -> str:
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.connect(("8.8.8.8", 80))
+            return sock.getsockname()[0]
+    except Exception:
+        return "127.0.0.1"
+
+
+def _configure_dashboard(port: int) -> dict:
+    options = [
+        "Solo local (localhost)",
+        "Red/IP externa de este dispositivo",
+        "URL pública personalizada",
+        "No configurar dashboard ahora",
+    ]
+    choice = select_menu(options, title="¿Cómo quieres exponer la página web de Conny?")
+    if choice == 0:
+        return {
+            "host": "127.0.0.1",
+            "dashboard_url": f"http://localhost:{port}/dashboard",
+            "public_dashboard_url": "",
+        }
+    if choice == 1:
+        ip = _local_ip()
+        return {
+            "host": "0.0.0.0",
+            "dashboard_url": f"http://{ip}:{port}/dashboard",
+            "public_dashboard_url": f"http://{ip}:{port}/dashboard",
+        }
+    if choice == 2:
+        url = text_input("Introduce la URL pública del dashboard", default="", required=False).strip().rstrip("/")
+        return {
+            "host": "0.0.0.0",
+            "dashboard_url": url,
+            "public_dashboard_url": url,
+        }
+    return {
+        "host": "127.0.0.1",
+        "dashboard_url": "",
+        "public_dashboard_url": "",
+    }
+
+
 def run_wizard():
 
     clear()
@@ -315,7 +369,7 @@ def run_wizard():
         print(f"\n  {C_MUTED}{_t('Operación cancelada.')}{R}\n")
         return
 
-    TOTAL_STEPS = 8
+    TOTAL_STEPS = 9
     ctx = ""
 
     # 0. Language (Optional pre-step)
@@ -353,9 +407,14 @@ def run_wizard():
     step_header(4, TOTAL_STEPS, "Gateway público", f"{ctx}Canal: {channel} | Puerto: {port}")
     gateway = _configure_gateway(port)
 
-    # 5. Intelligence
+    # 5. Web dashboard
     clear()
-    step_header(5, TOTAL_STEPS, "Motor de Inteligencia", ctx)
+    step_header(5, TOTAL_STEPS, "Dashboard web", f"{ctx}Puerto: {port}")
+    dashboard = _configure_dashboard(port)
+
+    # 6. Intelligence
+    clear()
+    step_header(6, TOTAL_STEPS, "Motor de Inteligencia", ctx)
     
     # Level 1
     llm_types = [
@@ -434,15 +493,15 @@ def run_wizard():
         provider_id = "manual"
         model_id = text_input("Model ID")
 
-    # 6. Personality
+    # 7. Personality
     clear()
-    step_header(6, TOTAL_STEPS, "Humanización y Tono", ctx)
+    step_header(7, TOTAL_STEPS, "Humanización y Tono", ctx)
     i = select_menu([t[1] for t in TONES], title="Perfil de Voz")
     tone = TONES[i][0]
 
-    # 7. Credentials
+    # 8. Credentials
     clear()
-    step_header(7, TOTAL_STEPS, "Infraestructura y Secretos", ctx)
+    step_header(8, TOTAL_STEPS, "Infraestructura y Secretos", ctx)
 
     secrets_map = {}
 
@@ -483,9 +542,9 @@ def run_wizard():
         secrets_map["WA_CLOUD_TOKEN"] = text_input("WA Cloud API Token", is_password=True)
         secrets_map["WA_PHONE_NUMBER_ID"] = text_input("Phone Number ID")
 
-    # 8. Confirmation
+    # 9. Confirmation
     clear()
-    step_header(8, TOTAL_STEPS, "Verificación Final")
+    step_header(9, TOTAL_STEPS, "Verificación Final")
     
     print(f"  ┌────────────────────────────────────────────────────────┐")
     print(f"  │ {C_PRIMARY}{B1}Resumen de Configuración{R}                               │")
@@ -498,6 +557,7 @@ def run_wizard():
     print(f"  │ {C_MUTED}Voz:{R}       {tone.ljust(44)}│")
     print(f"  │ {C_MUTED}Secretos:{R}  {str(len(secrets_map)).ljust(44)}│")
     print(f"  │ {C_MUTED}BASE_URL:{R}  {(gateway.get('base_url') or 'pending').ljust(44)[:44]}│")
+    print(f"  │ {C_MUTED}Dashboard:{R} {(dashboard.get('dashboard_url') or 'local only').ljust(44)[:44]}│")
     print(f"  └────────────────────────────────────────────────────────┘\n")
 
     if not confirm("¿Procesar e Implementar Infraestructura?"):
@@ -505,7 +565,7 @@ def run_wizard():
         return
 
     print(f"\n  {C_PRIMARY}{_t('Creando recursos...')}{R}")
-    _create(name, instance_id, sector, channel, provider_id, model_id, tone, secrets_map, lang, port, gateway)
+    _create(name, instance_id, sector, channel, provider_id, model_id, tone, secrets_map, lang, port, gateway, dashboard)
 
     print(f"""
   {C_SUCCESS}{B1}🚀 {_t('Infraestructura Desplegada Exitosamente')}{R}
@@ -520,19 +580,26 @@ def run_wizard():
     if is_local and provider_id == "ollama":
         print(f"  {C_WARNING}💡 Asegúrate de descargar el modelo: `ollama run {model_id}`{R}\n")
 
-def _create(name, iid, sector, channel, provider, model_id, tone, secrets_map, lang, port, gateway):
+def _create(name, iid, sector, channel, provider, model_id, tone, secrets_map, lang, port, gateway, dashboard):
     idir = INSTANCES_DIR / iid
     idir.mkdir(parents=True, exist_ok=True)
 
     webhook_secret = f"conny_{iid}_{secrets.token_hex(6)}"
     base_url = str((gateway or {}).get("base_url") or "").rstrip("/")
     tunnel_command = str((gateway or {}).get("tunnel_command") or "").replace('"', '\\"')
+    dashboard = dashboard or {}
+    host = str(dashboard.get("host") or "127.0.0.1").strip()
+    dashboard_url = str(dashboard.get("dashboard_url") or "").rstrip("/")
+    public_dashboard_url = str(dashboard.get("public_dashboard_url") or "").rstrip("/")
 
     env_lines = [
         f"INSTANCE_ID={iid}",
         f"PORT={port}",
+        f"HOST={host}",
         f"BASE_URL={base_url}",
         f"PUBLIC_BASE_URL={base_url}",
+        f"DASHBOARD_URL={dashboard_url}",
+        f"PUBLIC_DASHBOARD_URL={public_dashboard_url}",
         "DEMO_MODE=false",
         f"PLATFORM={channel}",
         f"SECTOR={sector}",
@@ -598,6 +665,11 @@ llm:
         "provider": provider,
         "port": port,
         "base_url": base_url,
+        "dashboard": {
+            "host": host,
+            "url": dashboard_url,
+            "public_url": public_dashboard_url,
+        },
         "tunnel": {
             "provider": (gateway or {}).get("mode", ""),
             "pid": (gateway or {}).get("tunnel_pid", ""),
@@ -605,6 +677,11 @@ llm:
         },
     }
     (idir / "conny.state.json").write_text(json.dumps(state, indent=2))
+
+    if set_active_instance:
+        set_active_instance(iid)
+    if mirror_instance_env_to_base:
+        mirror_instance_env_to_base(iid)
 
 def _slug(name):
     s = name.lower().strip()

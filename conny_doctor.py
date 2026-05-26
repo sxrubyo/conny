@@ -73,7 +73,7 @@ class HealthCheck:
 
 class ConnyDoctor:
     def __init__(self, instance_id: str):
-        self.instance_id = instance_id or "base"
+        self.instance_id = instance_id or "conny"
         self.info = instance_runtime_info(self.instance_id)
         self.checks: List[HealthCheck] = []
         self.health: Dict[str, Any] = {}
@@ -316,7 +316,7 @@ async def main() -> None:
     import argparse
 
     parser = argparse.ArgumentParser(prog="conny doctor", description="Health check and self-heal for Conny instances")
-    parser.add_argument("instance", nargs="?", default="base", help="Instance name")
+    parser.add_argument("instance", nargs="?", default="conny", help="Instance name")
     parser.add_argument("--fix", action="store_true", help="Intentar auto-reparación")
     parser.add_argument("--json", action="store_true", help="Salida JSON")
     args = parser.parse_args()

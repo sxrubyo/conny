@@ -1,5 +1,12 @@
 # Changelog
 
+## 9.7.5 - 2026-05-26
+
+- unified `conny init`, `conny config` and `conny doctor` around the active instance `.env`
+- mirrored provisioned instance secrets and URLs into the base runtime `.env` after setup and config edits
+- replaced brittle `.env` text replacement with parser-based updates that handle quoted, unquoted and `pending` values
+- added dashboard exposure setup to `conny init` for localhost, LAN/IP and custom public URLs
+
 ## 9.7.4 - 2026-05-26
 
 - fixed existing installs with a stale/incomplete Python runtime by making bootstrap health check required imports before every command

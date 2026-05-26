@@ -19,6 +19,7 @@ from typing import Any, Dict, List, Optional
 CONNY_HOME = Path(os.getenv("CONNY_HOME", str(Path.home() / ".conny")))
 CONNY_DIR = Path(os.getenv("CONNY_DIR", str(Path(__file__).resolve().parent)))
 INSTANCES_DIR = Path(os.getenv("INSTANCES_DIR", str(CONNY_HOME / "instances")))
+ACTIVE_INSTANCE_PATH = Path(os.getenv("CONNY_ACTIVE_INSTANCE", str(CONNY_HOME / "active_instance")))
 
 _TUNNEL_PORT_PATTERNS = (
     re.compile(r"-R\s+\d+:(?:localhost|127\.0\.0\.1|0\.0\.0\.0):(\d+)", re.I),
@@ -33,6 +34,28 @@ _TUNNEL_PORT_PATTERNS = (
 _PUBLIC_URL_PATTERN = re.compile(r"https://[a-zA-Z0-9.-]+(?:lhr\.life|localhost\.run)(?:/[^\s]*)?")
 
 
+_ENV_KEY_PATTERN = re.compile(r"^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=")
+
+
+def _clean_env_value(value: str) -> str:
+    value = str(value or "").strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+        value = value[1:-1].strip()
+    if value.lower() in {"pending", "none", "null"}:
+        return ""
+    return value
+
+
+def _format_env_line(key: str, value: str) -> str:
+    value = _clean_env_value(value)
+    if not value:
+        return f"{key}="
+    if any(ch.isspace() for ch in value) or any(ch in value for ch in ['"', "'", "#"]):
+        escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+        return f'{key}="{escaped}"'
+    return f"{key}={value}"
+
+
 def load_env_file(path: Path) -> Dict[str, str]:
     data: Dict[str, str] = {}
     if not path.exists():
@@ -42,7 +65,10 @@ def load_env_file(path: Path) -> Dict[str, str]:
         if not line or line.startswith("#") or "=" not in line:
             continue
         key, value = line.split("=", 1)
-        data[key.strip()] = value.strip().strip('"').strip("'")
+        key = key.strip()
+        if key.startswith("export "):
+            key = key.split(None, 1)[1].strip()
+        data[key] = _clean_env_value(value)
     return data
 
 
@@ -53,22 +79,51 @@ def write_env_value(path: Path, key: str, value: str) -> None:
         lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
     updated: List[str] = []
     for raw_line in lines:
-        if raw_line.strip().startswith(f"{key}="):
-            updated.append(f"{key}={value}")
+        match = _ENV_KEY_PATTERN.match(raw_line)
+        if match and match.group(1) == key:
+            updated.append(_format_env_line(key, value))
             found = True
         else:
             updated.append(raw_line)
     if not found:
         if updated and updated[-1].strip():
             updated.append("")
-        updated.append(f"{key}={value}")
+        updated.append(_format_env_line(key, value))
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(updated).rstrip() + "\n", encoding="utf-8")
 
 
+def active_instance_name() -> str:
+    explicit = os.getenv("CONNY_INSTANCE", "").strip()
+    if explicit:
+        return explicit
+    if ACTIVE_INSTANCE_PATH.exists():
+        return ACTIVE_INSTANCE_PATH.read_text(encoding="utf-8", errors="replace").strip()
+    return ""
+
+
+def set_active_instance(instance_name: str) -> None:
+    instance_name = str(instance_name or "").strip()
+    if not instance_name:
+        return
+    ACTIVE_INSTANCE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    ACTIVE_INSTANCE_PATH.write_text(instance_name + "\n", encoding="utf-8")
+
+
 def instance_root(instance_name: str) -> Path:
     normalized = (instance_name or "").strip()
-    if normalized in {"", "base", "conny", "default"}:
+    if normalized == "base":
+        return CONNY_DIR
+    if normalized in {"", "conny", "default"}:
+        active = active_instance_name()
+        if active:
+            active_root = INSTANCES_DIR / active
+            if active_root.exists():
+                return active_root
+        if normalized in {"conny", "default"}:
+            candidate = INSTANCES_DIR / normalized
+            if candidate.exists():
+                return candidate
         return CONNY_DIR
     return INSTANCES_DIR / normalized
 
@@ -102,6 +157,64 @@ def instance_runtime_info(instance_name: str) -> Dict[str, Any]:
         "pm2_name": "conny" if root == CONNY_DIR else f"conny-{root.name}",
         "platform": str(env.get("PLATFORM", meta.get("platform", "telegram"))).strip() or "telegram",
     }
+
+
+MIRRORED_ENV_KEYS = {
+    "INSTANCE_ID",
+    "PORT",
+    "HOST",
+    "BASE_URL",
+    "PUBLIC_BASE_URL",
+    "DASHBOARD_URL",
+    "PUBLIC_DASHBOARD_URL",
+    "DEMO_MODE",
+    "PLATFORM",
+    "SECTOR",
+    "BUSINESS_NAME",
+    "WEBHOOK_SECRET",
+    "TUNNEL_PROVIDER",
+    "TUNNEL_PID",
+    "TUNNEL_COMMAND",
+    "TELEGRAM_TOKEN",
+    "LLM_PROVIDER",
+    "LLM_MODEL",
+    "LLM_REASONING",
+    "LLM_FAST",
+    "LLM_LITE",
+    "CUSTOM_API_BASE",
+    "OPENAI_API_KEY",
+    "ANTHROPIC_API_KEY",
+    "GEMINI_API_KEY",
+    "GEMINI_API_KEY_2",
+    "GEMINI_API_KEY_3",
+    "GEMINI_API_KEY_4",
+    "GEMINI_API_KEY_5",
+    "GEMINI_API_KEY_6",
+    "GEMINI_API_KEY_7",
+    "GROQ_API_KEY",
+    "OPENROUTER_API_KEY",
+    "BRAVE_API_KEY",
+    "APIFY_API_KEY",
+    "SERP_API_KEY",
+    "WA_CLOUD_TOKEN",
+    "WA_PHONE_NUMBER_ID",
+    "CONNY_PYTHON_BIN",
+}
+
+
+def mirror_instance_env_to_base(instance_name: str) -> None:
+    info = instance_runtime_info(instance_name)
+    if info["root"] == CONNY_DIR:
+        return
+    env = load_env_file(info["env_path"])
+    if not env:
+        return
+    base_env_path = CONNY_DIR / ".env"
+    for key in sorted(MIRRORED_ENV_KEYS):
+        if key in env:
+            write_env_value(base_env_path, key, env.get(key, ""))
+    write_env_value(base_env_path, "ACTIVE_INSTANCE", info["name"])
+    set_active_instance(info["name"])
 
 
 def port_is_open(port: int, host: str = "127.0.0.1", timeout: float = 0.5) -> bool:
