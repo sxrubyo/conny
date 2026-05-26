@@ -14,11 +14,57 @@ import urllib.error
 import subprocess
 from deep_translator import GoogleTranslator
 
-CURRENT_LANG = 'es'
+CURRENT_LANG = os.environ.get("CONNY_INIT_LANG", "en").lower()
+
+TRANSLATIONS = {
+    "en": {
+        "Selección de idioma": "Language selection",
+        "Idioma preferido para Conny": "Preferred language for Conny",
+        "¿Comenzar configuración?": "Start guided setup?",
+        "Operación cancelada.": "Setup cancelled.",
+        "Tiempo estimado: ~3 min": "Estimated time: ~3 min",
+        "Identidad": "Identity",
+        "Nombre del negocio": "Business name",
+        "Dominio e Industria": "Domain and industry",
+        "Sector Principal": "Primary sector",
+        "Canales de Conectividad": "Connectivity channels",
+        "Canal Principal de Acceso": "Primary access channel",
+        "Motor de Inteligencia": "Intelligence engine",
+        "Tipo de proveedor": "Provider type",
+        "Proveedor Cloud": "Cloud provider",
+        "Modelo Específico": "Specific model",
+        "Modelo de Ollama": "Ollama model",
+        "Modelo NIM": "NIM model",
+        "Humanización y Tono": "Humanization and tone",
+        "Perfil de Voz": "Voice profile",
+        "Infraestructura y Secretos": "Infrastructure and secrets",
+        "Verificación Final": "Final verification",
+        "¿Procesar e Implementar Infraestructura?": "Provision and deploy infrastructure?",
+        "Cancelado.": "Cancelled.",
+        "Creando recursos...": "Creating resources...",
+        "Resumen de Configuración": "Configuration summary",
+        "Negocio:": "Business:",
+        "Sector:": "Sector:",
+        "Canal:": "Channel:",
+        "Proveedor:": "Provider:",
+        "Modelo:": "Model:",
+        "Voz:": "Voice:",
+        "Secretos:": "Secrets:",
+        "Directorio:": "Directory:",
+        "Control:": "Control:",
+        "Check:": "Check:",
+        "Lanzar:": "Launch:",
+        "Infraestructura Desplegada Exitosamente": "Infrastructure deployed successfully",
+        "Validando API key...": "Validating API key...",
+        "✅ API key validada correctamente.": "✅ API key validated successfully.",
+    }
+}
 
 def _t(text):
     if CURRENT_LANG == 'es' or not text:
         return text
+    if CURRENT_LANG in TRANSLATIONS and text in TRANSLATIONS[CURRENT_LANG]:
+        return TRANSLATIONS[CURRENT_LANG][text]
     try:
         # Limpiar texto de colores si es necesario, o traducir directo
         return GoogleTranslator(source='es', target=CURRENT_LANG).translate(text)
@@ -61,7 +107,8 @@ C_ACCENT  = "\033[38;5;159m"         # Cyan
 B1 = "\033[1m"
 R = "\033[0m"
 
-INSTANCES_DIR = Path(os.environ.get("INSTANCES_DIR", str(Path.home() / ".conny-instances")))
+CONNY_HOME = Path(os.environ.get("CONNY_HOME", str(Path.home() / ".conny")))
+INSTANCES_DIR = Path(os.environ.get("INSTANCES_DIR", str(CONNY_HOME / "instances")))
 CONNY_DIR = Path(os.environ.get("CONNY_DIR", os.path.dirname(os.path.abspath(__file__))))
 
 SECTORS = [
@@ -93,8 +140,8 @@ TONES = [
 ]
 
 LANGUAGES = [
-    ("es", "Español"),
     ("en", "English"),
+    ("es", "Español"),
     ("pt", "Português"),
 ]
 
@@ -138,10 +185,10 @@ def check_gpu():
 
 def validate_api_key(provider, key):
     # Dummy validation with spinner
-    sys.stdout.write(f"  {C_MUTED}Validando API key...{R}")
+    sys.stdout.write(f"  {C_MUTED}{_t('Validando API key...')}{R}")
     sys.stdout.flush()
     time.sleep(1.5)
-    sys.stdout.write(f"\r  {C_SUCCESS}✅ API key validada correctamente.{R}       \n")
+    sys.stdout.write(f"\r  {C_SUCCESS}{_t('✅ API key validada correctamente.')}{R}       \n")
     return True
 
 
@@ -198,14 +245,14 @@ def run_wizard():
         print(f"  {line}")
 
     print()
-    print(f"  {C_PRIMARY}{B1}Conny CLI {VERSION}{R} · {C_ACCENT}Autonomous Dynamic Receptionist{R} · {C_MUTED}⏱ Tiempo estimado: ~3 min{R}")
+    print(f"  {C_PRIMARY}{B1}Conny CLI {VERSION}{R} · {C_ACCENT}Autonomous Dynamic Receptionist{R} · {C_MUTED}⏱ {_t('Tiempo estimado: ~3 min')}{R}")
     print(f"  {C_MUTED}{'─' * 70}{R}")
     print()
 
 
 
     if not confirm("¿Comenzar configuración?"):
-        print(f"\n  {C_MUTED}Operación cancelada.{R}\n")
+        print(f"\n  {C_MUTED}{_t('Operación cancelada.')}{R}\n")
         return
 
     TOTAL_STEPS = 7
@@ -214,7 +261,6 @@ def run_wizard():
     # 0. Language (Optional pre-step)
     clear()
     print(f"\n  {C_PRIMARY}🌐 {_t('Selección de idioma')}{R}")
-    i = select_menu([l[1] for l in LANGUAGES], title="Idioma preferido para Conny")
     i = select_menu([l[1] for l in LANGUAGES], title="Idioma preferido para Conny")
     lang = LANGUAGES[i][0]
     global CURRENT_LANG
@@ -391,16 +437,16 @@ def run_wizard():
         print(f"\n  {C_MUTED}Cancelado.{R}\n")
         return
 
-    print(f"\n  {C_PRIMARY}Creando recursos...{R}")
+    print(f"\n  {C_PRIMARY}{_t('Creando recursos...')}{R}")
     _create(name, instance_id, sector, channel, provider_id, model_id, tone, secrets_map, lang)
 
     print(f"""
-  {C_SUCCESS}{B1}🚀 Infraestructura Desplegada Exitosamente{R}
+  {C_SUCCESS}{B1}🚀 {_t('Infraestructura Desplegada Exitosamente')}{R}
 
-    {C_MUTED}Directorio:{R}  {INSTANCES_DIR / instance_id}
-    {C_MUTED}Control:{R}     {C_PRIMARY}conny status {instance_id}{R}
-    {C_MUTED}Check:{R}       {C_PRIMARY}conny doctor{R}
-    {C_MUTED}Lanzar:{R}      {C_PRIMARY}pm2 start {INSTANCES_DIR / instance_id}/run.sh --name conny-{instance_id}{R}
+    {C_MUTED}{_t('Directorio:')}{R}  {INSTANCES_DIR / instance_id}
+    {C_MUTED}{_t('Control:')}{R}     {C_PRIMARY}conny status {instance_id}{R}
+    {C_MUTED}{_t('Check:')}{R}       {C_PRIMARY}conny doctor{R}
+    {C_MUTED}{_t('Lanzar:')}{R}      {C_PRIMARY}pm2 start {INSTANCES_DIR / instance_id}/run.sh --name conny-{instance_id}{R}
 """)
 
     # Post-onboarding commands
@@ -473,7 +519,10 @@ llm:
 
     for f in core:
         src = CONNY_DIR / f
-        if src.exists(): shutil.copy2(src, idir / f)
+        if src.exists():
+            dst = idir / f
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src, dst)
 
     for d in ["soul", "teachings", "memory_store", "knowledge_gaps", "integrations/vault", "logs"]:
         (idir / d).mkdir(parents=True, exist_ok=True)

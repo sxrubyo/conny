@@ -1,5 +1,12 @@
 # Changelog
 
+## 9.7.1 - 2026-05-26
+
+- fixed GitHub/npm bootstrap for fresh installs where `conny init` still tried to run from `/home/ubuntu/conny`
+- removed the hardcoded working directory in `conny_app.py`; subcommands now run from the installed `CONNY_DIR`
+- bumped the package version so existing `~/.conny/repo` installs resync automatically on reinstall
+- kept the public package name as `conny-ai` for GitHub installs and npm compatibility
+
 ## 9.7.0 - 2026-05-26
 
 - corregido el arranque PM2 para usar `run.sh` y selección dinámica de Python, evitando `--interpreter python3` duro y rutas rotas de venv

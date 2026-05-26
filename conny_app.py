@@ -43,6 +43,8 @@ TAGLINES = [
 ]
 
 BOOT_FILE = Path.home() / ".conny" / ".boot_shown"
+APP_DIR = Path(os.environ.get("CONNY_DIR", str(Path(__file__).resolve().parent))).resolve()
+INSTANCES_DIR = Path(os.environ.get("INSTANCES_DIR", str(Path.home() / ".conny" / "instances"))).resolve()
 
 
 # ─── Boot ─────────────────────────────────────────────────────────────────────
@@ -156,7 +158,7 @@ def cmd_status(args=""):
     con.print(); con.print(Padding(t,(0,2))); con.print()
 
 def cmd_list(args=""):
-    idir = Path("/home/ubuntu/conny-instances")
+    idir = INSTANCES_DIR
     if not idir.exists(): con.print("  [dim]no instances[/dim]"); return
     t = Table(box=box.SIMPLE, border_style=COLORS["primary"], show_edge=False, padding=(0,1))
     t.add_column("", width=3); t.add_column("name", style="bold")
@@ -264,7 +266,11 @@ def _uptime(ms):
     return f"{int(s/86400)}d"
 
 def _py(*a):
-    try: subprocess.run([sys.executable]+[str(x) for x in a],cwd="/home/ubuntu/conny")
+    try:
+        env = os.environ.copy()
+        env.setdefault("CONNY_DIR", str(APP_DIR))
+        env.setdefault("INSTANCES_DIR", str(INSTANCES_DIR))
+        subprocess.run([sys.executable]+[str(x) for x in a],cwd=str(APP_DIR),env=env)
     except Exception as e: con.print(f"  [err]{e}[/err]")
 
 def _sh(*a):
