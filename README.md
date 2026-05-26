@@ -253,6 +253,8 @@ conny sync -y                    # Push updates to all clients
 conny persona create <name>      # New personality template
 conny agent list                 # Show available agents
 conny validate                   # Health check — config, deps, files
+conny config                     # Panel interactivo: red, modelos, webhooks, Python/venv
+conny doctor --fix               # Diagnóstico con auto-reparación de PM2, deps y webhook
 ```
 
 ---

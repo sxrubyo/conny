@@ -1,6 +1,6 @@
 {
   "name": "conny-ai",
-  "version": "9.6.3",
+  "version": "9.7.0",
   "description": "Open-source CLI and runtime for building Conny AI receptionist agents on WhatsApp and Telegram.",
   "license": "MIT",
   "author": "Santiago Rubio",
@@ -20,6 +20,10 @@
     "conny",
     "conny.py",
     "*.py",
+    "!patch*.py",
+    "!scratch*.py",
+    "!test_*.py",
+    "!chat_conny.py",
     "brand-assets/**/*",
     "conny_cli.py",
     "conny_cli_bb.py",

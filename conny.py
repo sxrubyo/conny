@@ -86,7 +86,7 @@ if __name__ == "__main__":
     ║    ╚██████╗ ╚██████╔╝██║ ╚████║██║ ╚████║   ██║                ║
     ║     ╚═════╝  ╚═════╝ ╚═╝  ╚═══╝╚═╝  ╚═══╝   ╚═╝                ║
     ║                                                                  ║
-    ║                    U L T R A   v 9 . 6 . 1                       ║
+    ║                    U L T R A   v 9 . 7 . 0                       ║
     ║                                                                  ║
     ║        Agente de Recepción Hipernaturalmente Humana             ║
     ║                                                                  ║

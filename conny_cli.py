@@ -179,10 +179,81 @@ except ImportError:
 # ══════════════════════════════════════════════════════════════════════════════
 # CONFIGURACIÓN
 # ══════════════════════════════════════════════════════════════════════════════
-VERSION = "9.6.1"
+def _default_instances_dir() -> str:
+    env_value = os.getenv("INSTANCES_DIR", "").strip()
+    candidates: List[Path] = []
+    if env_value:
+        candidates.append(Path(env_value).expanduser())
+    home = Path.home()
+    candidates.extend(
+        [
+            home / ".conny" / "instances",
+            home / ".conny-instances",
+            home / "conny-instances",
+        ]
+    )
+    for candidate in candidates:
+        if candidate.exists():
+            return str(candidate)
+    return str(candidates[0])
+
+
+def build_portable_run_script(instance_dir: str) -> str:
+    instance_path = Path(instance_dir)
+    return f"""#!/usr/bin/env bash
+set -euo pipefail
+
+INSTANCE_DIR="{instance_path}"
+cd "$INSTANCE_DIR"
+
+if [ -x "$INSTANCE_DIR/.venv/bin/python" ]; then
+  exec "$INSTANCE_DIR/.venv/bin/python" conny.py
+fi
+
+if [ -x "$HOME/.conny/runtime/bin/python" ]; then
+  exec "$HOME/.conny/runtime/bin/python" "$INSTANCE_DIR/conny.py"
+fi
+
+if command -v python3 >/dev/null 2>&1; then
+  exec python3 "$INSTANCE_DIR/conny.py"
+fi
+
+exec python "$INSTANCE_DIR/conny.py"
+"""
+
+
+def write_portable_run_script(instance_dir: str) -> Path:
+    run_path = Path(instance_dir) / "run.sh"
+    run_path.write_text(build_portable_run_script(instance_dir), encoding="utf-8")
+    run_path.chmod(0o755)
+    return run_path
+
+
+def build_pm2_start_command(instance_dir: str, pm2_name: str, log_dir: str) -> List[str]:
+    run_path = write_portable_run_script(instance_dir)
+    return [
+        "pm2",
+        "start",
+        str(run_path),
+        "--name",
+        pm2_name,
+        "--cwd",
+        str(instance_dir),
+        "--restart-delay",
+        "3000",
+        "--max-restarts",
+        "10",
+        "--log",
+        str(Path(log_dir) / "conny.log"),
+        "--error",
+        str(Path(log_dir) / "error.log"),
+    ]
+
+
+VERSION = "9.7.0"
 CONNY_HOME = os.getenv("CONNY_HOME", str(Path.home() / ".conny"))
 CONNY_DIR = os.getenv("CONNY_DIR", str(Path(__file__).resolve().parent))
-INSTANCES_DIR = os.getenv("INSTANCES_DIR", str(Path.home() / "conny-instances"))
+INSTANCES_DIR = _default_instances_dir()
 NOVA_DIR = os.getenv("NOVA_DIR", "/home/ubuntu/nova-os")
 BACKUP_DIR = Path(os.getenv("CONNY_BACKUPS", Path.home() / "conny-backups"))
 CACHE_DIR = Path(CONNY_HOME) / "cache"
@@ -216,6 +287,10 @@ WORKSPACE_CONFIG_PATH = Path(os.getenv("CONNY_WORKSPACE_CONFIG", f"{CONNY_HOME}/
 
 SYNC_RUNTIME_FILES = [
     "conny.py",
+    "run.sh",
+    "conny_doctor.py",
+    "conny_runtime_ops.py",
+    "conny_ultra_config.py",
     "src/core/globals.py",
     "src/core/runtime.py",
     "src/interfaces/web/app.py",
@@ -1310,6 +1385,30 @@ def pm2_list():
         pass
     return []
 
+
+def _pm2_start_runtime(pm2_name: str, inst_dir: str, log_path: str, error_path: str) -> subprocess.CompletedProcess:
+    """Arrancar Conny siempre a través de run.sh para respetar VENV/runtime real."""
+    run_script = Path(inst_dir) / "run.sh"
+    if not run_script.exists():
+        raise FileNotFoundError(f"run.sh no existe en {inst_dir}")
+    try:
+        run_script.chmod(run_script.stat().st_mode | 0o111)
+    except Exception:
+        pass
+    return subprocess.run(
+        [
+            "pm2", "start", str(run_script),
+            "--name", pm2_name,
+            "--cwd", inst_dir,
+            "--restart-delay", "3000",
+            "--max-restarts", "10",
+            "--log", str(log_path),
+            "--error", str(error_path),
+        ],
+        capture_output=True,
+        text=True,
+    )
+
 def public_ip():
     """Obtener IP pública."""
     try:
@@ -1926,16 +2025,12 @@ OMNI_KEY={defaults['omni']['key']}
     
     with Spinner(f"Arrancando {pm2_name}...") as sp:
         pm2("delete", pm2_name)
-        subprocess.run([
-            "pm2", "start", f"{inst_dir}/conny.py",
-            "--name", pm2_name,
-            "--interpreter", "python3",
-            "--cwd", inst_dir,          # ✅ FIX: sin --cwd, load_dotenv() carga el .env equivocado
-            "--restart-delay", "3000",
-            "--max-restarts", "10",
-            "--log", f"{inst_dir}/logs/conny.log",
-            "--error", f"{inst_dir}/logs/error.log"
-        ], capture_output=True)
+        _pm2_start_runtime(
+            pm2_name,
+            inst_dir,
+            f"{inst_dir}/logs/conny.log",
+            f"{inst_dir}/logs/error.log",
+        )
         pm2_save()
         time.sleep(4)
         h = health(port)
@@ -2763,173 +2858,13 @@ def cmd_logs(args):
 
 
 def cmd_config(args):
-    """Editar configuración de una instancia."""
+    """Editar configuración ultra interactiva."""
     name = getattr(args, 'name', '') or ''
-    instances = get_instances()
-
-    if not name:
-        ensure_workspace_files()
-        if not instances:
-            info("No hay instancias todavía. Abro el init guiado.")
-            nl()
-            cmd_init(args)
-            return
-
-        print_logo(compact=True)
-        section("Conny Config", "Hub de configuración del producto")
-        workspace_cfg = load_workspace_config()
-        workspace_summary(workspace_cfg)
-        options = [
-            "Configurar workspace base",
-            "Configurar una instancia",
-            "Ajustar agente, prompt y personalidad",
-            "Router compartido de Telegram",
-            "Salir",
-        ]
-        descs = [
-            "Dueño, negocio por defecto, API keys y prompt base.",
-            "Variables operativas de una instancia concreta.",
-            "Abre Black Boss Config para tono, prompt y skills.",
-            "Elegir instancia por defecto y limpiar rutas compartidas.",
-            "Volver a la terminal.",
-        ]
-        choice = select(options, descs=descs, title="¿Qué quieres configurar?")
-        if choice == 0:
-            edit_workspace_config()
-            return
-        if choice == 2:
-            cmd_bb_config(argparse.Namespace(name="", subcommand="", command="bb"))
-            return
-        if choice == 3:
-            routes = load_shared_telegram_routes()
-            router_options = [
-                "Definir instancia por defecto",
-                "Limpiar instancia por defecto",
-                "Vaciar rutas por chat",
-                "Salir",
-            ]
-            router_descs = [
-                f"Actual: {routes.get('default_instance', '') or 'ninguna'}",
-                "Deja el router sin fallback.",
-                "Borra el mapeo chat → instancia compartida.",
-                "Volver.",
-            ]
-            router_choice = select(router_options, descs=router_descs, title="Router compartido de Telegram")
-            if router_choice == 0:
-                idx = select([inst.label for inst in instances], title="Instancia por defecto del router")
-                routes["default_instance"] = instances[idx].name
-                save_shared_telegram_routes(routes)
-                ok(f"Router por defecto: {instances[idx].name}")
-            elif router_choice == 1:
-                routes["default_instance"] = ""
-                save_shared_telegram_routes(routes)
-                ok("Router sin instancia por defecto")
-            elif router_choice == 2:
-                routes["routes"] = {}
-                save_shared_telegram_routes(routes)
-                ok("Rutas por chat limpiadas")
-            return
-        if choice == 4:
-            return
-    
-    inst = find_instance(name) if name else None
-    if not inst:
-        if len(instances) == 1:
-            inst = instances[0]
-        elif instances:
-            idx = select([i.label for i in instances], title="¿Cuál instancia configurar?")
-            inst = instances[idx]
-        else:
-            fail("No hay instancias")
-            return
-    
-    print_logo(compact=True)
-    section(f"Configuración — {inst.label}")
-    
-    env_path = f"{inst.dir}/.env"
-    ev = dict(load_env(env_path))
-    
-    # Opciones de configuración
-    options = [
-        "Cambiar sector",
-        "Configurar horarios",
-        "Editar servicios",
-        "Configurar WhatsApp",
-        "Activar/Desactivar Nova",
-        "Ver todas las variables",
-        "Editar .env manualmente",
-    ]
-    
-    choice = select(options)
-    
-    if choice == 0:  # Sector
-        sector_list = list(SECTORS.keys())
-        sector_names = [f"{SECTORS[s].emoji} {SECTORS[s].name}" for s in sector_list]
-        idx = select(sector_names, title="Nuevo sector:")
-        new_sector = sector_list[idx]
-        update_env_key(env_path, "SECTOR", new_sector)
-        ok(f"Sector cambiado a {SECTORS[new_sector].name}")
-        
-    elif choice == 1:  # Horarios
-        current = ev.get("BUSINESS_HOURS", "09:00-18:00")
-        new_hours = prompt("Horario (ej: 09:00-18:00)", default=current)
-        update_env_key(env_path, "BUSINESS_HOURS", new_hours)
-        ok(f"Horario: {new_hours}")
-        
-    elif choice == 2:  # Servicios
-        current = ev.get("SERVICES", "")
-        info("Servicios actuales:")
-        if current:
-            for s in current.split(","):
-                print(f"       · {s.strip()}")
-        new_services = prompt("Servicios (separados por coma)")
-        if new_services:
-            update_env_key(env_path, "SERVICES", new_services)
-            ok("Servicios actualizados")
-            
-    elif choice == 3:  # WhatsApp
-        info("Para WhatsApp necesitas:")
-        dim("1. Cuenta de Meta Business")
-        dim("2. App en developers.facebook.com")
-        dim("3. Número de WhatsApp Business verificado")
-        nl()
-        wa_phone = prompt("WhatsApp Phone ID")
-        wa_token = prompt("WhatsApp Access Token", secret=True)
-        if wa_phone and wa_token:
-            update_env_key(env_path, "WA_PHONE_ID", wa_phone)
-            update_env_key(env_path, "WA_ACCESS_TOKEN", wa_token)
-            ok("WhatsApp configurado")
-            
-    elif choice == 4:  # Nova
-        current = ev.get("NOVA_ENABLED", "false")
-        if current == "true":
-            if confirm("¿Desactivar Nova?"):
-                update_env_key(env_path, "NOVA_ENABLED", "false")
-                ok("Nova desactivado")
-        else:
-            if confirm("¿Activar Nova?"):
-                _nova_attach(inst.dir, inst.name)
-                
-    elif choice == 5:  # Ver todas
-        nl()
-        for k, v in sorted(ev.items()):
-            # Ocultar valores sensibles
-            if "KEY" in k or "TOKEN" in k or "SECRET" in k:
-                v = v[:8] + "..." if len(v) > 8 else "***"
-            print(f"  {q(C.G2, k)}: {q(C.G1, v)}")
-        nl()
-        
-    elif choice == 6:  # Manual
-        editor = os.getenv("EDITOR", "nano")
-        os.system(f"{editor} {env_path}")
-    
-    # Reiniciar si cambió algo
-    if choice < 5 and confirm("¿Reiniciar para aplicar cambios?"):
-        pm2_name = "conny" if inst.is_base else f"conny-{inst.name}"
-        pm2("restart", pm2_name)
-        ok(f"{inst.label} reiniciada")
-    
-    nl()
+    try:
+        import conny_ultra_config
+        conny_ultra_config.run_ultra_config(name)
+    except Exception as e:
+        error(f"Error abriendo Ultra Config: {e}")
 
 def cmd_export(args):
     """Exportar datos a JSON/CSV."""
@@ -3389,14 +3324,12 @@ def cmd_clone(args):
     
     with Spinner("Arrancando...") as sp:
         pm2("delete", pm2_name)
-        subprocess.run([
-            "pm2", "start", f"{dest_dir}/conny.py",
-            "--name", pm2_name,
-            "--interpreter", "python3",
-            "--cwd", dest_dir,          # ✅ FIX: --cwd necesario para que load_dotenv() funcione
-            "--log", f"{dest_dir}/logs/conny.log",
-            "--error", f"{dest_dir}/logs/error.log"
-        ], capture_output=True)
+        _pm2_start_runtime(
+            pm2_name,
+            dest_dir,
+            f"{dest_dir}/logs/conny.log",
+            f"{dest_dir}/logs/error.log",
+        )
         pm2_save()
         time.sleep(3)
         h = health(port)
@@ -3831,11 +3764,12 @@ def cmd_restore(args):
     
     with Spinner("Arrancando...") as sp:
         pm2("delete", pm2_name)
-        subprocess.run([
-            "pm2", "start", f"{dest_dir}/conny.py",
-            "--name", pm2_name,
-            "--interpreter", "python3"
-        ], capture_output=True)
+        _pm2_start_runtime(
+            pm2_name,
+            dest_dir,
+            f"{dest_dir}/logs/conny.log",
+            f"{dest_dir}/logs/error.log",
+        )
         pm2_save()
         time.sleep(3)
         h = health(port or int(ev.get("PORT", 8001)))
@@ -5759,16 +5693,12 @@ def cmd_base(args):
             sp.finish("Listo")
 
         with Spinner(f"Arrancando {pm2_name}...") as sp:
-            result = subprocess.run([
-                "pm2", "start", f"{inst.dir}/conny.py",
-                "--name",           pm2_name,
-                "--interpreter",    "python3",
-                "--cwd",            inst.dir,
-                "--restart-delay",  "3000",
-                "--max-restarts",   "10",
-                "--log",            str(log_dir / "conny.log"),
-                "--error",          str(log_dir / "error.log"),
-            ], capture_output=True, text=True)
+            result = _pm2_start_runtime(
+                pm2_name,
+                inst.dir,
+                str(log_dir / "conny.log"),
+                str(log_dir / "error.log"),
+            )
             pm2_save()
             time.sleep(3)
             h = health(port)
@@ -5870,16 +5800,12 @@ def cmd_fix(args):
             sp.finish("Proceso eliminado")
 
         with Spinner(f"Registrando con --cwd correcto...") as sp:
-            result = subprocess.run([
-                "pm2", "start", f"{inst.dir}/conny.py",
-                "--name",           pm2_name,
-                "--interpreter",    "python3",
-                "--cwd",            inst.dir,       # ← el fix crítico
-                "--restart-delay",  "3000",
-                "--max-restarts",   "10",
-                "--log",            f"{log_dir}/conny.log",
-                "--error",          f"{log_dir}/error.log",
-            ], capture_output=True)
+            result = _pm2_start_runtime(
+                pm2_name,
+                inst.dir,
+                f"{log_dir}/conny.log",
+                f"{log_dir}/error.log",
+            )
             pm2_save()
             time.sleep(4)
             h = health(inst.port)

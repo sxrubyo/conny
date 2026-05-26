@@ -28,6 +28,7 @@ def test_runtime_sync_entries_include_extended_runtime_only(tmp_path):
     source = tmp_path / "base"
     source.mkdir()
     (source / "conny.py").write_text("base", encoding="utf-8")
+    (source / "run.sh").write_text("#!/bin/sh\n", encoding="utf-8")
     (source / "conny_brain_v10.py").write_text("brain", encoding="utf-8")
     (source / "conny_core").mkdir()
     (source / "conny_core" / "__init__.py").write_text("# core", encoding="utf-8")
@@ -36,6 +37,7 @@ def test_runtime_sync_entries_include_extended_runtime_only(tmp_path):
     entries = cli._runtime_sync_entries(str(source))
 
     assert "conny.py" in entries
+    assert "run.sh" in entries
     assert "conny_brain_v10.py" in entries
     assert "conny_core" in entries
     assert ".env" not in entries

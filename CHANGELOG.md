@@ -1,5 +1,16 @@
 # Changelog
 
+## 9.7.0 - 2026-05-26
+
+- corregido el arranque PM2 para usar `run.sh` y selección dinámica de Python, evitando `--interpreter python3` duro y rutas rotas de venv
+- añadido `conny_runtime_ops.py` como capa compartida de inspección para puertos, PM2, túneles, Python y webhook
+- rehecho `conny config` como panel interactivo real de red, modelos, gateway, entorno y doctor
+- convertido `conny_doctor.py` en motor de self-healing con resincronización de webhook, reinstalación de dependencias y re-registro de PM2
+- endurecido `npm/conny.js` para aceptar Python 3.9+ real, detectar runtime corrupto y recrearlo automáticamente
+- corregido `install.sh` para dejar de depender de una rama fija vieja y validar mejor el bootstrap
+- añadida sincronización de `run.sh`, `conny_doctor.py`, `conny_runtime_ops.py` y `conny_ultra_config.py` a las instancias
+- alineado `conny_app.py` para que `config` y `doctor` usen las superficies reales en lugar de mocks
+
 ## 9.6.1 - 2026-05-20
 
 - Refactorización de arquitectura hacia un diseño DDD (Domain-Driven Design) modular

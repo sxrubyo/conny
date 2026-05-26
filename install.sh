@@ -34,17 +34,45 @@ else
     echo -e "\n  ${BOLD}1. Motor True-Color detectado (chafa).${RESET}"
 fi
 
-# 2. Install NPM Package from Github
+# 2. Verify Python sanely (3.9+), without hardcoding minor versions
+PYTHON_BIN=""
+for candidate in python3 python; do
+    if command -v "$candidate" >/dev/null 2>&1; then
+        if "$candidate" - <<'PY' >/dev/null 2>&1
+import sys
+raise SystemExit(0 if sys.version_info >= (3, 9) else 1)
+PY
+        then
+            PYTHON_BIN="$candidate"
+            break
+        fi
+    fi
+done
+
+if [ -n "$PYTHON_BIN" ]; then
+    PY_VERSION="$($PYTHON_BIN -c 'import sys; print(".".join(map(str, sys.version_info[:3])))')"
+    echo -e "\n  ${BOLD}2. Python detectado:${RESET} ${C_SUCCESS}${PYTHON_BIN} (${PY_VERSION})${RESET}"
+else
+    echo -e "\n  ${BOLD}2. Python 3.9+ no detectado localmente.${RESET}"
+    echo -e "  ${C_MUTED}Conny intentará crear su runtime cuando se ejecute por primera vez.${RESET}"
+fi
+
+# 3. Install NPM Package
 if ! command -v npm &> /dev/null; then
     echo -e "\n  \033[31mError: Node.js y npm son requeridos. Instálalos primero.\033[0m"
     exit 1
 fi
 
-echo -e "\n  ${BOLD}2. Limpiando versiones anteriores...${RESET}"
+echo -e "\n  ${BOLD}3. Limpiando versiones anteriores...${RESET}"
 npm uninstall -g conny-ai @blackboss/conny || true
 
-echo -e "\n  ${BOLD}3. Instalando Conny CLI y Motor AI desde GitHub...${RESET}"
-npm install -g "git+https://github.com/sxrubyo/conny.git#refactor-v10"
+echo -e "\n  ${BOLD}4. Instalando Conny CLI y Motor AI...${RESET}"
+npm install -g "${CONNY_INSTALL_PACKAGE:-conny-ai@latest}"
+
+echo -e "\n  ${BOLD}5. Verificando bootstrap del CLI...${RESET}"
+if command -v conny >/dev/null 2>&1; then
+    conny --version || true
+fi
 
 echo -e "\n  ${C_SUCCESS}${BOLD}✔ ¡Conny instalado con éxito!${RESET}"
 echo -e "  Ejecuta ${C_PRIMARY}conny init${RESET} en tu terminal para empezar la magia.\n"

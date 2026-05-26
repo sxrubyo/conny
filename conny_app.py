@@ -171,25 +171,7 @@ def cmd_list(args=""):
     con.print(); con.print(Padding(t,(0,2))); con.print()
 
 def cmd_doctor(args=""):
-    instance = args.strip() or "conny"
-    con.print(f"\n  [m]✦[/m] [bold]doctor[/bold] [dim]{instance}[/dim]\n")
-    checks = [
-        ("PM2 instance", "pm2"),
-        ("API health", "api"),
-        ("LLM latency", "llm"),
-        ("WhatsApp bridge", "wa"),
-        ("Persona", "persona"),
-        ("Memory engine", "memory"),
-        ("Knowledge gaps", "gaps"),
-    ]
-    with Progress(SpinnerColumn(spinner_name="dots2", style=f"bold {COLORS['primary']}"),
-                  TextColumn("[text]{task.description}"), transient=True, console=con) as prog:
-        for name, _ in checks:
-            task = prog.add_task(f"checking {name}...")
-            time.sleep(0.2)
-            prog.remove_task(task)
-            con.print(f"    {ICON_OK} {name}")
-    con.print(f"\n  [dim]full report: conny doctor --verbose[/dim]\n")
+    _py("conny_doctor.py", *(args.split() if args.strip() else []))
 
 def cmd_new(args=""): _py("conny_init.py")
 def cmd_chat(args=""): _py("conny_studio.py", "--instance", args.strip() or "default")
@@ -223,11 +205,10 @@ def cmd_aprender(args=""):
         f.write(json.dumps({"ts":time.time(),"question":q,"answer":a})+"\n")
     con.print(f"  {ICON_OK} [m]{q[:35]}[/m] → {a[:35]}")
 def cmd_config(args=""):
-    env=Path("/home/ubuntu/conny/.env")
-    if not env.exists(): con.print("  [dim]no .env[/dim]"); return
-    lines=[l for l in env.read_text().splitlines() if l and not l.startswith("#") and "KEY" not in l.upper() and "SECRET" not in l.upper()]
-    con.print(); con.print(Padding(Panel("\n".join(lines[:18]),border_style="dim",box=box.ROUNDED,title="[m].env[/m]"),(0,2)))
-    con.print()
+    argv = ["config"]
+    if args.strip():
+        argv.extend(args.split())
+    _py("conny_cli.py", *argv)
 
 
 # ─── Router ──────────────────────────────────────────────────────────────────

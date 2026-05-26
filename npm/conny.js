@@ -239,22 +239,50 @@ function findSystemPython() {
           ["python", []],
         ];
   for (const [command, prefixArgs] of candidates) {
-    const probe = spawnSync(command, [...prefixArgs, "-c", "import sys; print(sys.executable)"], {
+    const probe = spawnSync(command, [...prefixArgs, "-c", "import json,sys; print(json.dumps({'exe': sys.executable, 'ver': list(sys.version_info[:3])}))"], {
       stdio: ["ignore", "pipe", "pipe"],
       encoding: "utf8",
       env: process.env,
     });
     if (probe.status === 0) {
-      return { command, prefixArgs };
+      try {
+        const payload = JSON.parse(String(probe.stdout || "").trim());
+        const version = payload.ver || [];
+        if (version.length >= 2 && (version[0] > 3 || (version[0] === 3 && version[1] >= 9))) {
+          return { command, prefixArgs, executable: payload.exe, version };
+        }
+      } catch (_err) {
+        // ignore and continue
+      }
     }
   }
   return null;
 }
 
+function runtimeLooksHealthy(runtime) {
+  if (!runtime || !fs.existsSync(runtime)) {
+    return false;
+  }
+  const probe = spawnSync(
+    runtime,
+    ["-c", "import fastapi,httpx,dotenv; print('ok')"],
+    { stdio: ["ignore", "pipe", "pipe"], encoding: "utf8", env: process.env }
+  );
+  return probe.status === 0;
+}
+
 function ensureRuntime(spinner) {
   let runtime = resolveRuntime();
-  if (runtime) {
+  if (runtime && runtimeLooksHealthy(runtime)) {
     return runtime;
+  }
+  if (runtime && !runtimeLooksHealthy(runtime)) {
+    try {
+      fs.rmSync(runtimeDir, { recursive: true, force: true });
+    } catch (_err) {
+      // ignore
+    }
+    runtime = "";
   }
 
   let localSpinner = spinner;
@@ -268,8 +296,8 @@ function ensureRuntime(spinner) {
   const python = findSystemPython();
   if (!python) {
     const errMsg = process.platform === "win32"
-      ? "✕ No encontré Python 3.11+ en este host. Instálalo y vuelve a ejecutar `conny`."
-      : "✕ No encontré python3/python en este host. Instálalo y vuelve a ejecutar `conny`.";
+      ? "✕ No encontré Python 3.9+ en este host. Instálalo y vuelve a ejecutar `conny`."
+      : "✕ No encontré python3/python 3.9+ en este host. Instálalo y vuelve a ejecutar `conny`.";
     localSpinner.fail(chalk.red(errMsg));
     process.exit(1);
   }

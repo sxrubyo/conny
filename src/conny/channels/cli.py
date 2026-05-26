@@ -178,7 +178,7 @@ except ImportError:
 # ══════════════════════════════════════════════════════════════════════════════
 # CONFIGURACIÓN
 # ══════════════════════════════════════════════════════════════════════════════
-VERSION = "9.6.1"
+VERSION = "9.7.0"
 CONNY_HOME = os.getenv("CONNY_HOME", str(Path.home() / ".conny"))
 CONNY_DIR = os.getenv("CONNY_DIR", str(Path(__file__).resolve().parent))
 INSTANCES_DIR = os.getenv("INSTANCES_DIR", str(Path.home() / "conny-instances"))
@@ -215,6 +215,10 @@ WORKSPACE_CONFIG_PATH = Path(os.getenv("CONNY_WORKSPACE_CONFIG", f"{CONNY_HOME}/
 
 SYNC_RUNTIME_FILES = [
     "conny.py",
+    "run.sh",
+    "conny_doctor.py",
+    "conny_runtime_ops.py",
+    "conny_ultra_config.py",
     "src/core/admin_engines.py",
     "src/core/production_monitor.py",
     "src/interfaces/web/demo_handler.py",
@@ -1338,6 +1342,30 @@ def pm2_list():
         pass
     return []
 
+
+def _pm2_start_runtime(pm2_name: str, inst_dir: str, log_path: str, error_path: str) -> subprocess.CompletedProcess:
+    """Arrancar Conny siempre a través de run.sh para respetar VENV/runtime real."""
+    run_script = Path(inst_dir) / "run.sh"
+    if not run_script.exists():
+        raise FileNotFoundError(f"run.sh no existe en {inst_dir}")
+    try:
+        run_script.chmod(run_script.stat().st_mode | 0o111)
+    except Exception:
+        pass
+    return subprocess.run(
+        [
+            "pm2", "start", str(run_script),
+            "--name", pm2_name,
+            "--cwd", inst_dir,
+            "--restart-delay", "3000",
+            "--max-restarts", "10",
+            "--log", str(log_path),
+            "--error", str(error_path),
+        ],
+        capture_output=True,
+        text=True,
+    )
+
 def public_ip():
     """Obtener IP pública."""
     try:
@@ -1946,16 +1974,12 @@ OMNI_KEY={defaults['omni']['key']}
     
     with Spinner(f"Arrancando {pm2_name}...") as sp:
         pm2("delete", pm2_name)
-        subprocess.run([
-            "pm2", "start", f"{inst_dir}/conny.py",
-            "--name", pm2_name,
-            "--interpreter", "python3",
-            "--cwd", inst_dir,          # ✅ FIX: sin --cwd, load_dotenv() carga el .env equivocado
-            "--restart-delay", "3000",
-            "--max-restarts", "10",
-            "--log", f"{inst_dir}/logs/conny.log",
-            "--error", f"{inst_dir}/logs/error.log"
-        ], capture_output=True)
+        _pm2_start_runtime(
+            pm2_name,
+            inst_dir,
+            f"{inst_dir}/logs/conny.log",
+            f"{inst_dir}/logs/error.log",
+        )
         pm2_save()
         time.sleep(4)
         h = health(port)
@@ -3409,14 +3433,12 @@ def cmd_clone(args):
     
     with Spinner("Arrancando...") as sp:
         pm2("delete", pm2_name)
-        subprocess.run([
-            "pm2", "start", f"{dest_dir}/conny.py",
-            "--name", pm2_name,
-            "--interpreter", "python3",
-            "--cwd", dest_dir,          # ✅ FIX: --cwd necesario para que load_dotenv() funcione
-            "--log", f"{dest_dir}/logs/conny.log",
-            "--error", f"{dest_dir}/logs/error.log"
-        ], capture_output=True)
+        _pm2_start_runtime(
+            pm2_name,
+            dest_dir,
+            f"{dest_dir}/logs/conny.log",
+            f"{dest_dir}/logs/error.log",
+        )
         pm2_save()
         time.sleep(3)
         h = health(port)
@@ -3851,11 +3873,12 @@ def cmd_restore(args):
     
     with Spinner("Arrancando...") as sp:
         pm2("delete", pm2_name)
-        subprocess.run([
-            "pm2", "start", f"{dest_dir}/conny.py",
-            "--name", pm2_name,
-            "--interpreter", "python3"
-        ], capture_output=True)
+        _pm2_start_runtime(
+            pm2_name,
+            dest_dir,
+            f"{dest_dir}/logs/conny.log",
+            f"{dest_dir}/logs/error.log",
+        )
         pm2_save()
         time.sleep(3)
         h = health(port or int(ev.get("PORT", 8001)))
@@ -5773,16 +5796,12 @@ def cmd_base(args):
             sp.finish("Listo")
 
         with Spinner(f"Arrancando {pm2_name}...") as sp:
-            result = subprocess.run([
-                "pm2", "start", f"{inst.dir}/conny.py",
-                "--name",           pm2_name,
-                "--interpreter",    "python3",
-                "--cwd",            inst.dir,
-                "--restart-delay",  "3000",
-                "--max-restarts",   "10",
-                "--log",            str(log_dir / "conny.log"),
-                "--error",          str(log_dir / "error.log"),
-            ], capture_output=True, text=True)
+            result = _pm2_start_runtime(
+                pm2_name,
+                inst.dir,
+                str(log_dir / "conny.log"),
+                str(log_dir / "error.log"),
+            )
             pm2_save()
             time.sleep(3)
             h = health(port)
@@ -5884,16 +5903,12 @@ def cmd_fix(args):
             sp.finish("Proceso eliminado")
 
         with Spinner(f"Registrando con --cwd correcto...") as sp:
-            result = subprocess.run([
-                "pm2", "start", f"{inst.dir}/conny.py",
-                "--name",           pm2_name,
-                "--interpreter",    "python3",
-                "--cwd",            inst.dir,       # ← el fix crítico
-                "--restart-delay",  "3000",
-                "--max-restarts",   "10",
-                "--log",            f"{log_dir}/conny.log",
-                "--error",          f"{log_dir}/error.log",
-            ], capture_output=True)
+            result = _pm2_start_runtime(
+                pm2_name,
+                inst.dir,
+                f"{log_dir}/conny.log",
+                f"{log_dir}/error.log",
+            )
             pm2_save()
             time.sleep(4)
             h = health(inst.port)
