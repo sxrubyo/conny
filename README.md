@@ -123,6 +123,22 @@ It's a **white-label AI receptionist platform** that lets you sell branded conve
 
 ### Step 1 — Install Conny
 
+Recommended GitHub installer (always tracks the current `main` branch):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/sxrubyo/conny/main/install.sh | bash
+conny --version
+```
+
+Direct GitHub install with npm:
+
+```bash
+npm install -g github:sxrubyo/conny#main
+conny --version
+```
+
+Registry install:
+
 ```bash
 npm install -g conny-ai
 conny --version

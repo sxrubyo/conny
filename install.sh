@@ -18,10 +18,11 @@ if command -v sudo &> /dev/null; then
     SUDO="sudo"
 fi
 
-# 1. Install chafa if possible
+# 1. Install chafa if possible. In Termux/proot, `pkg` exists but cannot run as root.
 if ! command -v chafa &> /dev/null; then
     echo -e "\n  ${BOLD}1. Instalando motor True-Color (chafa)...${RESET}"
-    if command -v pkg &> /dev/null; then
+    CURRENT_UID="$(id -u 2>/dev/null || echo 1)"
+    if command -v pkg &> /dev/null && [ "$CURRENT_UID" != "0" ]; then
         pkg install -y chafa || true
     elif command -v apt-get &> /dev/null; then
         $SUDO apt-get update -yqq && $SUDO apt-get install -yqq chafa || true
@@ -64,14 +65,20 @@ if ! command -v npm &> /dev/null; then
 fi
 
 echo -e "\n  ${BOLD}3. Limpiando versiones anteriores...${RESET}"
-npm uninstall -g conny-ai @blackboss/conny || true
+npm uninstall -g conny-ai @innvisor/conny-ai @blackboss/conny || true
 
 echo -e "\n  ${BOLD}4. Instalando Conny CLI y Motor AI...${RESET}"
-npm install -g "${CONNY_INSTALL_PACKAGE:-conny-ai@latest}"
+npm install -g "${CONNY_INSTALL_PACKAGE:-github:sxrubyo/conny#main}"
 
 echo -e "\n  ${BOLD}5. Verificando bootstrap del CLI...${RESET}"
 if command -v conny >/dev/null 2>&1; then
-    conny --version || true
+    if ! conny --version; then
+        echo -e "\n  \033[31mError: Conny se instaló, pero el CLI no pudo arrancar.\033[0m"
+        exit 1
+    fi
+else
+    echo -e "\n  \033[31mError: npm terminó, pero el comando 'conny' no quedó disponible en PATH.\033[0m"
+    exit 1
 fi
 
 echo -e "\n  ${C_SUCCESS}${BOLD}✔ ¡Conny instalado con éxito!${RESET}"
