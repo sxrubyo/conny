@@ -612,7 +612,7 @@
                         <!-- Chat Header -->
                         <div class="playground-chat-header" style="position: absolute; top: 0; right: 0; padding: 16px 24px; background: transparent; z-index: 10;">
                             <div class="header-actions">
-                                <button type="button" id="btn-toggle-sidebar" class="btn-toggle-sidebar" title="Configurar IA" style="background: transparent; border: none; color: #9ca3af; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s ease;">
+                                <button type="button" id="btn-toggle-sidebar" class="btn-toggle-sidebar" title="Configurar IA" style="background: transparent; border: none; color: #9ca3af; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; ">
                                     <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                         <line x1="3" y1="12" x2="21" y2="12"></line>
                                         <line x1="3" y1="6" x2="21" y2="6"></line>
@@ -742,17 +742,25 @@
                 </div>
                 
                 
-                <div class="calendar-container" style="flex: 1; display: flex; flex-direction: column; background: var(--surface); padding: 24px; overflow: hidden;">
+                
+                <div class="calendar-container" style="flex: 1; display: flex; flex-direction: column; background: var(--bg); padding: 24px; overflow: hidden;">
                     <div class="calendar-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-                        <h3 id="calendar-month-title" style="margin: 0; font-size: 24px; font-weight: 400; color: var(--text);">Mayo 2026</h3>
-                        <div style="display: flex; gap: 8px;">
-                            <button id="calendar-prev-btn" title="Mes Anterior" style="background: transparent; border: 1px solid var(--border); color: var(--text); width: 36px; height: 36px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px;">&lt;</button>
-                            <button id="calendar-next-btn" title="Mes Siguiente" style="background: transparent; border: 1px solid var(--border); color: var(--text); width: 36px; height: 36px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px;">&gt;</button>
+                        
+                        <!-- Today Badge -->
+                        <div style="background: var(--surface); color: var(--text); padding: 10px 20px; border-radius: 8px; border: 1px solid var(--border); font-weight: 600; font-size: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                            Hoy tienes <span id="calendar-today-count" style="color: var(--primary); font-size: 16px;">0</span> citas
+                        </div>
+                        
+                        <!-- Month Nav -->
+                        <div style="display: flex; align-items: center; gap: 16px; margin-right: 8px;">
+                            <button id="calendar-prev-btn" title="Mes Anterior" style="background: var(--surface); border: 1px solid var(--border); color: var(--text); width: 40px; height: 40px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">&lt;</button>
+                            <h3 id="calendar-month-title" style="margin: 0; font-size: 18px; font-weight: 600; color: var(--text); min-width: 150px; text-align: center; text-transform: capitalize;">Mayo 2026</h3>
+                            <button id="calendar-next-btn" title="Mes Siguiente" style="background: var(--surface); border: 1px solid var(--border); color: var(--text); width: 40px; height: 40px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">&gt;</button>
                         </div>
                     </div>
                     
-                    <div style="flex: 1; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; background: var(--bg);">
-                        <div id="calendar-grid-content" style="display: grid; grid-template-columns: repeat(7, 1fr); min-width: 800px;">
+                    <div style="flex: 1; overflow-y: auto;">
+                        <div id="calendar-grid-content" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px; min-width: 800px; padding-bottom: 20px;">
                             <!-- Header and cells injected by JS so alignment is perfect -->
                         </div>
                     </div>
@@ -777,7 +785,7 @@
                         <div id="library-resource-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 24px; align-items: start;">
                             
                             <!-- Add Button (Big Square) -->
-                            <div id="library-add-btn" style="aspect-ratio: 1 / 1; background: var(--bg); border: 2px dashed var(--border); border-radius: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s ease; color: var(--text-muted);" onmouseover="this.style.borderColor='var(--primary)'; this.style.color='var(--primary)';" onmouseout="this.style.borderColor='var(--border)'; this.style.color='var(--text-muted)';">
+                            <div id="library-add-btn" style="aspect-ratio: 1 / 1; background: var(--bg); border: 2px dashed var(--border); border-radius: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer;  color: var(--text-muted);" onmouseover="this.style.borderColor='var(--primary)'; this.style.color='var(--primary)';" onmouseout="this.style.borderColor='var(--border)'; this.style.color='var(--text-muted)';">
                                 <div style="font-size: 48px; font-weight: 300; margin-bottom: 8px;">+</div>
                                 <div style="font-size: 14px; font-weight: 500;">Añadir Recurso</div>
                             </div>
@@ -963,18 +971,20 @@
     </div>
 
     
+    
     <!-- Modal para citas del día -->
-    <div id="calendar-day-modal" class="modal" style="display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.5); z-index: 1000;">
-        <div style="background: var(--surface); border-radius: 12px; width: 400px; max-width: 90%; box-shadow: 0 10px 25px rgba(0,0,0,0.2); overflow: hidden;">
-            <div style="padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: var(--bg);">
-                <h3 id="calendar-day-modal-title" style="margin: 0; font-size: 16px; color: var(--text);">Citas</h3>
-                <button onclick="document.getElementById('calendar-day-modal').style.display='none'" style="background: transparent; border: none; font-size: 20px; color: var(--text-muted); cursor: pointer;">&times;</button>
+    <div id="calendar-day-modal" class="modal" style="display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.4); z-index: 1000;" onclick="if(event.target === this) this.style.display='none';">
+        <div style="background: var(--surface); border-radius: 16px; width: 450px; max-width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.3); overflow: hidden; display: flex; flex-direction: column;">
+            <div style="padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: var(--bg);">
+                <h3 id="calendar-day-modal-title" style="margin: 0; font-size: 18px; font-weight: 600; color: var(--text);">Citas Programadas</h3>
+                <button onclick="document.getElementById('calendar-day-modal').style.display='none'" style="background: var(--surface); border: 1px solid var(--border); border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 18px; color: var(--text-muted); cursor: pointer;">&times;</button>
             </div>
-            <div id="calendar-day-modal-content" style="padding: 20px; max-height: 60vh; overflow-y: auto;">
+            <div id="calendar-day-modal-content" style="padding: 24px; max-height: 60vh; overflow-y: auto; background: var(--surface);">
                 <!-- Appointments here -->
             </div>
         </div>
     </div>
+
 
     
     
@@ -1214,7 +1224,7 @@
         </div>
     </div>
 
-    <script src="/static/app.js?v=10"></script>
+    <script src="/static/app.js?v=11"></script>
 <script>
 const frases = [
   "Te acompaña.",
