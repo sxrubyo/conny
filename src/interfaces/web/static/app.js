@@ -2772,7 +2772,9 @@ function renderCalendarGrid() {
     daysOfWeek.forEach(d => {
         const th = document.createElement('div');
         th.textContent = d;
-        th.style.padding = '4px 12px 12px 12px';
+        th.style.padding = '12px';
+        th.style.borderBottom = '1px solid var(--border)';
+        th.style.borderRight = '1px solid var(--border)';
         th.style.textAlign = 'right';
         th.style.fontSize = '12px';
         th.style.fontWeight = '600';
@@ -2787,8 +2789,10 @@ function renderCalendarGrid() {
     // Previous month padding
     for (let i = 0; i < firstDay; i++) {
         const cell = document.createElement('div');
-        cell.style.background = 'transparent';
+        cell.style.background = 'var(--bg)';
         cell.style.minHeight = '120px';
+        cell.style.borderRight = '1px solid var(--border)';
+        cell.style.borderBottom = '1px solid var(--border)';
         calendarGridContent.appendChild(cell);
     }
 
@@ -2797,16 +2801,18 @@ function renderCalendarGrid() {
         const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
         const cell = document.createElement('div');
-        cell.style.background = 'var(--surface)';
-        cell.style.border = '1px solid var(--border)';
-        cell.style.borderRadius = '12px';
+        cell.style.background = 'var(--bg)';
+        cell.style.borderRight = '1px solid var(--border)';
+        cell.style.borderBottom = '1px solid var(--border)';
         cell.style.minHeight = '120px';
         cell.style.padding = '10px';
         cell.style.display = 'flex';
         cell.style.flexDirection = 'column';
-        cell.style.gap = '6px';
+        cell.style.gap = '4px';
         cell.style.cursor = 'pointer';
-        cell.style.boxShadow = '0 2px 4px rgba(0,0,0,0.02)';
+        
+        cell.addEventListener('mouseover', () => { cell.style.background = 'var(--surface)'; });
+        cell.addEventListener('mouseout', () => { cell.style.background = 'var(--bg)'; });
 
         const isToday = (day === today.getDate() && month === today.getMonth() && year === today.getFullYear());
 
@@ -2889,8 +2895,10 @@ function renderCalendarGrid() {
     const remainingCells = (7 - (totalCells % 7)) % 7;
     for (let i = 0; i < remainingCells; i++) {
         const cell = document.createElement('div');
-        cell.style.background = 'transparent';
+        cell.style.background = 'var(--bg)';
         cell.style.minHeight = '120px';
+        cell.style.borderRight = '1px solid var(--border)';
+        cell.style.borderBottom = '1px solid var(--border)';
         calendarGridContent.appendChild(cell);
     }
 
