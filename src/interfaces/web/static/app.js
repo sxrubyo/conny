@@ -2799,7 +2799,7 @@ function renderCalendarGrid() {
         const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
         const cell = document.createElement('div');
-                cell.style.background = 'var(--bg-panel)';
+                cell.style.background = 'var(--bg-main)';
         cell.style.border = '1px solid var(--border-color)';
         cell.style.borderRadius = '6px';
         cell.style.minHeight = '120px';
@@ -2810,8 +2810,8 @@ function renderCalendarGrid() {
         cell.style.cursor = 'pointer';
         cell.style.transition = 'box-shadow 0.2s';
         
-        cell.addEventListener('mouseover', () => { cell.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)'; });
-        cell.addEventListener('mouseout', () => { cell.style.boxShadow = 'none'; });
+        cell.addEventListener('mouseover', () => { cell.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)'; cell.style.borderColor = 'var(--accent-color)'; });
+        cell.addEventListener('mouseout', () => { cell.style.boxShadow = 'none'; cell.style.borderColor = 'var(--border-color)'; });
 
         const isToday = (day === today.getDate() && month === today.getMonth() && year === today.getFullYear());
 
