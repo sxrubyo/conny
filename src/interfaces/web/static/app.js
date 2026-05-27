@@ -2754,106 +2754,189 @@ if (calendarNextBtn) {
 
 function renderCalendarGrid() {
     if (!calendarGridContent) return;
-    
+
     const year = currentCalendarDate.getFullYear();
     const month = currentCalendarDate.getMonth();
-    
+
     const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
     if (calendarMonthTitle) calendarMonthTitle.textContent = `${monthNames[month]} ${year}`;
-    
+
     // Calculate days
     const firstDay = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
-    
+
     calendarGridContent.innerHTML = '';
-    
+
+    // Render Headers inside the same grid!
+    const daysOfWeek = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    daysOfWeek.forEach(d => {
+        const th = document.createElement('div');
+        th.textContent = d;
+        th.style.padding = '12px 8px';
+        th.style.textAlign = 'center';
+        th.style.fontSize = '12px';
+        th.style.fontWeight = '600';
+        th.style.color = 'var(--text-muted)';
+        th.style.borderBottom = '1px solid var(--border)';
+        th.style.borderRight = '1px solid var(--border)';
+        th.style.textTransform = 'uppercase';
+        calendarGridContent.appendChild(th);
+    });
+
+    const today = new Date();
+    let todayCount = 0;
+
     // Previous month padding
     for (let i = 0; i < firstDay; i++) {
         const cell = document.createElement('div');
-        cell.style.background = 'var(--bg)'; cell.style.border = '1px solid var(--border)';
-        cell.style.opacity = '0.5';
-        cell.style.padding = '8px';
+        cell.style.background = 'var(--bg)';
+        cell.style.borderRight = '1px solid var(--border)';
+        cell.style.borderBottom = '1px solid var(--border)';
+        cell.style.minHeight = '120px';
         calendarGridContent.appendChild(cell);
     }
-    
-    // Today check
-    const today = new Date();
-    let todayCount = 0;
-    
+
     // Current month days
     for (let day = 1; day <= daysInMonth; day++) {
-        const cellDate = new Date(year, month, day);
         const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        
+
         const cell = document.createElement('div');
-        cell.style.background = 'var(--bg)'; cell.style.border = '1px solid var(--border)';
+        cell.style.background = 'var(--surface)';
+        cell.style.borderRight = '1px solid var(--border)';
+        cell.style.borderBottom = '1px solid var(--border)';
+        cell.style.minHeight = '120px';
         cell.style.padding = '8px';
         cell.style.display = 'flex';
         cell.style.flexDirection = 'column';
         cell.style.gap = '4px';
-        cell.style.overflowY = 'auto';
+        cell.style.cursor = 'pointer';
+        cell.style.transition = 'background 0.2s';
         
+        cell.addEventListener('mouseover', () => { cell.style.background = 'var(--bg)'; });
+        cell.addEventListener('mouseout', () => { cell.style.background = 'var(--surface)'; });
+
         const isToday = (day === today.getDate() && month === today.getMonth() && year === today.getFullYear());
-        
+
         // Day number
+        const dayHeader = document.createElement('div');
+        dayHeader.style.display = 'flex';
+        dayHeader.style.justifyContent = 'center';
+        dayHeader.style.marginBottom = '6px';
+        
         const dayNumber = document.createElement('div');
         dayNumber.textContent = day;
-        dayNumber.style.fontWeight = isToday ? 'bold' : 'normal';
-        dayNumber.style.color = isToday ? '#fff' : 'var(--text)';
-        dayNumber.style.backgroundColor = isToday ? 'var(--primary)' : 'transparent';
-        dayNumber.style.width = '24px';
-        dayNumber.style.height = '24px';
-        dayNumber.style.borderRadius = '50%';
+        dayNumber.style.fontSize = '13px';
+        dayNumber.style.width = '26px';
+        dayNumber.style.height = '26px';
         dayNumber.style.display = 'flex';
         dayNumber.style.alignItems = 'center';
         dayNumber.style.justifyContent = 'center';
-        dayNumber.style.marginBottom = '4px';
-        cell.appendChild(dayNumber);
+        dayNumber.style.borderRadius = '50%';
+        dayNumber.style.fontWeight = isToday ? 'bold' : '500';
         
+        if (isToday) {
+            dayNumber.style.color = 'var(--primary)';
+            dayNumber.style.background = 'rgba(139, 92, 246, 0.15)'; // Premium transparent mark
+        } else {
+            dayNumber.style.color = 'var(--text)';
+        }
+        
+        dayHeader.appendChild(dayNumber);
+        cell.appendChild(dayHeader);
+
         // Find appointments for this day
         const dayAppointments = globalAppointmentsList.filter(apt => {
             if (!apt.datetime_slot) return false;
             const d = new Date(apt.datetime_slot);
             return d.getFullYear() === year && d.getMonth() === month && d.getDate() === day;
         });
-        
+
         if (isToday) todayCount = dayAppointments.length;
-        
+
         // Render appointments inside the cell
-        dayAppointments.forEach(apt => {
+        dayAppointments.slice(0, 4).forEach(apt => {
             const aptEl = document.createElement('div');
             aptEl.style.background = apt.status === 'confirmada' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(139,92,246,0.1)';
             aptEl.style.borderLeft = `3px solid ${apt.status === 'confirmada' ? '#10b981' : 'var(--primary)'}`;
-            aptEl.style.padding = '4px 6px';
+            aptEl.style.padding = '3px 6px';
             aptEl.style.borderRadius = '0 4px 4px 0';
             aptEl.style.fontSize = '11px';
+            aptEl.style.whiteSpace = 'nowrap';
+            aptEl.style.overflow = 'hidden';
+            aptEl.style.textOverflow = 'ellipsis';
             aptEl.style.color = 'var(--text)';
-            aptEl.style.marginBottom = '2px';
-            aptEl.style.cursor = 'pointer';
-            aptEl.title = `Estado: ${apt.status}\nServicio: ${apt.service || 'General'}`;
             
             const aptTime = new Date(apt.datetime_slot).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
             const aptName = apt.patient_name || 'Paciente';
             
-            aptEl.innerHTML = `<strong style="color:inherit;">${aptTime}</strong> - ${aptName}`;
+            aptEl.innerHTML = `<span style="font-weight: 600; opacity: 0.8;">${aptTime}</span> ${aptName}`;
             cell.appendChild(aptEl);
         });
         
+        if (dayAppointments.length > 4) {
+            const moreEl = document.createElement('div');
+            moreEl.style.fontSize = '10px';
+            moreEl.style.color = 'var(--text-muted)';
+            moreEl.style.textAlign = 'center';
+            moreEl.style.marginTop = '2px';
+            moreEl.textContent = `+${dayAppointments.length - 4} más`;
+            cell.appendChild(moreEl);
+        }
+        
+        // Open Modal on click
+        cell.addEventListener('click', () => {
+            openCalendarModal(day, monthNames[month], year, dayAppointments);
+        });
+
         calendarGridContent.appendChild(cell);
     }
-    
+
     // Next month padding
     const totalCells = firstDay + daysInMonth;
     const remainingCells = (7 - (totalCells % 7)) % 7;
     for (let i = 0; i < remainingCells; i++) {
         const cell = document.createElement('div');
-        cell.style.background = 'var(--bg)'; cell.style.border = '1px solid var(--border)';
-        cell.style.opacity = '0.5';
-        cell.style.padding = '8px';
+        cell.style.background = 'var(--bg)';
+        cell.style.borderRight = '1px solid var(--border)';
+        cell.style.borderBottom = '1px solid var(--border)';
+        cell.style.minHeight = '120px';
         calendarGridContent.appendChild(cell);
     }
-    
+
     if (calendarTodayCount) calendarTodayCount.textContent = todayCount;
+}
+
+function openCalendarModal(day, monthStr, year, appointments) {
+    const modal = document.getElementById('calendar-day-modal');
+    const title = document.getElementById('calendar-day-modal-title');
+    const content = document.getElementById('calendar-day-modal-content');
+    
+    if (!modal) return;
+    
+    title.textContent = `Citas: ${day} de ${monthStr} ${year}`;
+    content.innerHTML = '';
+    
+    if (appointments.length === 0) {
+        content.innerHTML = '<p style="color: var(--text-muted); text-align: center; margin: 20px 0;">No hay citas agendadas para este día.</p>';
+    } else {
+        appointments.forEach(apt => {
+            const aptTime = new Date(apt.datetime_slot).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            const aptName = apt.patient_name || 'Paciente sin nombre';
+            const statusColor = apt.status === 'confirmada' ? '#10b981' : 'var(--primary)';
+            
+            content.innerHTML += `
+                <div style="background: var(--bg); border-left: 4px solid ${statusColor}; padding: 12px; margin-bottom: 12px; border-radius: 0 8px 8px 0; border-top: 1px solid var(--border); border-right: 1px solid var(--border); border-bottom: 1px solid var(--border);">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                        <strong style="color: var(--text);">${aptTime} - ${apt.service || 'Consulta'}</strong>
+                        <span style="font-size: 11px; padding: 2px 8px; border-radius: 12px; background: ${apt.status === 'confirmada' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(139,92,246,0.1)'}; color: ${statusColor}; text-transform: capitalize;">${apt.status}</span>
+                    </div>
+                    <div style="color: var(--text-muted); font-size: 13px;">${aptName} • Tel: ${apt.patient_phone || apt.chat_id || 'N/A'}</div>
+                </div>
+            `;
+        });
+    }
+    
+    modal.style.display = 'flex';
 }
 
 // Modify existing renderAppointments to also render the calendar
@@ -2866,10 +2949,24 @@ renderAppointments = function(list) {
 
 
 
+
+
 // ── Library View Logic ──
 const libraryAddBtn = document.getElementById('library-add-btn');
 const libraryFileInput = document.getElementById('library-file-input');
 const libraryResourceList = document.getElementById('library-resource-list');
+
+const libModal = document.getElementById('library-config-modal');
+const libCloseBtn = document.getElementById('library-config-close');
+const libCancelBtn = document.getElementById('library-config-cancel');
+const libSaveBtn = document.getElementById('library-config-save');
+const libPreviewContainer = document.getElementById('library-preview-container');
+const libFilename = document.getElementById('library-config-filename');
+const libFilesize = document.getElementById('library-config-filesize');
+const libInstructions = document.getElementById('library-config-instructions');
+
+let pendingLibraryFile = null;
+let pendingLibraryPreviewUrl = null;
 
 if (libraryAddBtn && libraryFileInput) {
     libraryAddBtn.addEventListener('click', () => {
@@ -2878,78 +2975,102 @@ if (libraryAddBtn && libraryFileInput) {
 
     libraryFileInput.addEventListener('change', (e) => {
         const files = Array.from(e.target.files);
-        
-        files.forEach(file => {
-            const isPdf = file.name.toLowerCase().endsWith('.pdf');
-            const isImg = file.type.startsWith('image/');
-            
-            // Icon SVG based on file type
-            const iconSvg = isImg 
-                ? '<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>'
-                : isPdf 
-                ? '<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>'
-                : '<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>';
-            
-            const iconColor = isImg ? '#3b82f6' : (isPdf ? '#ef4444' : '#8b5cf6');
-            const iconBg = isImg ? 'rgba(59, 130, 246, 0.1)' : (isPdf ? 'rgba(239, 68, 68, 0.1)' : 'rgba(139, 92, 246, 0.1)');
-            
+        if (files.length > 0) {
+            const file = files[0];
+            pendingLibraryFile = file;
             const sizeMb = (file.size / (1024 * 1024)).toFixed(2);
             
-            const card = document.createElement('div');
-            card.className = 'resource-card gallery-item';
-            card.style.background = 'var(--bg)';
-            card.style.border = '1px solid var(--border)';
-            card.style.borderRadius = '16px';
-            card.style.padding = '20px';
-            card.style.display = 'flex';
-            card.style.flexDirection = 'column';
-            card.style.height = '100%';
-            card.style.animation = 'fadeIn 0.3s ease';
-            card.style.boxShadow = '0 2px 8px rgba(0,0,0,0.05)';
+            libFilename.textContent = file.name;
+            libFilesize.textContent = sizeMb + " MB";
+            if(libInstructions) libInstructions.value = "";
             
-            card.innerHTML = `
-                <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px;">
-                    <div style="background: ${iconBg}; padding: 16px; border-radius: 12px; color: ${iconColor}; display: flex; align-items: center; justify-content: center; aspect-ratio: 1/1; width: 64px;">
-                        ${iconSvg}
-                    </div>
-                    <button class="lib-del-btn" title="Eliminar" style="background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 4px; transition: color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='var(--text-muted)'">
-                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            libPreviewContainer.innerHTML = '';
+            libPreviewContainer.style.background = 'var(--bg)';
+            if (pendingLibraryPreviewUrl) {
+                URL.revokeObjectURL(pendingLibraryPreviewUrl);
+                pendingLibraryPreviewUrl = null;
+            }
+            
+            if (file.type.startsWith('image/')) {
+                pendingLibraryPreviewUrl = URL.createObjectURL(file);
+                libPreviewContainer.innerHTML = `<img src="${pendingLibraryPreviewUrl}" style="width: 100%; height: 100%; object-fit: cover;">`;
+            } else if (file.name.toLowerCase().endsWith('.pdf')) {
+                libPreviewContainer.innerHTML = `<svg viewBox="0 0 24 24" width="48" height="48" fill="#ef4444"><path d="M20 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8.5 7.5c0 .83-.67 1.5-1.5 1.5H9v2H7.5V7H10c.83 0 1.5.67 1.5 1.5v1zm5 2c0 .83-.67 1.5-1.5 1.5h-2.5V7H15c.83 0 1.5.67 1.5 1.5v3zm4-3H19v1h1.5V11H19v2h-1.5V7h3v1.5zM9 9.5h1v-1H9v1zM4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm10 5.5h1v-3h-1v3z"/></svg>`;
+                libPreviewContainer.style.background = 'rgba(239, 68, 68, 0.05)';
+            } else {
+                libPreviewContainer.innerHTML = `<svg viewBox="0 0 24 24" width="48" height="48" fill="#8b5cf6"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 1.5L18.5 9H13V3.5zM6 20V4h5v7h7v9H6z"/></svg>`;
+                libPreviewContainer.style.background = 'rgba(139, 92, 246, 0.05)';
+            }
+            
+            if(libModal) libModal.style.display = 'flex';
+        }
+    });
+    
+    const closeModal = () => {
+        if(libModal) libModal.style.display = 'none';
+        libraryFileInput.value = '';
+        pendingLibraryFile = null;
+    };
+    
+    if(libCloseBtn) libCloseBtn.addEventListener('click', closeModal);
+    if(libCancelBtn) libCancelBtn.addEventListener('click', closeModal);
+    
+    if(libSaveBtn) libSaveBtn.addEventListener('click', () => {
+        if (!pendingLibraryFile) return;
+        
+        const file = pendingLibraryFile;
+        const sizeMb = (file.size / (1024 * 1024)).toFixed(2);
+        const instruction = libInstructions ? libInstructions.value.trim() : '';
+        
+        const card = document.createElement('div');
+        card.className = 'resource-card gallery-item';
+        card.style.background = 'var(--bg)';
+        card.style.border = '1px solid var(--border)';
+        card.style.borderRadius = '16px';
+        card.style.overflow = 'hidden';
+        card.style.display = 'flex';
+        card.style.flexDirection = 'column';
+        card.style.height = '100%';
+        card.style.animation = 'fadeIn 0.3s ease';
+        card.style.boxShadow = '0 4px 12px rgba(0,0,0,0.05)';
+        
+        let previewHtml = '';
+        if (file.type.startsWith('image/')) {
+            const url = URL.createObjectURL(file);
+            previewHtml = `<img src="${url}" style="width: 100%; height: 140px; object-fit: cover; border-bottom: 1px solid var(--border);">`;
+        } else if (file.name.toLowerCase().endsWith('.pdf')) {
+            previewHtml = `<div style="height: 140px; background: rgba(239, 68, 68, 0.05); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: center;">` + `<svg viewBox="0 0 24 24" width="48" height="48" fill="#ef4444"><path d="M20 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8.5 7.5c0 .83-.67 1.5-1.5 1.5H9v2H7.5V7H10c.83 0 1.5.67 1.5 1.5v1zm5 2c0 .83-.67 1.5-1.5 1.5h-2.5V7H15c.83 0 1.5.67 1.5 1.5v3zm4-3H19v1h1.5V11H19v2h-1.5V7h3v1.5zM9 9.5h1v-1H9v1zM4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm10 5.5h1v-3h-1v3z"/></svg>` + `</div>`;
+        } else {
+            previewHtml = `<div style="height: 140px; background: rgba(139, 92, 246, 0.05); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: center;">` + `<svg viewBox="0 0 24 24" width="48" height="48" fill="#8b5cf6"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 1.5L18.5 9H13V3.5zM6 20V4h5v7h7v9H6z"/></svg>` + `</div>`;
+        }
+        
+        card.innerHTML = `
+            ${previewHtml}
+            <div style="padding: 16px; display: flex; flex-direction: column; flex: 1;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                    <h4 style="margin: 0; font-size: 14px; color: var(--text); word-break: break-all; line-height: 1.3;">${file.name}</h4>
+                    <button class="lib-del-btn" title="Eliminar" style="background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 0 0 0 8px; transition: color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='var(--text-muted)'">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                     </button>
                 </div>
+                <span style="color: var(--text-muted); font-size: 12px; margin-bottom: 16px;">${sizeMb} MB</span>
                 
-                <h4 style="margin: 0 0 4px 0; font-size: 15px; color: var(--text); word-break: break-all; line-height: 1.3;">${file.name}</h4>
-                <span style="color: var(--text-muted); font-size: 12px; margin-bottom: 16px; display: block;">${sizeMb} MB</span>
-                
-                <div style="background: var(--surface); padding: 14px; border-radius: 12px; border: 1px solid var(--border); margin-top: auto;">
-                    <label style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 8px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Control de Conny</label>
-                    <textarea placeholder="Ej: Envía esta imagen cuando el cliente pregunte por la ubicación..." style="width: 100%; height: 60px; padding: 10px; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 8px; resize: none; font-family: inherit; font-size: 13px; outline: none; box-sizing: border-box; transition: border-color 0.2s;" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'"></textarea>
-                    <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
-                        <button class="save-instruction-btn" style="background: var(--bg); color: var(--primary); border: 1px solid var(--primary); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s;">Guardar</button>
-                    </div>
+                ${instruction ? `
+                <div style="margin-top: auto; padding: 10px 12px; background: var(--surface); border-radius: 8px; border: 1px solid var(--border);">
+                    <div style="font-size: 11px; font-weight: 600; color: var(--primary); margin-bottom: 4px; text-transform: uppercase;">Control:</div>
+                    <div style="font-size: 12px; color: var(--text); font-style: italic;">"${instruction}"</div>
                 </div>
-            `;
-            
-            card.querySelector('.lib-del-btn').addEventListener('click', () => {
-                card.remove();
-            });
-            
-            card.querySelector('.save-instruction-btn').addEventListener('click', function() {
-                const btn = this;
-                btn.textContent = '¡Guardado!';
-                btn.style.background = 'var(--primary)';
-                btn.style.color = 'white';
-                setTimeout(() => {
-                    btn.textContent = 'Guardar';
-                    btn.style.background = 'var(--bg)';
-                    btn.style.color = 'var(--primary)';
-                }, 2000);
-            });
-            
-            // Insert AFTER the add button
-            libraryAddBtn.insertAdjacentElement('afterend', card);
+                ` : `
+                <div style="margin-top: auto; font-size: 12px; color: var(--text-muted); font-style: italic; padding: 10px 0;">(Sin instrucciones)</div>
+                `}
+            </div>
+        `;
+        
+        card.querySelector('.lib-del-btn').addEventListener('click', () => {
+            card.remove();
         });
         
-        // Reset file input
-        libraryFileInput.value = '';
+        libraryAddBtn.insertAdjacentElement('afterend', card);
+        closeModal();
     });
 }
