@@ -2770,7 +2770,7 @@ function renderCalendarGrid() {
     // Previous month padding
     for (let i = 0; i < firstDay; i++) {
         const cell = document.createElement('div');
-        cell.style.background = 'var(--surface)';
+        cell.style.background = 'var(--bg)'; cell.style.border = '1px solid var(--border)';
         cell.style.opacity = '0.5';
         cell.style.padding = '8px';
         calendarGridContent.appendChild(cell);
@@ -2786,7 +2786,7 @@ function renderCalendarGrid() {
         const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         
         const cell = document.createElement('div');
-        cell.style.background = 'var(--surface)';
+        cell.style.background = 'var(--bg)'; cell.style.border = '1px solid var(--border)';
         cell.style.padding = '8px';
         cell.style.display = 'flex';
         cell.style.flexDirection = 'column';
@@ -2799,7 +2799,7 @@ function renderCalendarGrid() {
         const dayNumber = document.createElement('div');
         dayNumber.textContent = day;
         dayNumber.style.fontWeight = isToday ? 'bold' : 'normal';
-        dayNumber.style.color = isToday ? '#fff' : 'var(--text-muted)';
+        dayNumber.style.color = isToday ? '#fff' : 'var(--text)';
         dayNumber.style.backgroundColor = isToday ? 'var(--primary)' : 'transparent';
         dayNumber.style.width = '24px';
         dayNumber.style.height = '24px';
@@ -2835,7 +2835,7 @@ function renderCalendarGrid() {
             const aptTime = new Date(apt.datetime_slot).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
             const aptName = apt.patient_name || 'Paciente';
             
-            aptEl.innerHTML = `<strong style="color:var(--text);">${aptTime}</strong> - ${aptName}`;
+            aptEl.innerHTML = `<strong style="color:inherit;">${aptTime}</strong> - ${aptName}`;
             cell.appendChild(aptEl);
         });
         
@@ -2847,7 +2847,7 @@ function renderCalendarGrid() {
     const remainingCells = (7 - (totalCells % 7)) % 7;
     for (let i = 0; i < remainingCells; i++) {
         const cell = document.createElement('div');
-        cell.style.background = 'var(--surface)';
+        cell.style.background = 'var(--bg)'; cell.style.border = '1px solid var(--border)';
         cell.style.opacity = '0.5';
         cell.style.padding = '8px';
         calendarGridContent.appendChild(cell);
