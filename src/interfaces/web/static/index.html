@@ -731,38 +731,41 @@
             <!-- View: Calendar -->
             <section id="view-calendar" class="tab-view" style="padding: 0;">
 <div style="display: flex; flex-direction: column; height: 100vh; width: 100%;">
-                <div class="view-header" style="display: flex; justify-content: space-between; align-items: center; padding: 20px 24px 10px 24px; border-bottom: 1px solid var(--border);">
+                <div class="view-header" style="display: flex; justify-content: space-between; align-items: center; padding: 20px 24px 10px 24px; border-bottom: 1px solid var(--border-color);">
                     <div>
                         <h2 style="margin:0;">Calendario</h2>
-                        <p style="color: var(--text-muted); font-size: 14px; margin-top: 4px;">Visualiza las citas agendadas por Conny en tiempo real.</p>
+                        <p style="color: var(--text-secondary); font-size: 14px; margin-top: 4px;">Visualiza las citas agendadas por Conny en tiempo real.</p>
                     </div>
-                    <div style="background: var(--primary); color: white; padding: 8px 16px; border-radius: 20px; font-weight: bold; ">
+                    <div style="background: var(--accent-color); color: white; padding: 8px 16px; border-radius: 20px; font-weight: bold; ">
                         Hoy tienes <span id="calendar-today-count">0</span> citas
                     </div>
                 </div>
                 
                 
                 
-                <div class="calendar-container" style="flex: 1; display: flex; flex-direction: column; background: var(--bg); padding: 24px; overflow: hidden;">
+                <div class="calendar-container" style="flex: 1; display: flex; flex-direction: column; background: var(--bg-main); padding: 24px; overflow: hidden;">
                     
-                    <div class="calendar-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-                        
-                        <!-- Today Badge (Left) -->
-                        <div style="background: var(--bg); color: var(--text); padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border); font-weight: 600; font-size: 13px;">
-                            Hoy tienes <span id="calendar-today-count" style="color: var(--primary); font-size: 14px;">0</span> citas
+                    <div class="calendar-header" style="display: flex; align-items: center; margin-bottom: 24px; position: relative; justify-content: center;">
+                        <!-- Month Nav (Centered) -->
+                        <div style="display: flex; align-items: center; gap: 16px;">
+                            <button id="calendar-prev-btn" title="Mes Anterior" style="background: var(--bg-main); border: 1px solid var(--border-color); color: var(--text-primary); width: 36px; height: 36px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px;">&lt;</button>
+                            <h3 id="calendar-month-title" style="margin: 0; font-size: 18px; font-weight: 600; color: var(--text-primary); min-width: 140px; text-align: center; text-transform: capitalize;">Mayo 2026</h3>
+                            <button id="calendar-next-btn" title="Mes Siguiente" style="background: var(--bg-main); border: 1px solid var(--border-color); color: var(--text-primary); width: 36px; height: 36px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px;">&gt;</button>
                         </div>
                         
-                        <!-- Month Nav (Center-ish / Right aligned naturally) -->
-                        <div style="display: flex; align-items: center; gap: 16px;">
-                            <button id="calendar-prev-btn" title="Mes Anterior" style="background: var(--bg); border: 1px solid var(--border); color: var(--text); width: 36px; height: 36px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px;">&lt;</button>
-                            <h3 id="calendar-month-title" style="margin: 0; font-size: 18px; font-weight: 600; color: var(--text); min-width: 140px; text-align: center; text-transform: capitalize;">Mayo 2026</h3>
-                            <button id="calendar-next-btn" title="Mes Siguiente" style="background: var(--bg); border: 1px solid var(--border); color: var(--text); width: 36px; height: 36px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px;">&gt;</button>
+                        <!-- Today Badge (Absolute Right) -->
+                        <div style="position: absolute; right: 0; background: var(--bg-main); color: var(--text-primary); padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border-color); font-weight: 600; font-size: 13px;">
+                            Hoy tienes <span id="calendar-today-count" style="color: var(--accent-color); font-size: 14px;">0</span> citas
+                        </div>
+                            <button id="calendar-prev-btn" title="Mes Anterior" style="background: var(--bg-main); border: 1px solid var(--border-color); color: var(--text-primary); width: 36px; height: 36px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px;">&lt;</button>
+                            <h3 id="calendar-month-title" style="margin: 0; font-size: 18px; font-weight: 600; color: var(--text-primary); min-width: 140px; text-align: center; text-transform: capitalize;">Mayo 2026</h3>
+                            <button id="calendar-next-btn" title="Mes Siguiente" style="background: var(--bg-main); border: 1px solid var(--border-color); color: var(--text-primary); width: 36px; height: 36px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px;">&gt;</button>
                         </div>
                     </div>
 
                     
                     <div style="flex: 1; overflow-y: auto;">
-                        <div id="calendar-grid-content" style="display: grid; grid-template-columns: repeat(7, 1fr); min-width: 800px; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--bg);">
+                        <div id="calendar-grid-content" style="display: grid; grid-template-columns: repeat(7, 1fr); min-width: 800px; gap: 8px; padding-bottom: 20px;">
                             <!-- Header and cells injected by JS so alignment is perfect -->
                         </div>
                     </div>
@@ -776,18 +779,18 @@
             <!-- View: Library -->
             <section id="view-library" class="tab-view" style="padding: 0;">
                 <div style="display: flex; flex-direction: column; height: 100vh; width: 100%;">
-                    <div class="view-header" style="padding: 20px 24px; border-bottom: 1px solid var(--border); background: var(--bg);">
+                    <div class="view-header" style="padding: 20px 24px; border-bottom: 1px solid var(--border-color); background: var(--bg-main);">
                         <h2 style="margin:0; font-size: 22px;">Biblioteca</h2>
-                        <p style="color: var(--text-muted); font-size: 14px; margin-top: 4px;">Sube recursos para que Conny los utilice. Control total sobre cada archivo.</p>
+                        <p style="color: var(--text-secondary); font-size: 14px; margin-top: 4px;">Sube recursos para que Conny los utilice. Control total sobre cada archivo.</p>
                         <!-- Hidden file input for native behavior -->
                         <input type="file" id="library-file-input" style="display: none;" multiple>
                     </div>
                     
-                    <div class="library-container" style="flex: 1; padding: 24px; overflow-y: auto; background: var(--surface);">
+                    <div class="library-container" style="flex: 1; padding: 24px; overflow-y: auto; background: var(--bg-panel);">
                         <div id="library-resource-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 24px; align-items: start;">
                             
                             <!-- Add Button (Big Square) -->
-                            <div id="library-add-btn" style="aspect-ratio: 1 / 1; background: var(--bg); border: 2px dashed var(--border); border-radius: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer;  color: var(--text-muted);" onmouseover="this.style.borderColor='var(--primary)'; this.style.color='var(--primary)';" onmouseout="this.style.borderColor='var(--border)'; this.style.color='var(--text-muted)';">
+                            <div id="library-add-btn" style="aspect-ratio: 1 / 1; background: var(--bg-panel); border: 1px dashed var(--border-color); border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer;  color: var(--text-secondary);" onmouseover="this.style.borderColor='var(--accent-color)'; this.style.color='var(--accent-color)';" onmouseout="this.style.borderColor='var(--border-color)'; this.style.color='var(--text-secondary)';">
                                 <div style="font-size: 48px; font-weight: 300; margin-bottom: 8px;">+</div>
                                 <div style="font-size: 14px; font-weight: 500;">Añadir Recurso</div>
                             </div>
@@ -840,7 +843,7 @@
                                 <tbody id="dev-instances-tbody">
                                     <!-- Inyectado dinámicamente -->
                                     <tr>
-                                        <td colspan="5" style="padding: 24px; text-align: center; color: var(--text-muted); font-size: 13px;">
+                                        <td colspan="5" style="padding: 24px; text-align: center; color: var(--text-secondary); font-size: 13px;">
                                             <span style="display: inline-block; animation: spin 1s linear infinite; margin-right: 8px;">🔄</span> Cargando instancias desde el entorno del sistema...
                                         </td>
                                     </tr>
@@ -976,12 +979,12 @@
     
     <!-- Modal para citas del día -->
     <div id="calendar-day-modal" class="modal" style="display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.4); z-index: 1000;" onclick="if(event.target === this) this.style.display='none';">
-        <div style="background: var(--bg); border-radius: 16px; width: 450px; max-width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.3); overflow: hidden; display: flex; flex-direction: column;">
-            <div style="padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: var(--bg);">
-                <h3 id="calendar-day-modal-title" style="margin: 0; font-size: 18px; font-weight: 600; color: var(--text);">Citas Programadas</h3>
-                <button onclick="document.getElementById('calendar-day-modal').style.display='none'" style="background: var(--surface); border: 1px solid var(--border); border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 18px; color: var(--text-muted); cursor: pointer;">&times;</button>
+        <div style="background: var(--bg-main); border-radius: 16px; width: 450px; max-width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.3); overflow: hidden; display: flex; flex-direction: column;">
+            <div style="padding: 20px 24px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: var(--bg-main);">
+                <h3 id="calendar-day-modal-title" style="margin: 0; font-size: 18px; font-weight: 600; color: var(--text-primary);">Citas Programadas</h3>
+                <button onclick="document.getElementById('calendar-day-modal').style.display='none'" style="background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 18px; color: var(--text-secondary); cursor: pointer;">&times;</button>
             </div>
-            <div id="calendar-day-modal-content" style="padding: 24px; max-height: 60vh; overflow-y: auto; background: var(--bg);">
+            <div id="calendar-day-modal-content" style="padding: 24px; max-height: 60vh; overflow-y: auto; background: var(--bg-main);">
                 <!-- Appointments here -->
             </div>
         </div>
@@ -992,23 +995,23 @@
     
     <!-- Modal para Detalles de Recurso -->
     <div id="library-detail-modal" class="modal" style="display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); z-index: 1000; backdrop-filter: blur(2px);">
-        <div style="background: var(--bg); border-radius: 16px; width: 450px; max-width: 90%; box-shadow: 0 10px 30px rgba(0,0,0,0.3); overflow: hidden;">
-            <div style="padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: var(--bg);">
-                <h3 style="margin: 0; font-size: 16px; color: var(--text);">Detalles del Recurso</h3>
-                <button id="library-detail-close" style="background: transparent; border: none; font-size: 24px; color: var(--text-muted); cursor: pointer; line-height: 1;">&times;</button>
+        <div style="background: var(--bg-main); border-radius: 16px; width: 450px; max-width: 90%; box-shadow: 0 10px 30px rgba(0,0,0,0.3); overflow: hidden;">
+            <div style="padding: 20px 24px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: var(--bg-main);">
+                <h3 style="margin: 0; font-size: 16px; color: var(--text-primary);">Detalles del Recurso</h3>
+                <button id="library-detail-close" style="background: transparent; border: none; font-size: 24px; color: var(--text-secondary); cursor: pointer; line-height: 1;">&times;</button>
             </div>
             <div style="padding: 24px;">
                 <div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 24px;">
-                    <div id="library-detail-preview" style="width: 120px; height: 120px; border-radius: 12px; background: var(--bg); display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1px solid var(--border); margin-bottom: 16px;">
+                    <div id="library-detail-preview" style="width: 120px; height: 120px; border-radius: 12px; background: var(--bg-main); display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1px solid var(--border-color); margin-bottom: 16px;">
                         <!-- Preview injected by JS -->
                     </div>
-                    <div id="library-detail-filename" style="font-weight: 600; color: var(--text); font-size: 15px; word-break: break-all; text-align: center; margin-bottom: 4px;"></div>
-                    <div id="library-detail-filesize" style="color: var(--text-muted); font-size: 13px;"></div>
+                    <div id="library-detail-filename" style="font-weight: 600; color: var(--text-primary); font-size: 15px; word-break: break-all; text-align: center; margin-bottom: 4px;"></div>
+                    <div id="library-detail-filesize" style="color: var(--text-secondary); font-size: 13px;"></div>
                 </div>
                 
-                <div style="background: var(--bg); padding: 16px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 24px;">
-                    <div style="font-size: 11px; font-weight: 600; color: var(--primary); margin-bottom: 8px; text-transform: uppercase;">Instrucciones para Conny:</div>
-                    <div id="library-detail-instructions" style="font-size: 14px; color: var(--text); font-style: italic;"></div>
+                <div style="background: var(--bg-main); padding: 16px; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 24px;">
+                    <div style="font-size: 11px; font-weight: 600; color: var(--accent-color); margin-bottom: 8px; text-transform: uppercase;">Instrucciones para Conny:</div>
+                    <div id="library-detail-instructions" style="font-size: 14px; color: var(--text-primary); font-style: italic;"></div>
                 </div>
                 
                 <div style="display: flex; justify-content: flex-end;">
@@ -1020,30 +1023,30 @@
 
     <!-- Modal para Biblioteca (Configurar Recurso) -->
     <div id="library-config-modal" class="modal" style="display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); z-index: 1000; backdrop-filter: blur(2px);">
-        <div style="background: var(--bg); border-radius: 16px; width: 450px; max-width: 90%; box-shadow: 0 10px 30px rgba(0,0,0,0.3); overflow: hidden;">
-            <div style="padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: var(--bg);">
-                <h3 style="margin: 0; font-size: 16px; color: var(--text);">Configurar Recurso</h3>
-                <button id="library-config-close" style="background: transparent; border: none; font-size: 24px; color: var(--text-muted); cursor: pointer; line-height: 1;">&times;</button>
+        <div style="background: var(--bg-main); border-radius: 16px; width: 450px; max-width: 90%; box-shadow: 0 10px 30px rgba(0,0,0,0.3); overflow: hidden;">
+            <div style="padding: 20px 24px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: var(--bg-main);">
+                <h3 style="margin: 0; font-size: 16px; color: var(--text-primary);">Configurar Recurso</h3>
+                <button id="library-config-close" style="background: transparent; border: none; font-size: 24px; color: var(--text-secondary); cursor: pointer; line-height: 1;">&times;</button>
             </div>
             <div style="padding: 24px;">
                 <div style="display: flex; gap: 16px; margin-bottom: 24px;">
-                    <div id="library-preview-container" style="width: 80px; height: 80px; border-radius: 8px; background: var(--bg); display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1px solid var(--border);">
+                    <div id="library-preview-container" style="width: 80px; height: 80px; border-radius: 8px; background: var(--bg-main); display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1px solid var(--border-color);">
                         <!-- Preview injected by JS -->
                     </div>
                     <div style="flex: 1; display: flex; flex-direction: column; justify-content: center;">
-                        <div id="library-config-filename" style="font-weight: 600; color: var(--text); font-size: 15px; word-break: break-all; margin-bottom: 4px;"></div>
-                        <div id="library-config-filesize" style="color: var(--text-muted); font-size: 13px;"></div>
+                        <div id="library-config-filename" style="font-weight: 600; color: var(--text-primary); font-size: 15px; word-break: break-all; margin-bottom: 4px;"></div>
+                        <div id="library-config-filesize" style="color: var(--text-secondary); font-size: 13px;"></div>
                     </div>
                 </div>
                 
                 <div style="margin-bottom: 24px;">
-                    <label style="display: block; font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 8px;">Control de Conny</label>
-                    <input type="text" id="library-config-instructions" placeholder="Ej: Envía esto si te preguntan por la ubicación" style="width: 100%; padding: 12px 16px; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 8px; font-size: 14px; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
+                    <label style="display: block; font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">Control de Conny</label>
+                    <input type="text" id="library-config-instructions" placeholder="Ej: Envía esto si te preguntan por la ubicación" style="width: 100%; padding: 12px 16px; background: var(--bg-main); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 8px; font-size: 14px; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='var(--accent-color)'" onblur="this.style.borderColor='var(--border-color)'">
                 </div>
                 
                 <div style="display: flex; justify-content: flex-end; gap: 12px;">
-                    <button id="library-config-cancel" style="background: transparent; color: var(--text-muted); border: 1px solid var(--border); padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 500;">Cancelar</button>
-                    <button id="library-config-save" style="background: var(--primary); color: white; border: none; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-weight: 600; ">Guardar en Biblioteca</button>
+                    <button id="library-config-cancel" style="background: transparent; color: var(--text-secondary); border: 1px solid var(--border-color); padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 500;">Cancelar</button>
+                    <button id="library-config-save" style="background: var(--accent-color); color: white; border: none; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-weight: 600; ">Guardar en Biblioteca</button>
                 </div>
             </div>
         </div>
@@ -1150,7 +1153,7 @@
             </div>
             
             <div class="modal-body" style="padding: 0; color: var(--text-secondary); font-size: 14px; line-height: 1.6;">
-                <p style="margin-bottom: 20px; color: var(--text-muted);">
+                <p style="margin-bottom: 20px; color: var(--text-secondary);">
                     Inicializa un nuevo agente Conny completamente independiente en su propio entorno PM2 y base de datos aislada.
                 </p>
                 
@@ -1226,7 +1229,7 @@
         </div>
     </div>
 
-    <script src="/static/app.js?v=12"></script>
+    <script src="/static/app.js?v=14"></script>
 <script>
 const frases = [
   "Te acompaña.",
