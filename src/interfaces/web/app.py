@@ -705,16 +705,20 @@ async def dashboard():
     }
 
 @app.get("/appointments")
-async def list_appointments(
+async def list_appointments(request: Request, 
     status: Optional[str] = None,
     limit: int = 50
 ):
+    if not _verify_master_key(request):
+        raise HTTPException(status_code=401, detail="No autorizado")
     """Lista citas."""
     appointments = db.get_appointments(status=status, limit=limit)
     return {"appointments": appointments, "count": len(appointments)}
 
 @app.get("/appointments/{apt_id}")
-async def get_appointment(apt_id: int):
+async def get_appointment(request: Request, apt_id: int):
+    if not _verify_master_key(request):
+        raise HTTPException(status_code=401, detail="No autorizado")
     """Obtiene una cita específica."""
     with db._conn() as c:
         row = c.execute("SELECT * FROM appointments WHERE id=?", (apt_id,)).fetchone()
@@ -730,7 +734,9 @@ async def update_appointment(apt_id: int, request: Request):
     return {"ok": True}
 
 @app.get("/patients")
-async def list_patients(limit: int = 50):
+async def list_patients(request: Request, limit: int = 50):
+    if not _verify_master_key(request):
+        raise HTTPException(status_code=401, detail="No autorizado")
     """Lista pacientes."""
     with db._conn() as c:
         rows = c.execute("""
@@ -755,7 +761,9 @@ async def list_patients(limit: int = 50):
 
 
 @app.get("/patients/{chat_id}")
-async def get_patient(chat_id: str):
+async def get_patient(request: Request, chat_id: str):
+    if not _verify_master_key(request):
+        raise HTTPException(status_code=401, detail="No autorizado")
     """Obtiene un paciente."""
     with db._conn() as c:
         row = c.execute("SELECT * FROM patients WHERE chat_id=?", (chat_id,)).fetchone()
@@ -772,7 +780,9 @@ async def get_patient(chat_id: str):
     return data
 
 @app.get("/conversations/{chat_id}")
-async def get_conversations(chat_id: str, limit: int = 50):
+async def get_conversations(request: Request, chat_id: str, limit: int = 50):
+    if not _verify_master_key(request):
+        raise HTTPException(status_code=401, detail="No autorizado")
     """Obtiene historial de conversación."""
     history = db.get_history(chat_id, limit=limit)
     return {"chat_id": chat_id, "messages": history, "count": len(history)}
@@ -788,7 +798,9 @@ async def get_metrics(
     return {"metrics": metrics, "period_hours": hours}
 
 @app.get("/plugins")
-async def list_plugins():
+async def list_plugins(request: Request):
+    if not _verify_master_key(request):
+        raise HTTPException(status_code=401, detail="No autorizado")
     """Lista plugins."""
     plugins = db.get_plugins()
     health = await mcp_manager.health_check_all() if mcp_manager else {}
@@ -821,7 +833,9 @@ async def execute_plugin(plugin_id: str, request: Request):
     return result
 
 @app.get("/config")
-async def get_config():
+async def get_config(request: Request):
+    if not _verify_master_key(request):
+        raise HTTPException(status_code=401, detail="No autorizado")
     """Obtiene configuración de la clínica."""
     clinic = db.get_clinic()
     
@@ -835,6 +849,8 @@ async def get_config():
 
 @app.patch("/config")
 async def update_config(request: Request):
+    if not _verify_master_key(request):
+        raise HTTPException(status_code=401, detail="No autorizado")
     """Actualiza configuración."""
     data = await request.json()
     
@@ -889,7 +905,9 @@ async def upload_avatar_base64(req: AvatarUploadRequest):
     return {"ok": True, "url": f"/static/avatars/{save_name}"}
 
 @app.get("/personality")
-async def get_personality():
+async def get_personality(request: Request):
+    if not _verify_master_key(request):
+        raise HTTPException(status_code=401, detail="No autorizado")
     """Obtiene configuración de personalidad."""
     clinic = db.get_clinic()
     persona = clinic.get("persona_config", {})
@@ -919,6 +937,8 @@ async def get_personality():
 
 @app.patch("/personality")
 async def update_personality(request: Request):
+    if not _verify_master_key(request):
+        raise HTTPException(status_code=401, detail="No autorizado")
     """Actualiza personalidad."""
     data = await request.json()
     
@@ -951,7 +971,9 @@ async def apply_improvements():
     return {"applied": applied}
 
 @app.get("/tasks")
-async def list_tasks(status: Optional[str] = None, limit: int = 50):
+async def list_tasks(request: Request, status: Optional[str] = None, limit: int = 50):
+    if not _verify_master_key(request):
+        raise HTTPException(status_code=401, detail="No autorizado")
     """Lista tareas."""
     with db._conn() as c:
         query = "SELECT * FROM tasks"
@@ -970,6 +992,8 @@ async def list_tasks(status: Optional[str] = None, limit: int = 50):
 
 @app.post("/tasks")
 async def create_task(request: Request):
+    if not _verify_master_key(request):
+        raise HTTPException(status_code=401, detail="No autorizado")
     """Crea una tarea programada."""
     data = await request.json()
     
@@ -1196,7 +1220,9 @@ async def reset_system():
     return {"ok": True, "message": "Sistema reseteado"}
 
 @app.get("/export")
-async def export_data():
+async def export_data(request: Request):
+    if not _verify_master_key(request):
+        raise HTTPException(status_code=401, detail="No autorizado")
     """Exporta todos los datos."""
     clinic = db.get_clinic()
     
@@ -1230,7 +1256,9 @@ async def export_data():
 # ─── Analytics Endpoints ────────────────────────────────────────────────────────
 
 @app.get("/analytics/summary")
-async def analytics_summary(days: int = 7):
+async def analytics_summary(request: Request, days: int = 7):
+    if not _verify_master_key(request):
+        raise HTTPException(status_code=401, detail="No autorizado")
     """Resumen de analytics."""
     since = datetime.now() - timedelta(days=days)
 
@@ -1285,7 +1313,9 @@ async def analytics_summary(days: int = 7):
     }
 
 @app.get("/analytics/intents")
-async def analytics_intents(hours: int = 24):
+async def analytics_intents(request: Request, hours: int = 24):
+    if not _verify_master_key(request):
+        raise HTTPException(status_code=401, detail="No autorizado")
     """Distribución de intenciones."""
     since = datetime.now() - timedelta(hours=hours)
     
@@ -1311,7 +1341,9 @@ async def analytics_intents(hours: int = 24):
     }
 
 @app.get("/analytics/sentiment")
-async def analytics_sentiment(hours: int = 24):
+async def analytics_sentiment(request: Request, hours: int = 24):
+    if not _verify_master_key(request):
+        raise HTTPException(status_code=401, detail="No autorizado")
     """Distribución de sentimiento."""
     since = datetime.now() - timedelta(hours=hours)
     
@@ -1348,7 +1380,9 @@ async def analytics_sentiment(hours: int = 24):
 # ─── Logs Endpoint ──────────────────────────────────────────────────────────────
 
 @app.get("/logs/improvements")
-async def get_improvement_logs(limit: int = 50):
+async def get_improvement_logs(request: Request, limit: int = 50):
+    if not _verify_master_key(request):
+        raise HTTPException(status_code=401, detail="No autorizado")
     """Obtiene logs de auto-mejora."""
     with db._conn() as c:
         rows = c.execute("""
@@ -1360,7 +1394,9 @@ async def get_improvement_logs(limit: int = 50):
     return {"logs": [dict(r) for r in rows]}
 
 @app.get("/logs/errors")
-async def get_error_logs(hours: int = 24):
+async def get_error_logs(request: Request, hours: int = 24):
+    if not _verify_master_key(request):
+        raise HTTPException(status_code=401, detail="No autorizado")
     """Obtiene logs de errores."""
     since = datetime.now() - timedelta(hours=hours)
     
@@ -2316,14 +2352,18 @@ async def brand_status():
 # ─── Feedback y Carpeta de Confianza — endpoints ────────────────────────────────
 
 @app.get("/feedback")
-async def get_feedback_list(limit: int = 20):
+async def get_feedback_list(request: Request, limit: int = 20):
+    if not _verify_master_key(request):
+        raise HTTPException(status_code=401, detail="No autorizado")
     """Lista de feedbacks del admin."""
     items = db.get_feedback_list(limit=limit)
     return {"feedback": items, "total": len(items)}
 
 
 @app.get("/trust-rules")
-async def get_trust_rules(category: str = None):
+async def get_trust_rules(request: Request, category: str = None):
+    if not _verify_master_key(request):
+        raise HTTPException(status_code=401, detail="No autorizado")
     """Reglas aprendidas en la carpeta de confianza."""
     rules = db.get_trust_rules(category=category)
     return {"rules": rules, "total": len(rules)}
@@ -2331,6 +2371,8 @@ async def get_trust_rules(category: str = None):
 
 @app.post("/trust-rules")
 async def add_trust_rule(request: Request):
+    if not _verify_master_key(request):
+        raise HTTPException(status_code=401, detail="No autorizado")
     """Agrega una regla manualmente."""
     data = await request.json()
     rule_id = db.save_trust_rule(
