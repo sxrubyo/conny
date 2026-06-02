@@ -11845,6 +11845,9 @@ def main():
         if not workspace_is_configured() or not get_instances():
             cmd_init(args)
             return
+        modern_entrypoint = Path(os.environ.get("CONNY_DIR", os.path.dirname(os.path.abspath(__file__)))) / "conny_app.py"
+        subprocess.call([sys.executable, str(modern_entrypoint)])
+        return
 
     # Help
     if args.help or cmd in ("help", "--help", "-h", ""):

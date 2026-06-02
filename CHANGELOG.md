@@ -1,5 +1,11 @@
 # Changelog
 
+## 9.8.4 - 2026-06-02
+
+- made bare `conny` route to the modern onboarding/chat surface instead of the legacy help screen
+- kept `conny init` untouched while preserving the same banner and branding in the post-onboarding chat UI
+- aligned the legacy Python CLI fallback so direct `conny_cli.py` launches follow the same start behavior
+
 ## 9.8.3 - 2026-06-02
 
 - made `conny` open the real chat interface after onboarding instead of the setup flow
