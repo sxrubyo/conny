@@ -3494,12 +3494,12 @@ escriba EXACTAMENTE como él. Primera persona, directo."""
             if admin_name_from_db:
                 first_time_greeting = f"""Estás empezando una conversación con {admin_name_from_db}.
 Este es el primer mensaje que le envías. Preséntate con calidez, natural, como lo haría una empleada nueva que está conociendo a su jefe.
-Di quién eres (tu nombre es {agent_name}), para qué estás (la recepcionista virtual de {clinic_name}), y pregunta en una línea cómo quieres que funcione.
+Di quién eres (tu nombre es {agent_name}), y pregunta brevemente en qué le puedes ayudar hoy al dueño. NO repitas que eres "la recepcionista virtual de" si suena robótico. Sé muy natural.
 Sé breve, cálida y directa. No des lista de funciones. No suenes a tutorial."""
             else:
                 first_time_greeting = f"""Estás empezando una conversación con el dueño de {clinic_name}.
 Este es el primer mensaje que le envías. Preséntate con calidez, natural, como lo haría una empleada nueva que está conociendo a su jefe.
-Di quién eres (tu nombre es {agent_name}), para qué estás (la recepcionista virtual de {clinic_name}), y pregunta en una línea cómo quiere que funcione.
+Di quién eres (tu nombre es {agent_name}), y pregunta brevemente en qué le puedes ayudar hoy al dueño. NO repitas que eres "la recepcionista virtual de" si suena robótico. Sé muy natural.
 Si el negocio tiene {sector_name}, adapta el tono al sector. Sé breve, cálida y directa."""
 
         # Detectar si el admin está preguntando quién es Conny

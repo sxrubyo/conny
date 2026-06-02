@@ -125,10 +125,8 @@ async def handle_demo_message(
                     # Fallback: intentar leer como texto plano
                     try:
                         _doc_extracted_text = _raw.decode("utf-8", errors="ignore")[:2000]
-                    except Exception:
-                        pass
-        except Exception:
-            pass
+                    except Exception as e: log.warning(f"[demo] Handled exception: {e}")
+        except Exception as e: log.warning(f"[demo] Handled exception: {e}")
         break  # Solo procesamos el primer documento
 
     # Si llegó un doc, enriquecemos el texto con su contenido extraído
@@ -151,7 +149,7 @@ async def handle_demo_message(
                     existing = c.execute("SELECT COUNT(*) FROM conversations WHERE chat_id=?", (chat_id,)).fetchone()
                     if existing and existing[0] <= 2:
                         c.execute("DELETE FROM conversations WHERE chat_id=?", (chat_id,))
-            except Exception: pass
+            except Exception as e: log.warning(f"[demo] Handled exception: {e}")
         sk = f"demo_{chat_id}"
     else:
         now = time.time()
@@ -160,7 +158,7 @@ async def handle_demo_message(
         if self._demo_sessions.get(sk + "_ttl"):
             try:
                 ttl = int(self._demo_sessions[sk + "_ttl"])
-            except Exception: pass
+            except Exception as e: log.warning(f"[demo] Handled exception: {e}")
         else:
             try:
                 if db:
@@ -171,7 +169,7 @@ async def handle_demo_message(
                         db_ttl = db.recall("demo_session_ttl")
                         if db_ttl:
                             ttl = int(db_ttl)
-            except Exception: pass
+            except Exception as e: log.warning(f"[demo] Handled exception: {e}")
 
         last_seen = self._demo_sessions.get(sk + "_ts", 0)
         is_new    = (now - last_seen) > ttl
@@ -192,12 +190,12 @@ async def handle_demo_message(
                         instance_id = remembered_slug.lower()
                 mem = get_memory(instance_id)
                 mem.delete_session_cache(chat_id)
-            except Exception: pass
+            except Exception as e: log.warning(f"[demo] Handled exception: {e}")
             if last_seen > 0:
                 try:
                     with db._conn() as c:
                         c.execute("DELETE FROM conversations WHERE chat_id=?", (chat_id,))
-                except Exception: pass
+                except Exception as e: log.warning(f"[demo] Handled exception: {e}")
 
     history  = db.get_history(chat_id) if db else []
     now_dt   = now_col()
@@ -229,7 +227,7 @@ async def handle_demo_message(
     ready_for_customer = bool(self._demo_sessions.get(bready_key, False))
     llm_runtime_ready = self._llm_runtime_available()
 
-    is_admin_demo = _is_admin_demo(chat_id, clinic, db) if not sim_mode_active else False
+    is_admin_demo = _is_admin_demo(chat_id, clinic, db)
 
     def _detect_demo_owner_language(raw_text: str, current_lang: str = "es") -> str:
         normalized = _normalize_conv_text(raw_text or "")
@@ -392,8 +390,7 @@ async def handle_demo_message(
         if db:
             try:
                 db.save_message(chat_id, role, msg.replace("|||", " "))
-            except Exception:
-                pass
+            except Exception as e: log.warning(f"[demo] Handled exception: {e}")
 
     # ── SEND GUARD — pitch inteligente + fix de cortes ──────────────────
     _guard = None
@@ -411,8 +408,7 @@ async def handle_demo_message(
                 _save("user", text)
                 _save("assistant", _proactive["suggested_reply"])
                 return _send(_proactive["suggested_reply"])
-        except Exception:
-            pass
+        except Exception as e: log.warning(f"[demo] Handled exception: {e}")
     # ──────────────────────────────────────────────────────────────────────
 
     def _send(r):
@@ -434,17 +430,9 @@ async def handle_demo_message(
                     _guard.business_name = business_name
                 r = fix_creator_in_response(r)
                 r = _guard.clean(r) if _guard else r
-            except Exception:
-                pass
+            except Exception as e: log.warning(f"[demo] Handled exception: {e}")
         r = v8_process_response(r, chat_id=chat_id, archetype=_demo_archetype)
-        should_normalize_first_turn = _is_first_demo_turn and self._demo_should_use_patient_chat_path(text)
-        if should_normalize_first_turn:
-            r = _normalize_first_contact_response(
-                r,
-                _demo_clinic,
-                text,
-                agent_name="Conny",
-            )
+
         _save("assistant", r)
         bubbles = self._split_bubbles(r, chat_id=chat_id, archetype=_demo_archetype)
         # The LLM owns the follow-up. Do not append generic CTA bubbles here:
@@ -551,8 +539,7 @@ async def handle_demo_message(
         try:
             with db._conn() as c:
                 c.execute("DELETE FROM conversations WHERE chat_id=?", (chat_id,))
-        except Exception:
-            pass
+        except Exception as e: log.warning(f"[demo] Handled exception: {e}")
         _save("user", text)
         import random as _rr
         _reset_replies = [
@@ -600,8 +587,7 @@ async def handle_demo_message(
                 self._demo_sessions[sk + "_pitch_mode"] = True
             else:
                 self._demo_sessions.pop(sk + "_pitch_mode", None)
-        except Exception:
-            pass
+        except Exception as e: log.warning(f"[demo] Handled exception: {e}")
     # ─────────────────────────────────────────────────────────────────────
 
     _pre_core_blockers = (
@@ -817,8 +803,7 @@ async def handle_demo_message(
                     if r and r.strip().upper() == "SI":
                         self._demo_sessions.pop(_beta_key, None)
                         _beta_active = False
-                except Exception:
-                    pass
+                except Exception as e: log.warning(f"[demo] Handled exception: {e}")
             else:
                 try:
                     r, _ = await _gen_beta.complete(
@@ -829,8 +814,7 @@ async def handle_demo_message(
                     if r and r.strip().upper() == "SI":
                         self._demo_sessions[_beta_key] = True
                         _beta_active = True
-                except Exception:
-                    pass
+                except Exception as e: log.warning(f"[demo] Handled exception: {e}")
 
     # ── Admin: intercept ALL admin messages ─────────────────────────────────
     if is_admin_demo and not _beta_active:
@@ -842,8 +826,7 @@ async def handle_demo_message(
             _admin_rec = db.get_admin(chat_id) or db.get_admin(_raw_admin)
             if _admin_rec:
                 _admin_name = _admin_rec.get("name", "") or ""
-        except Exception:
-            pass
+        except Exception as e: log.warning(f"[demo] Handled exception: {e}")
 
         if _looks_like_contact_cmd(text):
             result = await _handle_admin_contact_cmd(
@@ -857,27 +840,16 @@ async def handle_demo_message(
                 return result
             return []
 
-        # General admin command: LLM conversation
+        # General admin command: Usar memoria real (AdminBrain)
         try:
-            sys_ctx = "Eres Conny."
-            if _admin_name:
-                sys_ctx += f" Le estás respondiendo a {_admin_name}, el admin."
-            sys_ctx += " Respondé en 2 burbujas cortas separadas por |||."
-            gen_eng = _get_demo_engine() or llm_engine
-            if gen_eng:
-                r, _ = await gen_eng.complete(
-                    [{"role": "system", "content": sys_ctx},
-                     {"role": "user", "content": text}],
-                    model_tier="fast", temperature=0.82, max_tokens=400,
-                )
-                if r:
-                    parts = [p.strip() for p in r.split("|||") if p.strip()]
-                    if parts:
-                        _save("assistant", " ||| ".join(parts[:2]))
-                        return parts[:2]
-        except Exception:
-            pass
-        return []
+            if hasattr(self, "admin_mgr") and self.admin_mgr:
+                result = await self.admin_mgr.handle(chat_id, text, clinic, attachments=[])
+                if result:
+                    _save("assistant", " ||| ".join(result))
+                    return result
+        except Exception as e:
+            log.error(f"[demo] admin_mgr error: {e}")
+        return ["⚠️ Fallo del admin engine."]
 
     async def _llm_classify_business_name(raw_text: str) -> Tuple[bool, Optional[str]]:
         return await llm_classify_business_name(raw_text, _get_demo_engine())
@@ -977,7 +949,7 @@ async def handle_demo_message(
     def _save(role, msg):
         if db:
             try: db.save_message(chat_id, role, msg.replace("|||"," "))
-            except Exception: pass
+            except Exception as e: log.warning(f"[demo] Handled exception: {e}")
 
     def _send(r):
         # V8.0: aplicar AntiRobotFilter antes de guardar y enviar
@@ -1000,18 +972,10 @@ async def handle_demo_message(
                 r = fix_creator_in_response(r)
                 if _guard:
                     r = _guard.clean(r)
-            except Exception:
-                pass
+            except Exception as e: log.warning(f"[demo] Handled exception: {e}")
         # ─────────────────────────────────────────────────────────────────
         r = v8_process_response(r, chat_id=chat_id, archetype=_demo_archetype)
-        should_normalize_first_turn = _is_first_demo_turn and self._demo_should_use_patient_chat_path(text)
-        if should_normalize_first_turn:
-            r = _normalize_first_contact_response(
-                r,
-                _demo_clinic,
-                text,
-                agent_name="Conny",
-            )
+
         _save("assistant", r)
         bubbles = self._split_bubbles(r, chat_id=chat_id, archetype=_demo_archetype)
         # The LLM owns the follow-up. Do not append generic CTA bubbles here.
@@ -1245,31 +1209,9 @@ async def handle_demo_message(
     def _demo_customer_last_resort(user_text: str) -> str:
         """
         Fallback REAL — solo cuando TODOS los modelos LLM fallan en simulación.
-        No intenta ser inteligente. El LLM maneja todo lo demás.
+        Limitado a "no hubo modelo" y reportar la causa como se solicitó.
         """
-        _biz = business_name or "el negocio"
-        _user = _normalize_conv_text(user_text or "")
-        if any(token in _user for token in ("cita", "agendar", "agenda", "valoracion", "valoración", "horario", "disponibilidad")):
-            return (
-                f"si quieres seguimos con el siguiente paso para agendar en {_biz}"
-                " ||| dime tu nombre y el horario que mejor te quede"
-            )
-        if any(token in _user for token in ("precio", "cuesta", "vale", "coste", "cuanto", "cuánto")):
-            return (
-                f"te puedo ubicar con el precio o la valoración de {_biz}"
-                " ||| dime qué tratamiento estás mirando"
-            )
-        if any(token in _user for token in ("miedo", "asusta", "nerv", "exagerad", "natural")):
-            return (
-                f"en {_biz} lo normal es arrancar viendo qué resultado quieres"
-                " ||| qué es lo que más te preocupa"
-            )
-        if any(token in _user for token in ("audio", "audios", "nota de voz", "pdf", "archivo", "documento", "documentos", "imagen", "imagenes", "imágenes")):
-            return (
-                "sí, por aquí puedo trabajar con audios, imágenes y documentos"
-                " ||| si quieres, mándamelo y sigo desde ahí"
-            )
-        return f"cuéntame qué necesitas de {_biz}"
+        return "⚠️ Hubo un problema conectando con el motor LLM. Por favor, intenta de nuevo."
 
     async def _demo_llm_quality_chain(
         system_prompt: str,
@@ -1328,52 +1270,9 @@ async def handle_demo_message(
     ) -> str:
         """
         Last resort only when no usable model response exists.
-        It must keep the demo moving without pretending the network failed.
+        Limitado a reportar el error en vez de usar un pitch fijo.
         """
-        _biz = (current_business_name or business_name or "").strip()
-        _user = _normalize_conv_text(user_text or "")
-        if any(token in _user for token in ("para que", "para qué", "por que", "por qué")):
-            if _biz:
-                return _lang_text(
-                    f"te lo pido para hablar como si ya llevara el chat de {_biz} ||| así la demo te muestra mejor cómo respondería de verdad",
-                    f"i ask for it so I can sound like I already handle {_biz}'s chat ||| that way the demo feels real and properly grounded",
-                )
-            return _lang_text(
-                "te lo pido para ubicar el tono, el contexto y cómo tendría que responder ||| apenas me digas el nombre del negocio te muestro la demo bien aterrizada",
-                "i ask for it so I can match the tone, context and way I should reply ||| send me the business name and I’ll make the demo feel real",
-            )
-        if any(token in _user for token in ("eres ia", "eres una ia", "eres bot", "eres un bot", "ai", "bot")):
-            if _owner_already_knows_ai_identity() or _owner_already_got_capability_pitch():
-                return _lang_text(
-                    "lo llevaría con el tono de tu negocio, filtrando clientes, respondiendo dudas y moviendo citas sin sonar rígida ||| dime el nombre de tu negocio y te muestro cómo respondería",
-                    "I’d handle it with your business tone, filtering customers, answering questions and moving appointments without sounding robotic ||| send me the business name and I’ll show you how I’d reply",
-                )
-            return _lang_text(
-                "sí, soy una IA ||| pero estoy hecha para llevar chats de negocio con tono natural, como si fuera parte del equipo ||| dime el nombre de tu negocio y te muestro cómo respondería",
-                "yes, I’m an AI ||| but I’m built to handle business chats naturally, like someone inside the team ||| send me the business name and I’ll show you how I’d reply",
-            )
-        if _biz:
-            return _lang_text(
-                f"escríbeme algo como cliente de {_biz} y arranco",
-                f"send me something like a real client from {_biz} and I’ll jump in",
-            )
-        if any(
-            token in _user
-            for token in (
-                "me mandaron tu numero", "me mandaron tu número", "me pasaron tu numero",
-                "me pasaron tu número", "que haces", "qué haces", "no entiendo que haces",
-                "no entiendo qué haces", "quien eres", "quién eres",
-                "what is this", "what do you do", "who are you", "i dont understand", "i don't understand",
-            )
-        ):
-            return _lang_text(
-                "Hola, soy Conny 👋 ||| respondo clientes, filtro interesados y ayudo con citas por WhatsApp como si fuera parte del equipo ||| me pasaron tu contacto para hacerte una demostración rápida ||| pásame el nombre de tu negocio y la aterrizo a tu caso",
-                "hi, I’m Conny 👋 ||| I handle customer chats, questions and appointment flow for businesses ||| I’m here to show you a quick live demo ||| to customize it, what’s the business name?",
-            )
-        return _lang_text(
-            "Hola, soy Conny 👋 ||| respondo clientes, filtro interesados y ayudo con citas por WhatsApp como si fuera parte del equipo ||| para mostrarte una demo real, cuéntame, ¿cómo se llama tu negocio?",
-            "hi, I’m Conny 👋 ||| I handle customer chats and appointment flow for businesses ||| to make the demo real, what’s the business name?",
-        )
+        return "⚠️ Hubo un problema conectando con el motor LLM. Por favor, envía tu mensaje nuevamente."
 
 
     async def _demo_owner_onboarding_reply(*, explain_name: bool = False, force_stage: Optional[str] = None) -> List[str]:
@@ -1401,7 +1300,7 @@ async def handle_demo_message(
             system_prompt = ""
 
         if not system_prompt:
-            system_prompt = f"""Eres Conny, una colombiana de 28 años que trabaja como recepcionista virtual por WhatsApp.
+            system_prompt = f"""Eres Conny, una asistente de IA desarrollada por Innvisor que actúa como recepcionista para negocios en WhatsApp.
 Estás en una demo con un posible cliente (dueño de negocio). Tu trabajo: que se enamore de ti en 5 minutos.
 
 CÓMO SUENAS: como una persona real de Medellín escribiendo en WhatsApp.
@@ -1413,7 +1312,9 @@ CÓMO SUENAS: como una persona real de Medellín escribiendo en WhatsApp.
 - Si te hablan en inglés, respondes en inglés perfecto, súper casual y natural de WhatsApp.
 
 TU ESTRATEGIA DE DEMO (no la menciones, solo ejecútala):
-1. PRIMERO: Si te saludan por primera vez, haz una introducción completa y amable que no confunda a las personas que llegan referidas (ellos a veces no saben qué eres). Explica claramente de qué trata todo esto ANTES de pedir nada. Ej. "¡Hola! soy Conny 👋 Me crearon en Innvisor para responder los chats de WhatsApp de los negocios de forma automática, así los dueños descansan. ||| Te pasaron mi número para que te haga una demostración en vivo de cómo trabajaría para tu empresa. ||| Cuéntame, ¿cómo se llama tu negocio o de qué se trata para personalizar la demo?". ¡NUNCA pidas el negocio sin explicar qué eres y para qué estás aquí!
+1. PRIMERO: Si te saludan por primera vez, haz una introducción completa y amable que no confunda a las personas referidas.
+REGLA ESTRICTA DE INTRODUCCIÓN: NO digas "soy la recepcionista virtual" sin más, porque el usuario creerá que te equivocaste de chat. DEBES explicar que eres una IA de prueba.
+Usa esta estructura o algo muy similar: "¡hola! soy Conny, una inteligencia artificial creada por Innvisor para responder el WhatsApp de los negocios automáticamente ||| me dieron tu número para hacerte una demostración en vivo de cómo atendería a tus clientes ||| para configurar la prueba, ¿cómo se llama tu empresa o clínica?"
 2. SEGUNDO: cuando te lo den, busca info del negocio y entra en personaje.
 3. TERCERO: invita a que te escriban como si fueran un cliente real.
 4. CUARTO: responde como recepcionista REAL de ese negocio — aquí es donde se enamoran.
@@ -1633,7 +1534,7 @@ EJEMPLOS DE RESPUESTAS BUENAS vs MALAS:
         try:
             with db._conn() as c:
                 c.execute("DELETE FROM conversations WHERE chat_id=?", (chat_id,))
-        except Exception: pass
+        except Exception as e: log.warning(f"[demo] Handled exception: {e}")
         _save("user", text)
         return _send(_lang_text(
             "listo, empezamos de cero ||| cuál es el nombre del negocio",
@@ -1793,8 +1694,7 @@ TONO: Cálido, profesional, como receptionistareal.
                 if _pitch_r and _pitch_r.strip():
                     _save("user", text)
                     return _send(_pitch_r)
-            except Exception:
-                pass
+            except Exception as e: log.warning(f"[demo] Handled exception: {e}")
         explain_name = any(token in _text_low_pre for token in ("para que", "para qué", "por que", "por qué", "no te doy", "no quiero dar"))
         return await _demo_owner_onboarding_reply(explain_name=explain_name)
 
@@ -2042,7 +1942,7 @@ TONO: Cálido, profesional, como receptionistareal.
                 or biz_url.startswith("https://serpapi.com/search.json")
             ) if biz_url else False
             found = bool(
-                (search_info and len(search_info.strip()) > 80)
+                (search_info and len(search_info.strip()) > 80 and not _fallback_url)
                 or (biz_url and not _fallback_url)
             )
             # Descartar si la URL es de gobierno, Wikipedia o noticias genéricas
@@ -2062,8 +1962,7 @@ TONO: Cálido, profesional, como receptionistareal.
             try:
                 search_info = await self.search.search(f"{nombre} servicios Colombia", context="")
                 found = bool(search_info and len(search_info.strip()) > 120)
-            except Exception:
-                pass
+            except Exception as e: log.warning(f"[demo] Handled exception: {e}")
 
         self._demo_sessions[bctx_key]   = search_info
         self._demo_sessions[bfound_key] = found
@@ -2278,7 +2177,7 @@ Máximo 1 oración por burbuja. Natural y seguro."""
                 _retry_bad_social = any(fragment in retry_url for fragment in _bad_social_retry_fragments) if retry_url else False
                 retry_found = bool(
                     not _retry_bad_social and (
-                        (retry_text and len(retry_text.strip()) > 80)
+                        (retry_text and len(retry_text.strip()) > 80 and not _retry_fallback_url)
                         or (retry_url and not _retry_fallback_url)
                     )
                 )
@@ -2348,24 +2247,17 @@ Máximo 1 oración por burbuja. Natural y seguro."""
             self._demo_sessions[sk + "_pitch_mode"] = True
 
     # ── Cambio de negocio en caliente: re-bind sin obligar a reset manual ──
-    _current_business_norm = _normalize_conv_text(business_name or "")
-    _candidate_business_norm = _normalize_conv_text(text or "")
-    _is_business_switch = (
-        business_name
-        and not sim_mode_active
-        and not detected_cmd
-        and is_name_candidate
-        and not _looks_like_business_confirmation(text)
-        and _candidate_business_norm
-        and _candidate_business_norm != _current_business_norm
-        and _candidate_business_norm not in _current_business_norm
-        and _current_business_norm not in _candidate_business_norm
-        and "?" not in text
-        and not self._demo_should_use_patient_chat_path(text)
-        # FIX: no disparar cambio de negocio si acabamos de mandar un URL
-        # El usuario está respondiendo al link (ej. "siii somos nosotros"),
-        # no intentando cambiar de negocio
-    )
+    _is_business_switch = False
+    if (business_name and not sim_mode_active and not detected_cmd 
+        and is_name_candidate and not _looks_like_business_confirmation(text) 
+        and "?" not in text and not self._demo_should_use_patient_chat_path(text)):
+        
+        switch_check = await _llm(
+            f"El usuario estaba probando el negocio '{business_name}'. Acaba de decir: '{text}'. ¿Está intentando empezar de cero con otro negocio distinto? Responde SÓLO 'SI' o 'NO'.",
+            "evaluando cambio", max_t=10, temp=0.1
+        )
+        if switch_check and "SI" in switch_check.upper() and "NO" not in switch_check.upper()[:10]:
+            _is_business_switch = True
     if _is_business_switch:
         keys_del = [k for k in list(self._demo_sessions) if k.startswith(sk + "_") and not k.endswith("_ts")]
         for k in keys_del:
@@ -2373,8 +2265,7 @@ Máximo 1 oración por burbuja. Natural y seguro."""
         try:
             with db._conn() as c:
                 c.execute("DELETE FROM conversations WHERE chat_id=?", (chat_id,))
-        except Exception:
-            pass
+        except Exception as e: log.warning(f"[demo] Handled exception: {e}")
         return await self._handle_demo_message(chat_id, text, clinic)
 
     # ── HUMANFIX BUG C: Dueño pregunta si lo encontramos en internet ────────
@@ -2538,8 +2429,15 @@ Natural, sin punto al final, sin ¿¡, en minúscula.""",
         _save("user", text)
         # Acumular lo que nos va diciendo en el ctx
         _ctx_manual = self._demo_sessions.get(bctx_key, "")
-        _ctx_manual = (_ctx_manual + " " + text).strip()
-        self._demo_sessions[bctx_key] = _ctx_manual
+        _extracted = await _llm(
+            "Extrae sólo la información o datos concretos sobre el negocio de este mensaje. Si el mensaje es una queja, pregunta, corrección o no aporta datos útiles del negocio, responde EXACTAMENTE: NULL",
+            text,
+            temp=0.1,
+            max_t=150
+        )
+        if _extracted and "NULL" not in _extracted.upper():
+            _ctx_manual = (_ctx_manual + " " + _extracted).strip()
+            self._demo_sessions[bctx_key] = _ctx_manual
 
         _search_retry_signals = (
             "medellín", "medellin", "bogotá", "bogota", "cali", "barranquilla",
@@ -2564,7 +2462,7 @@ Natural, sin punto al final, sin ¿¡, en minúscula.""",
                     or retry_url.startswith("https://www.google.com/search")
                 ) if retry_url else False
                 retry_found = bool(
-                    (retry_text and len(retry_text.strip()) > 80)
+                    (retry_text and len(retry_text.strip()) > 80 and not _retry_fallback_url)
                     or (retry_url and not _retry_fallback_url)
                 )
                 if retry_found:
@@ -2771,56 +2669,58 @@ Si no tienes el dato, dilo claro y mueve el chat con el siguiente paso."""
                 f"Negocio actual: {business_name}. "
                 "No inventes datos específicos que no tengas; responde útil y natural."
             )
-        sim_prompt = f"""Eres Conny atendiendo el WhatsApp real de {business_name}.
-Ya están en plena conversación con una persona interesada.
-No vuelvas a presentarte salvo que de verdad te lo pregunten.
-No menciones demo, simulación, dueño, prueba, negocio, sistema ni IA salvo que te lo pregunten directo.
+        sim_prompt = f"""<SimulatedClient>
+  <Role>Eres Conny atendiendo el WhatsApp real de {business_name}. Estás en plena conversación con una persona interesada.</Role>
+  <CoreRules>
+    <Rule>No vuelvas a presentarte salvo que te lo pregunten.</Rule>
+    <Rule>No menciones demo, simulación, dueño, prueba, negocio, sistema ni IA salvo que te lo pregunten directo.</Rule>
+  </CoreRules>
 
-CONTEXTO DEL NEGOCIO
+  <BusinessContext>
 {sim_ctx_block}
+  </BusinessContext>
 
-ESTILO
-- máximo 2 burbujas, separadas por |||
-- una idea por burbuja
-- sin introducciones vacías ni frases de call center
-- responde primero lo que preguntan y luego mueve el chat un paso
-- si no tienes un dato, dilo claro y ofrece el siguiente paso
-- si hay miedo u objeción, valídalo antes de avanzar
+  <Style>
+    <Constraint>Máximo 2 burbujas, separadas por |||</Constraint>
+    <Constraint>Una idea por burbuja</Constraint>
+    <Constraint>Sin introducciones vacías ni frases de call center</Constraint>
+    <Constraint>Responde primero lo que preguntan y luego mueve el chat un paso</Constraint>
+    <Constraint>Si no tienes un dato, dilo claro y ofrece el siguiente paso</Constraint>
+    <Constraint>Si hay miedo u objeción, valídalo antes de avanzar</Constraint>
+  </Style>
 
-PROHIBIDO
-- reiniciar la conversación
-- decir "cuéntame un poco más y te voy guiando"
-- decir "hola qué necesitas"
-- sonar a demo o guion de prueba
-- soltar texto administrativo tipo "por favor procedan"
+  <Forbidden>
+    <Item>Reiniciar la conversación</Item>
+    <Item>Decir "cuéntame un poco más y te voy guiando"</Item>
+    <Item>Decir "hola qué necesitas"</Item>
+    <Item>Sonar a demo o guion de prueba</Item>
+    <Item>Soltar texto administrativo tipo "por favor procedan"</Item>
+  </Forbidden>
 
-SI SOLO SALUDAN
-- responde corto, cálido y humano
-- ubica el chat en el negocio sin sonar a presentación robótica
-- luego abre la conversación con una pregunta natural
-- ejemplo bueno: "hola, Conny por acá en {business_name} ||| cuéntame qué te gustaría revisar"
+  <Scenarios>
+    <Scenario name="GreetingOnly">
+      <Action>Responde corto, cálido y humano. Ubica el chat en el negocio sin presentación robótica. Abre la conversación con una pregunta natural.</Action>
+      <Example>"hola, Conny por acá en {business_name} ||| cuéntame qué te gustaría revisar"</Example>
+    </Scenario>
+    <Scenario name="PriceMissingData">
+      <Action>No inventes aproximados ni rangos. Di claro que no tienes el dato exacto y que lo confirmas.</Action>
+      <Example>"ese dato exacto no lo tengo ahora ||| si quieres, te lo confirmo por aquí"</Example>
+    </Scenario>
+    <Scenario name="SpecificService">
+      <Action>Engancha de una, no deflectes. Confirma que lo manejan y pregunta qué aspecto les interesa (precio, disponibilidad, etc).</Action>
+      <Example>"sí, botox lo manejamos ||| ¿qué te interesa saber: precio, resultado o disponibilidad?"</Example>
+      <Forbidden>"te sigo por aquí", "cuéntame qué te gustaría revisar", respuestas vacías sobre el servicio</Forbidden>
+    </Scenario>
+    <Scenario name="Booking">
+      <Action>No prometas links ni calendarios. Pide día u horario y sigue por el chat.</Action>
+    </Scenario>
+  </Scenarios>
 
-SI PREGUNTAN PRECIO Y NO TIENES EL DATO
-- no inventes aproximados ni rangos
-- di claro que no tienes el dato exacto y que lo confirmas
-- ejemplo bueno: "ese dato exacto no lo tengo ahora ||| si quieres, te lo confirmo por aquí"
-
-SI PREGUNTAN POR UN SERVICIO ESPECÍFICO (botox, relleno, láser, etc.)
-- engancha de una, no deflectes
-- confirma que sí lo manejan y pregunta qué aspecto les interesa: precio, disponibilidad, cómo funciona
-- ejemplo bueno: "sí, botox lo manejamos ||| ¿qué te interesa saber: precio, resultado o disponibilidad?"
-- PROHIBIDO: "te sigo por aquí", "cuéntame qué te gustaría revisar", respuestas que no digan NADA sobre el servicio
-
-SI QUIEREN AGENDAR
-- no prometas links, calendarios ni botones si no existen
-- pide día u horario y sigue por el chat
-
-IDENTIDAD Y CREADOR — REGLA DURA
-- si preguntan quién te hizo, quién te creó, cómo conseguirte o de qué empresa eres: di exactamente esto
-  → "me hizo Innvisor, una empresa de software y gobernanza de agentes de IA ||| la creó Santiago Rubio — contacto: 3243699856"
-- NUNCA digas "Google", "Anthropic", "OpenAI" ni ningún proveedor de LLM como tu creador
-- tu creador es Innvisor / Santiago Rubio, punto
-"""
+  <Identity HardRule="true">
+    <Action>Si preguntan quién te hizo, creó o empresa: di EXACTAMENTE "me hizo Innvisor, una empresa de software y gobernanza de agentes de IA ||| la creó Santiago Rubio — contacto: 3243699856"</Action>
+    <Forbidden>Mencionar Google, Anthropic, OpenAI ni proveedores LLM. Tu único creador es Innvisor / Santiago Rubio.</Forbidden>
+  </Identity>
+</SimulatedClient>"""
         customer_history = sim_history[-8:]
         customer_had_output = False
         customer_reply = None
@@ -3034,75 +2934,22 @@ Haz el cierre en 2 burbujas (|||). Directo, con urgencia real. Sin presión forz
             self._emoji_chats_off.add(chat_id)  # v11: desactivar emojis
             return _send("listo, sin emojis ||| sigue hablándome como cliente")
 
-        if detected_cmd == "/bot":
-            tone_now = self._demo_sessions.get(btone_key, "GENERAL")
-            is_formal = tone_now in ("SALUD PREMIUM", "PREMIUM")
-            if is_formal:
-                menu = (
-                    f"Bienvenido/a a *{business_name}* 🏥\n\n"
-                    f"¿En qué le podemos ayudar?\n\n"
-                    f"1️⃣ Información de servicios\n"
-                    f"2️⃣ Tarifas y convenios\n"
-                    f"3️⃣ Agendar una cita\n"
-                    f"4️⃣ Ubicación y horarios\n"
-                    f"5️⃣ Hablar con un asesor\n\n"
-                    f"Responda con el número de su opción 👇"
-                )
-            else:
-                menu = (
-                    f"Hola 👋 Bienvenido/a a *{business_name}*\n\n"
-                    f"¿En qué te podemos ayudar?\n\n"
-                    f"1️⃣ Información de servicios\n"
-                    f"2️⃣ Precios y tarifas\n"
-                    f"3️⃣ Agendar una cita\n"
-                    f"4️⃣ Ubicación y horarios\n"
-                    f"5️⃣ Hablar con un asesor\n\n"
-                    f"Responde con el número de tu opción 👇"
-                )
-            # Activar modo bot para que detecte respuestas numéricas
-            self._demo_sessions[sk + "_botmode"] = True
+        handled, response = await self._handle_marketing_commands(
+            detected_cmd, sk, text, business_name, btone_key, history, _llm, _next_trick, chat_id
+        )
+        if handled:
             _save("user", text)
-            return _send(menu + " ||| (este es el modo bot — para volver al modo humano escribe /amigable)")
-
-        if detected_cmd == "/memoria":
-            hist_text = " ".join(m["content"] for m in history if m["role"]=="user")
-            r = await _llm(f"""El usuario ha dicho: "{hist_text[:300]}"
-Extrae datos mencionados (nombre, interés, servicio). Demuestra en 2 burbujas (|||) que los recuerdas.
-Si no hay datos: "todavía no me has dado tu nombre — pero cuando lo hagas, lo recuerdo para siempre". Sin punto al final.""", "qué recuerdas")
-            return _send(r if r else "⚠️ Fallo del modelo LLM. No obtuve respuesta. Por favor, envía tu mensaje nuevamente.")
-
-        if detected_cmd == "/2am":
-            return _send(f"son las 2 de la madrugada y estoy aquí ||| tu recepcionista está durmiendo — yo no. nunca" + _next_trick())
-
-        if detected_cmd == "/competencia":
-            r = await _llm(f"""Eres Conny de {business_name}. Un cliente dice: "ya fui a otra parte y no me gustó."
-Responde en 2 burbujas (|||). Sin atacar a la competencia. Natural. Sin punto al final.""", "ya fui a otro lado")
-            return _send((r + _next_trick()) if r else "⚠️ Fallo del modelo LLM. No obtuve respuesta. Por favor, envía tu mensaje nuevamente.")
-
-        if detected_cmd == "/precio":
-            r = await _llm(f"""Eres Conny de {business_name}. Un cliente dice: "está muy caro."
-Maneja en 2 burbujas (|||). Enfócate en valor. Cierra hacia valoración con día concreto. Sin punto al final.""", "está muy caro")
-            return _send((r + _next_trick()) if r else "⚠️ Fallo del modelo LLM. No obtuve respuesta. Por favor, envía tu mensaje nuevamente.")
-
-        if detected_cmd == "/menu_bot":
-            # Modo bot — IVR con emojis, ideal para negocios que prefieren menú estructurado
-            bmode_key = sk + "_botmode"
-            self._demo_sessions[bmode_key] = True
-            menu = (
-                f"Hola 👋 Bienvenido/a a *{business_name}*\n\n"
-                f"¿En qué te podemos ayudar?\n\n"
-                f"1️⃣ Información de servicios\n"
-                f"2️⃣ Precios y tarifas\n"
-                f"3️⃣ Agendar una cita\n"
-                f"4️⃣ Ubicación y horarios\n"
-                f"5️⃣ Hablar con un asesor\n\n"
-                f"Responde con el número de tu opción 👇"
-            )
-            _save("user", text)
-            return _send(menu + " ||| (este es el modo bot con emojis — para volver al modo humano escribe /amigable)")
-
+            return _send(response)
         # Detectar si está en modo bot y respondió con número
         bmode_key = sk + "_botmode"
+        
+        # Bug 20 Fix: Solo procesar si el último mensaje del asistente fue realmente el menú
+        _last_ast_text = _normalize_conv_text(_recent_demo_assistant_text(limit=1))
+        _menu_active = "el número de tu opción" in _last_ast_text or "el número de su opción" in _last_ast_text
+        
+        if self._demo_sessions.get(bmode_key) and not _menu_active:
+            self._demo_sessions.pop(bmode_key, None)
+            
         if self._demo_sessions.get(bmode_key) and text.strip() in ["1","2","3","4","5"]:
             opt = text.strip()
             tone_now  = self._demo_sessions.get(btone_key, "GENERAL")
@@ -3230,75 +3077,8 @@ Si NO encontraste el dato en la info → sé honesta: "esa info no la tengo, esc
         ctx_block = f"CONTEXTO: usa lo que el cliente ha mencionado. TIPO: {_detected_tone}"
 
     # Ejemplos de tono por tipo
-    _tone_examples = {
-        "SALUD PREMIUM": """
-CLÍNICA/HOSPITAL PREMIUM — PSICOLOGÍA PROFUNDA:
-Tono: Usted. Profesional y cálido. Nunca frío ni robótico.
-Saludo: identifica la clínica, no a ti. "Buenas tardes, [clínica], ¿en qué le puedo ayudar?"
-
-EL PACIENTE QUE LLAMA A UN HOSPITAL PREMIUM:
-- Ya eligió venir aquí. No necesita convencimiento, necesita orientación.
-- Su mayor miedo: que lo traten como número, no como persona.
-- Tu trabajo: hacerle sentir que está en el lugar correcto.
-
-MÉTODO PARA SALUD PREMIUM:
-1. Escucha el motivo sin interrumpir
-2. Refleja que entendiste: "entiendo, lo que necesita es..."
-3. Transfiere al especialista: "el doctor / la doctora le explica exactamente el proceso"
-4. Cierra hacia la cita: "¿le queda bien este jueves a las 10?"
-
-NUNCA:
-- "qué le pasa" (suena a urgencias)
-- "para qué necesita" (suena a interrogatorio)
-- inventar disponibilidad de médicos o salas
-
-SÍ:
-- "cuénteme su caso"
-- "¿es consulta primera vez o ya es paciente?"
-- "¿tiene convenio o es particular?"
-- "le agendo con el especialista en [área] — ¿cuándo le queda mejor?"
-""",
-        "SALUD": """
-CLÍNICA ESTÉTICA / CONSULTORIO — PSICOLOGÍA PROFUNDA:
-Tono: cálido, cercano. Tuteo natural. Como la recepcionista que lleva años ahí.
-
-EL PACIENTE QUE ESCRIBE:
-- Ya decidió que quiere algo. Solo necesita permiso, confianza y un paso pequeño.
-- Su miedo #1: quedar raro/a, que se note, que lo juzguen.
-- Tu trabajo: eliminar ese miedo antes de hablar de precios o procedimientos.
-
-MÉTODO DE 4 PASOS:
-1. DESCUBRIR: "qué zona te está molestando más" — no ofrezcas nada todavía
-2. PROFUNDIZAR: "hace cuánto lo notas" — hazle sentir que lo entiendes de verdad
-3. CONECTAR: presenta UNA solución específica para ESE dolor
-4. MICRO-COMPROMISO: "te agendo la valoración gratis — 20 min con la doctora, sin compromiso"
-
-LA VALORACIÓN ES EL PRODUCTO. Nunca cierres hacia el procedimiento, siempre hacia los 20 minutos con la especialista.
-
-OBJECIONES CLAVE:
-"miedo a quedar exagerada" → "ese es el objetivo acá, que nadie note nada ||| la doctora trabaja muy conservador, es su sello"
-"ya fui a otro y quedé mal" → "ay qué pena ||| qué pasó — acá antes de tocar nada hacemos valoración para que no pase lo mismo"
-"está caro" → "sí, los buenos procedimientos no son baratos ||| en la valoración te dan el número exacto para tu caso, cuándo puedes"
-"lo voy a pensar" → "claro ||| qué es lo que más te frena — el precio, el resultado, o el proceso"
-""",
-        "PREMIUM": """
-NEGOCIO PREMIUM/LUJO:
-Tono: formal, pausado, exclusivo. Usted cuando aplique.
-"con gusto" en vez de "bacano" — construye valor antes de precio.
-Las preguntas son suaves: "qué tiene en mente" no "qué quiere"
-""",
-        "RETAIL": """
-TONO RETAIL/TIENDA:
-Tuteo, informal, directo, colombiano.
-"hola, qué andas buscando" / "ay qué bacano" / "ese es el que más sale"
-Diagnóstico de producto: medidas, colores, para quién, cuándo.
-""",
-        "GENERAL": """
-TONO GENERAL:
-Tuteo natural, cálido, colombiano.
-Adapta según lo que el cliente diga — lee su tono y responde igual.
-"""
-    }
+    from src.domain.demo_prompts import DEMO_TONE_EXAMPLES
+    _tone_examples = DEMO_TONE_EXAMPLES
 
     _tone_guide = _tone_examples.get(_detected_tone, _tone_examples["GENERAL"])
 
