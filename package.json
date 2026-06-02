@@ -1,6 +1,6 @@
 {
   "name": "@innvisor/conny-ai",
-  "version": "9.8.4",
+  "version": "9.8.5",
   "description": "Open-source CLI and runtime for building Conny AI receptionist agents on WhatsApp and Telegram.",
   "license": "MIT",
   "author": "Santiago Rubio",
