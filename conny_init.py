@@ -214,6 +214,25 @@ def validate_api_key(provider, key):
     return True
 
 
+def _persist_language(lang: str) -> None:
+    try:
+        workspace_config_path = Path(os.environ.get("CONNY_WORKSPACE_CONFIG", str(CONNY_HOME / "config.json")))
+        workspace_config_path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {}
+        if workspace_config_path.exists():
+            try:
+                payload = json.loads(workspace_config_path.read_text(encoding="utf-8"))
+                if not isinstance(payload, dict):
+                    payload = {}
+            except Exception:
+                payload = {}
+        payload["language"] = lang
+        payload["ui_language"] = lang
+        workspace_config_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+    except Exception:
+        pass
+
+
 def _next_available_port() -> int:
     existing_ports = []
     if INSTANCES_DIR.exists():
@@ -379,6 +398,7 @@ def run_wizard():
     lang = LANGUAGES[i][0]
     global CURRENT_LANG
     CURRENT_LANG = lang
+    _persist_language(lang)
 
     # 1. Identity
     clear()

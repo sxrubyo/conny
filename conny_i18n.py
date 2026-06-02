@@ -5,6 +5,9 @@ Supported languages: es, en, pt, fr, de
 """
 
 from __future__ import annotations
+import json
+import os
+from pathlib import Path
 from typing import Dict, Optional
 from dataclasses import dataclass
 
@@ -18,6 +21,79 @@ SUPPORTED_LANGUAGES = {
 }
 
 DEFAULT_LANGUAGE = "es"
+
+
+def _workspace_config_path() -> Path:
+    explicit = os.environ.get("CONNY_WORKSPACE_CONFIG")
+    if explicit:
+        return Path(explicit)
+    conny_home = os.environ.get("CONNY_HOME")
+    if conny_home:
+        return Path(conny_home) / "config.json"
+    return Path.home() / ".conny" / "config.json"
+
+
+def _extract_language(payload: object) -> str:
+    if not isinstance(payload, dict):
+        return ""
+    candidates = [
+        payload.get("language"),
+        payload.get("ui_language"),
+        payload.get("locale"),
+    ]
+    for nested_key in ("agent", "meta"):
+        nested = payload.get(nested_key)
+        if isinstance(nested, dict):
+            candidates.append(nested.get("language"))
+            candidates.append(nested.get("ui_language"))
+            candidates.append(nested.get("locale"))
+    for value in candidates:
+        if isinstance(value, str) and value in SUPPORTED_LANGUAGES:
+            return value
+    return ""
+
+
+def _load_persisted_language() -> str:
+    for candidate in (
+        os.environ.get("CONNY_LANG"),
+        os.environ.get("CONNY_UI_LANG"),
+        os.environ.get("CONNY_INIT_LANG"),
+    ):
+        if candidate in SUPPORTED_LANGUAGES:
+            return candidate
+    path = _workspace_config_path()
+    try:
+        if path.exists():
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            lang = _extract_language(payload)
+            if lang:
+                return lang
+    except Exception:
+        pass
+    return DEFAULT_LANGUAGE
+
+
+def _persist_language(lang: str) -> None:
+    if lang not in SUPPORTED_LANGUAGES:
+        return
+    os.environ["CONNY_LANG"] = lang
+    os.environ["CONNY_UI_LANG"] = lang
+    try:
+        path = _workspace_config_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {}
+        if path.exists():
+            try:
+                payload = json.loads(path.read_text(encoding="utf-8"))
+                if not isinstance(payload, dict):
+                    payload = {}
+            except Exception:
+                payload = {}
+        payload["language"] = lang
+        payload["ui_language"] = lang
+        path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+    except Exception:
+        pass
 
 
 @dataclass
@@ -523,7 +599,9 @@ _TRANSLATIONS: Dict[str, TranslationSet] = {
 
 
 class I18n:
-    def __init__(self, lang: str = DEFAULT_LANGUAGE):
+    def __init__(self, lang: str = None):
+        if lang is None:
+            lang = _load_persisted_language()
         self.lang = lang if lang in _TRANSLATIONS else DEFAULT_LANGUAGE
         self._cache: Dict[str, str] = {}
 
@@ -576,6 +654,7 @@ def get_i18n() -> I18n:
 
 def set_language(lang: str) -> None:
     _global_i18n.set_lang(lang)
+    _persist_language(lang)
 
 
 def t(key: str, category: str = "ui") -> str:

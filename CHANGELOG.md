@@ -1,5 +1,11 @@
 # Changelog
 
+## 9.8.2 - 2026-06-02
+
+- persisted the language selected in `conny init` so the rest of the CLI loads it automatically
+- made `conny_i18n` read the saved workspace language on startup
+- kept the `conny init` banner unchanged while aligning other launch paths to the same brand
+
 ## 9.8.1 - 2026-06-02
 
 - made `conny` open the guided setup flow by default instead of the old help banner
