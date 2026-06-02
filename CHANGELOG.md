@@ -1,5 +1,11 @@
 # Changelog
 
+## 9.8.3 - 2026-06-02
+
+- made `conny` open the real chat interface after onboarding instead of the setup flow
+- kept `conny init` unchanged and preserved its banner/design exactly
+- added slash-command chat shortcuts with a Codex-style launcher header
+
 ## 9.8.2 - 2026-06-02
 
 - persisted the language selected in `conny init` so the rest of the CLI loads it automatically

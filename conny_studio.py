@@ -1,19 +1,31 @@
 #!/usr/bin/env python3
-"""conny_studio.py — Interactive CLI session with live monitoring."""
+"""conny_studio.py — Interactive CLI chat with live monitoring."""
 import asyncio
 import json
 import os
 import sys
 import time
 import uuid
+import subprocess
 from pathlib import Path
 from datetime import datetime
 
 import httpx
+from rich.console import Console
 
 sys.path.insert(0, str(Path(__file__).parent))
+from conny_design import LOGO_FULL, SEP, ICON_BRAND
 from conny_uncertainty import UncertaintyDetector
 from conny_voice import ConnyVoice
+
+CONSOLE = Console()
+VERSION = "9.8.2"
+try:
+    package_path = Path(__file__).resolve().parent / "package.json"
+    if package_path.exists():
+        VERSION = json.loads(package_path.read_text(encoding="utf-8")).get("version", VERSION)
+except Exception:
+    pass
 
 STUDIO_DIR = Path.home() / ".conny" / "studio" / "memory"
 API_URL = "http://localhost:8001/test"
@@ -69,11 +81,16 @@ class ConnyStudio:
                 }, ensure_ascii=False) + "\n")
 
     async def handle_command(self, cmd: str) -> str:
+        if cmd in ("/help", "/menu", "/start"):
+            return (
+                "Comandos: /help /menu /clear /history /models /config /language "
+                "/export /reload-persona /fix-last"
+            )
         if cmd == "/clear":
             self.history = []
             self.chat_id = f"studio_{uuid.uuid4().hex[:8]}"
             return "Session cleared. New conversation started."
-        elif cmd == "/show-memory":
+        elif cmd in ("/history", "/show-memory"):
             if not self.history:
                 return "No turns in memory yet."
             lines = []
@@ -81,6 +98,14 @@ class ConnyStudio:
                 role = "YOU" if h["role"] == "user" else "MEL"
                 lines.append(f"  [{role}] {h['content'][:80]}")
             return "\n".join(lines)
+        elif cmd == "/models":
+            return self._run_cli_command("modelo")
+        elif cmd == "/config":
+            return self._run_cli_command("config")
+        elif cmd == "/language":
+            return self._run_cli_command("language")
+        elif cmd in ("/new", "/init"):
+            return self._run_cli_command("init")
         elif cmd == "/show-failures":
             if not self.failures_file.exists():
                 return "No failures detected this session."
@@ -101,13 +126,28 @@ class ConnyStudio:
             return "No previous turn to fix."
         return f"Unknown command: {cmd}"
 
+    def _run_cli_command(self, command: str) -> str:
+        cli = Path(__file__).resolve().parent / "conny_cli.py"
+        if not cli.exists():
+            return f"CLI no disponible para /{command}"
+        try:
+            print(f"\033[90m[system] launching: conny {command}\033[0m")
+            subprocess.run([sys.executable, str(cli), command], check=False)
+            return f"/{command} closed. Back in chat."
+        except Exception as exc:
+            return f"No pude abrir /{command}: {exc}"
+
     def print_header(self):
-        print("\033[1;36m╔══════════════════════════════════════════════╗\033[0m")
-        print("\033[1;36m║  CONNY STUDIO v1.0                         ║\033[0m")
-        print(f"\033[1;36m║  Instance: {self.instance_id:<33}║\033[0m")
-        print(f"\033[1;36m║  Session: {self.session_id:<34}║\033[0m")
-        print("\033[1;36m╚══════════════════════════════════════════════╝\033[0m")
-        print("\033[90mCommands: /clear /show-memory /show-failures /fix-last /reload-persona /export-session\033[0m\n")
+        print()
+        CONSOLE.print(LOGO_FULL)
+        CONSOLE.print(f"  {ICON_BRAND} v{VERSION}  ·  chat real")
+        CONSOLE.print(SEP)
+        print(f"  Instance: {self.instance_id}")
+        print(f"  Session:  {self.session_id}")
+        print("  Comandos: /help /menu /clear /history /models /config /language /export")
+        print("  Atajos: 1=models 2=config 3=language 4=help")
+        CONSOLE.print(SEP)
+        print()
 
     def print_scores(self, scores):
         conf = scores["confidence"]
@@ -122,14 +162,16 @@ class ConnyStudio:
         self.print_header()
         while True:
             try:
-                user_input = input("\033[1;32m[YOU]\033[0m ")
+                user_input = input("\033[1;32m[YOU]\033[0m ").strip()
             except (EOFError, KeyboardInterrupt):
                 print("\n\033[90mSession ended.\033[0m")
                 break
-            if not user_input.strip():
+            if not user_input:
                 continue
+            if user_input in ("1", "2", "3", "4"):
+                user_input = { "1": "/models", "2": "/config", "3": "/language", "4": "/help" }[user_input]
             if user_input.startswith("/"):
-                result = await self.handle_command(user_input.strip())
+                result = await self.handle_command(user_input)
                 print(f"\033[1;33m[SYSTEM]\033[0m {result}")
                 continue
             try:

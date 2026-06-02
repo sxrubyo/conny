@@ -485,7 +485,7 @@ function execConny(argv) {
 }
 
 const args = process.argv.slice(2);
-const isHelp = args.length === 0 || args.includes("-h") || args.includes("--help") || args.includes("help");
+const isHelp = args.includes("-h") || args.includes("--help") || args.includes("help");
 const isVersion = args.includes("-v") || args.includes("--version") || args.includes("version");
 const isBootstrapCheck = args.includes("--bootstrap-check");
 const isJson = args.includes("--json");
@@ -518,7 +518,7 @@ if (isHelp) {
   process.exit(0);
 }
 
-const launchArgs = args.length === 0 ? ["new"] : args;
+const launchArgs = args;
 
 if (!execConny(launchArgs)) {
   fail(`No pude iniciar Conny desde ${connyHome}`);

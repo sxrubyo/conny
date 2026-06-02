@@ -282,10 +282,12 @@ def _sh(*a):
 
 def main():
     signal.signal(signal.SIGINT, lambda *_: sys.exit(0))
-    if first_run() and not (len(sys.argv)>1 and sys.argv[1] in ("help","--help","-h","-v","--version")):
-        onboard()
     if len(sys.argv) <= 1:
-        cmd_new()
+        if first_run():
+            onboard()
+            return
+        cmd_chat()
+        return
     else:
         route(sys.argv[1], " ".join(sys.argv[2:]))
 
