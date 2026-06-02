@@ -548,6 +548,53 @@ def test_demo_business_confirmation_never_overwrites_bound_business_name() -> No
     assert "clinica de los olivos" in joined
 
 
+def test_demo_first_customer_greeting_does_not_append_hardcoded_cta() -> None:
+    module = load_conny_module()
+
+    class _Engine:
+        async def complete(self, msgs, **kwargs):
+            user = msgs[-1]["content"]
+            system = msgs[0]["content"]
+            if "Responde ÚNICAMENTE con un JSON válido" in system:
+                if "Clínica América" in user:
+                    return (
+                        '{"es_negocio": true, "nombre": "Clínica América"}',
+                        {"provider": "fake", "model": "fake"},
+                    )
+                return (
+                    '{"es_negocio": false, "nombre": null}',
+                    {"provider": "fake", "model": "fake"},
+                )
+            if user.startswith("negocio: "):
+                return (
+                    "ya tengo Clínica América ||| escríbeme como si fueras un cliente",
+                    {"provider": "fake", "model": "fake"},
+                )
+            if "ya pueden empezar la demo" in system:
+                return (
+                    "de una ||| escríbeme como si fueras un cliente real",
+                    {"provider": "fake", "model": "fake"},
+                )
+            if "Ya están en plena conversación con una persona interesada" in system:
+                return (
+                    "hola, Conny por acá en Clínica América",
+                    {"provider": "fake", "model": "fake"},
+                )
+            return ("ok", {"provider": "fake", "model": "fake"})
+
+    runtime, _db = _build_demo_runtime(module, _Engine())
+    clinic = {"name": "Nova", "sector": "otro", "services": ["Botox"]}
+
+    asyncio.run(runtime._handle_demo_message("owner_no_cta_1", "mi negocio se llama Clínica América", clinic))
+    asyncio.run(runtime._handle_demo_message("owner_no_cta_1", "hagamos una demo", clinic))
+    result = asyncio.run(runtime._handle_demo_message("owner_no_cta_1", "hola buenas tardes", clinic))
+
+    joined = " ".join(result).lower()
+    assert len(result) == 1
+    assert "conny" in joined
+    assert "cuéntame qué te gustaría revisar" not in joined
+
+
 def test_demo_meta_followup_does_not_repeat_same_ai_disclosure() -> None:
     module = load_conny_module()
 

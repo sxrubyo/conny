@@ -447,17 +447,8 @@ async def handle_demo_message(
             )
         _save("assistant", r)
         bubbles = self._split_bubbles(r, chat_id=chat_id, archetype=_demo_archetype)
-        if should_normalize_first_turn and len(bubbles) == 1:
-            _text_norm = _normalize_conv_text(text or "")
-            _greeting_tokens = (
-                "hola", "buenas", "buenas tardes", "buenos dias", "buenos días",
-                "buenas noches", "hey", "holi", "hi", "hello",
-                "good morning", "good afternoon", "good evening",
-            )
-            if any(_text_norm == token or _text_norm.startswith(token + " ") for token in _greeting_tokens):
-                lowered_bubble = _normalize_conv_text(bubbles[0] or "")
-                if not any(token in lowered_bubble for token in ("cuentame", "cuéntame", "revisar", "ayudo", "ayudar")):
-                    bubbles.append(_lang_text("cuéntame qué te gustaría revisar", "what would you like to check?"))
+        # The LLM owns the follow-up. Do not append generic CTA bubbles here:
+        # that made good model answers sound like fallback.
         tone = self._demo_sessions.get(btone_key, "GENERAL")
         if tone in ("SALUD PREMIUM", "PREMIUM"):
             bubbles = [b[0].upper() + b[1:] if b else b for b in bubbles]
@@ -1024,20 +1015,7 @@ async def handle_demo_message(
             )
         _save("assistant", r)
         bubbles = self._split_bubbles(r, chat_id=chat_id, archetype=_demo_archetype)
-        # FIX BUG 4: Si es el primer turno, el usuario saludó, y la respuesta tiene
-        # solo 1 burbuja sin pregunta de seguimiento → agregar burbuja de apertura.
-        # Esta lógica existía en la primera definición de _send (línea 13772) pero
-        # se perdió cuando se redefinió _send aquí en la misma función.
-        if should_normalize_first_turn and len(bubbles) == 1:
-            _text_norm = _normalize_conv_text(text or "")
-            _greeting_tokens = (
-                "hola", "buenas", "buenas tardes", "buenos dias", "buenos días",
-                "buenas noches", "hey", "holi",
-            )
-            if any(_text_norm == token or _text_norm.startswith(token + " ") for token in _greeting_tokens):
-                lowered_bubble = _normalize_conv_text(bubbles[0] or "")
-                if not any(token in lowered_bubble for token in ("cuentame", "cuéntame", "revisar", "ayudo", "ayudar")):
-                    bubbles.append("cuéntame qué te gustaría revisar")
+        # The LLM owns the follow-up. Do not append generic CTA bubbles here.
         # Para premium/salud premium: restaurar mayúscula inicial
         tone = self._demo_sessions.get(btone_key, "GENERAL")
         if tone in ("SALUD PREMIUM", "PREMIUM"):
