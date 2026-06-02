@@ -1,5 +1,11 @@
 # Changelog
 
+## 9.8.1 - 2026-06-02
+
+- made `conny` open the guided setup flow by default instead of the old help banner
+- removed the default launcher banner from the primary `conny` path
+- aligned the TUI version display with `package.json`
+
 ## 9.8.0 - 2026-06-02
 
 - blocked first-contact setup for unknown chats until a valid activation token is provided

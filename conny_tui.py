@@ -30,6 +30,13 @@ CONNY_DIR   = os.getenv("CONNY_DIR",   str(Path(__file__).resolve().parent))
 INSTANCES_DIR = os.getenv("INSTANCES_DIR", str(Path.home() / "conny-instances"))
 CLI_SCRIPT    = os.getenv("CONNY_CLI",   str(Path(__file__).resolve().parent / "conny_cli.py"))
 
+try:
+    _package_path = Path(CONNY_DIR) / "package.json"
+    if _package_path.exists():
+        VERSION = json.loads(_package_path.read_text(encoding="utf-8")).get("version", VERSION)
+except Exception:
+    pass
+
 # ── Colores curses (índices de par) ─────────────────────────────────────────
 CP_LOGO1  = 1   # Rosa — letras CONNY (gradiente línea 1)
 CP_LOGO2  = 10  # Rosa claro (gradiente línea 2)

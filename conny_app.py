@@ -285,7 +285,7 @@ def main():
     if first_run() and not (len(sys.argv)>1 and sys.argv[1] in ("help","--help","-h","-v","--version")):
         onboard()
     if len(sys.argv) <= 1:
-        cmd_help()
+        cmd_new()
     else:
         route(sys.argv[1], " ".join(sys.argv[2:]))
 

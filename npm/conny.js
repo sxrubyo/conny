@@ -518,10 +518,8 @@ if (isHelp) {
   process.exit(0);
 }
 
-if (!isJson && process.stdout.isTTY) {
-  printBanner();
-}
+const launchArgs = args.length === 0 ? ["new"] : args;
 
-if (!execConny(args)) {
+if (!execConny(launchArgs)) {
   fail(`No pude iniciar Conny desde ${connyHome}`);
 }
