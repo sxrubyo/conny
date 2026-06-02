@@ -31,7 +31,9 @@ from src.interfaces.web.demo_handler import ConnyDemo
 from src.core.admin_engines import ConnyAdmin, AuthEngine, AdminLearningEngine, SimulationEngine, SelfImprovementEngine
 from src.core.production_monitor import ConnyProduction
 from conny_utils import (
-    is_activation_token, is_invite_token, generate_activation_token, hash_password, verify_password, 
+    is_activation_token, is_admin_activation_token, is_invite_token,
+    generate_activation_token, generate_admin_activation_token,
+    hash_password, verify_password,
     _parse_admin_ids, extract_model_request_from_text, normalize_model_arg
 )
 
@@ -170,7 +172,7 @@ except ImportError:
     _SMART_HANDOFF = False
     handoff_manager = None
     async def handle_handoff_admin_command(*a, **kw): return None
-# ── BLACK ONE PATCHES — pitch inteligente + fix de cortes + Black One ────────
+# ── INNVISOR PATCHES — pitch inteligente + fix de cortes + Innvisor ────────
 try:
     from src.domain.prompts.prospect_pitch import (
         is_prospect_confused,
@@ -180,10 +182,10 @@ try:
     from src.domain.send_guard import SendGuard, check_proactive_handoff
     from conny_nuke_robot_phrases import apply_patch as _nuke_robot_apply
     _nuke_robot_apply()
-    _BLACKONE_PATCHES = True
+    _INNVISOR_PATCHES = True
 except Exception as _e:
-    _BLACKONE_PATCHES = False
-    logging.getLogger("conny").exception("[black_one_patches] no cargado")
+    _INNVISOR_PATCHES = False
+    logging.getLogger("conny").exception("[INNVISOR_patches] no cargado")
 # ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -3021,7 +3023,9 @@ def run_v9_diagnostics() -> Dict[str, Any]:
 # ══════════════════════════════════════════════════════════════════════════════
 
 
+import sys
 import httpx
+sys.setrecursionlimit(20000)
 from fastapi import FastAPI, Request, Response, BackgroundTasks, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -6413,6 +6417,18 @@ class DatabaseManager:
             CREATE INDEX IF NOT EXISTS idx_admins_chat ON admins(chat_id);
             CREATE INDEX IF NOT EXISTS idx_admins_email ON admins(email);
 
+            -- Perfiles persistentes de admin (Namespace admin_profile)
+            CREATE TABLE IF NOT EXISTS admin_profiles (
+                chat_id TEXT PRIMARY KEY,
+                name TEXT DEFAULT '',
+                preferences TEXT DEFAULT '{}',
+                frequent_commands TEXT DEFAULT '{}',
+                active_hours TEXT DEFAULT '{}',
+                metadata TEXT DEFAULT '{}',
+                updated_at TEXT DEFAULT (datetime('now'))
+            );
+            CREATE INDEX IF NOT EXISTS idx_admin_profiles_chat ON admin_profiles(chat_id);
+
             -- Estado de autenticacion por sesion de chat
             CREATE TABLE IF NOT EXISTS auth_sessions (
                 chat_id TEXT PRIMARY KEY,
@@ -7297,7 +7313,7 @@ class DatabaseManager:
         """Lee un token. Retorna None si no existe, expirado o ya usado."""
         with self._conn() as c:
             row = c.execute(
-                "SELECT * FROM activation_tokens WHERE token=?", (token,)
+                "SELECT * FROM activation_tokens WHERE UPPER(token)=UPPER(?)", (token,)
             ).fetchone()
         if not row:
             return None
@@ -7320,7 +7336,7 @@ class DatabaseManager:
             c.execute("""
                 UPDATE activation_tokens
                 SET used_at=datetime('now'), used_by_chat_id=?, is_active=0
-                WHERE token=?
+                WHERE UPPER(token)=UPPER(?)
             """, (chat_id, token))
 
     def create_admin(self, chat_id: str, email: str, password_hash: str,
@@ -7349,6 +7365,59 @@ class DatabaseManager:
                 (chat_id,)
             ).fetchone()
         return dict(row) if row else None
+
+    # ─── Perfiles de Admin (admin_profile) ──────────────────────────────────────
+
+    def get_admin_profile(self, chat_id: str) -> Dict:
+        """Obtiene el perfil completo de un admin."""
+        with self._conn() as c:
+            row = c.execute(
+                "SELECT * FROM admin_profiles WHERE chat_id=?",
+                (str(chat_id),)
+            ).fetchone()
+        
+        if not row:
+            # Si no existe, crear uno básico con el nombre de la tabla admins si existe
+            admin_base = self.get_admin(chat_id)
+            name = admin_base.get("name", "") if admin_base else ""
+            self.update_admin_profile(chat_id, name=name)
+            return {
+                "chat_id": chat_id, "name": name, 
+                "preferences": {}, "frequent_commands": {}, 
+                "active_hours": {}, "metadata": {}
+            }
+        
+        d = dict(row)
+        for key in ["preferences", "frequent_commands", "active_hours", "metadata"]:
+            if isinstance(d.get(key), str):
+                try: d[key] = json.loads(d[key])
+                except Exception: d[key] = {}
+        return d
+
+    def update_admin_profile(self, chat_id: str, **kwargs):
+        """Actualiza campos del perfil de admin."""
+        existing = {}
+        with self._conn() as c:
+            row = c.execute("SELECT * FROM admin_profiles WHERE chat_id=?", (str(chat_id),)).fetchone()
+            if row: existing = dict(row)
+
+        fields = ["name", "preferences", "frequent_commands", "active_hours", "metadata"]
+        data = {f: existing.get(f, "{}") if f != "name" else existing.get(f, "") for f in fields}
+        data["chat_id"] = str(chat_id)
+
+        for k, v in kwargs.items():
+            if k in fields:
+                if k == "name": data[k] = v
+                else: data[k] = json.dumps(v, ensure_ascii=False)
+
+        with self._conn() as c:
+            c.execute(f"""
+                INSERT INTO admin_profiles (chat_id, {", ".join(fields)}, updated_at)
+                VALUES (:chat_id, {", ".join([":"+f for f in fields])}, datetime('now'))
+                ON CONFLICT(chat_id) DO UPDATE SET
+                    {", ".join([f"{f}=excluded.{f}" for f in fields])},
+                    updated_at=datetime('now')
+            """, data)
 
     def get_admin_by_email(self, email: str) -> Optional[Dict]:
         """Obtiene admin por email."""
@@ -7629,6 +7698,32 @@ class OpenAIProvider(LLMProvider):
         return r.json()["data"][0]["embedding"]
 
 
+class LLMServiceError(RuntimeError):
+    """Raised when all LLM providers fail and callers must not hide the real cause."""
+
+    def __init__(self, message: str, *, attempted: Optional[List[str]] = None, last_error: Optional[Exception] = None):
+        super().__init__(message)
+        self.attempted = attempted or []
+        self.last_error = last_error
+        self.public_message = self._build_public_message()
+
+    def _build_public_message(self) -> str:
+        raw = str(self.last_error or self)
+        low = raw.lower()
+        provider_txt = ", ".join(self.attempted) if self.attempted else "proveedor LLM"
+        if "429" in raw or "resource_exhausted" in low or "quota" in low or "rate" in low:
+            return (
+                f"El modelo no respondió porque la API llegó al límite de cuota/rate limit en {provider_txt}.\n"
+                f"Detalle técnico: {raw[:700]}"
+            )
+        if "401" in raw or "403" in raw or "api key" in low or "unauthorized" in low:
+            return (
+                f"El modelo no respondió porque la API key parece inválida o sin permisos en {provider_txt}.\n"
+                f"Detalle técnico: {raw[:700]}"
+            )
+        return f"El modelo no respondió en {provider_txt}.\nDetalle técnico: {raw[:700]}"
+
+
 class LLMEngine:
     """
     Motor LLM con cascada de 6 proveedores.
@@ -7868,7 +7963,11 @@ class LLMEngine:
                 last_error = e
 
         providers_tried = ", ".join(attempted) if attempted else "ninguno"
-        raise RuntimeError(f"Todos los LLM fallaron [{providers_tried}]: {last_error}")
+        raise LLMServiceError(
+            f"Todos los LLM fallaron [{providers_tried}]: {last_error}",
+            attempted=attempted,
+            last_error=last_error,
+        )
 
     def get_health(self) -> Dict:
         """Estado de salud de cada provider. Usado por /v8 y diagnóstico."""
@@ -11659,6 +11758,9 @@ class TaskManager:
         self._task_handlers["self_improve"] = self._handle_self_improve
         self._task_handlers["daily_report"] = self._handle_daily_report
 
+    async def stop(self):
+        self._running = False
+
     async def start(self):
         self._running = True
         asyncio.create_task(self._run_loop())
@@ -11842,4 +11944,3 @@ trainer_get_system_prompt_addon = DynamicGlobalProxy("trainer_get_system_prompt_
 # v8_process_agentic_intent = DynamicGlobalProxy("v8_process_agentic_intent")
 
 # Clean up the previous dynamic deletion loop
-

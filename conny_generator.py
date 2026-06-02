@@ -160,7 +160,7 @@ class GeneratorManager:
         demo_model_pref: str = "auto"
     ) -> Optional[str]:
         """
-        LLM con el pitch de Black One para prospectos confundidos.
+        LLM con el pitch de Innvisor para prospectos confundidos.
         
         Args:
             pitch_sys: Prompt de sistema con el pitch

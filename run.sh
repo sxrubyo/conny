@@ -12,6 +12,13 @@ read_env_value() {
   fi
 }
 
+# Export all .env variables so they're available to the Python process
+if [ -f "$ENV_FILE" ]; then
+  set -a
+  source "$ENV_FILE"
+  set +a
+fi
+
 PYTHON_OVERRIDE="${CONNY_PYTHON_BIN:-${PYTHON_BIN:-$(read_env_value CONNY_PYTHON_BIN)}}"
 if [ -z "$PYTHON_OVERRIDE" ]; then
   PYTHON_OVERRIDE="$(read_env_value PYTHON_BIN)"

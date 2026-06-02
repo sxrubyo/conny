@@ -473,7 +473,7 @@ def build_demo_domino_contract(
         token in normalized
         for token in ("quien te hizo", "quién te hizo", "como tenerte", "cómo tenerte", "quien te creo", "quién te creó")
     ):
-        required_details.extend(["black one", "3124348669"])
+        required_details.extend(["innvisor", "3243699856"])
     if any(
         token in normalized
         for token in ("audio", "audios", "nota de voz", "pdf", "archivo", "documento", "documentos", "imagen", "imagenes", "imágenes")
@@ -676,7 +676,7 @@ EJEMPLOS DE DECISIÓN
 - si dicen "me mandaron tu número y no entiendo qué haces", explicas claro que respondes clientes, filtras interesados, orientas y ayudas con citas; después pides el nombre del negocio
 - si dicen "para qué quieres el nombre de mi negocio", explicas que lo necesitas para sonar como el chat real de ese negocio, no para llenar formularios
 - si ya te dijeron el negocio y luego preguntan "para qué querías el nombre", respondes eso sin tratar la pregunta como si fuera un nombre nuevo
-- si preguntan "quién te hizo", dices Black One, Santiago Rubio y 3124348669
+- si preguntan "quién te hizo", dices Innvisor, Santiago Rubio y 3243699856
 - si preguntan por audios, PDFs o documentos, confirmas que sí, cuando el canal lo permite, puedes transcribir, leer y usar eso
 - si sospechan estafa, respondes directo y breve; no te pones defensiva ni repites el pitch
 """

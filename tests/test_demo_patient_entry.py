@@ -751,7 +751,7 @@ def test_demo_explain_name_confusion_does_not_fall_into_pitch_mode() -> None:
                     "Holaa ||| soy Conny, la que atiende los chats de negocios por aquí ||| cuéntame cómo se llama tu negocio para mostrarte cómo suena",
                     {"provider": "fake", "model": "fake"},
                 )
-            if "black one" in system:
+            if "innvisor" in system:
                 return (
                     "Hola! sea un poco confuso al principio ||| Básicamente, soy la que respondería el WhatsApp de tu negocio por ti",
                     {"provider": "fake", "model": "fake"},

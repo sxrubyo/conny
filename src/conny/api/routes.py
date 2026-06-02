@@ -1197,23 +1197,28 @@ async def api_create_token(request: Request):
     if not clinic_label:
         raise HTTPException(status_code=400, detail="clinic_label requerido")
 
+    token_type = str(body.get("token_type") or body.get("type") or "").strip().lower()
+    admin_requested = bool(body.get("admin")) or token_type in ("admin", "admin_pro", "pro")
+
     # Generar token
-    token = generate_activation_token(clinic_label)
+    token = generate_admin_activation_token(clinic_label) if admin_requested else generate_activation_token(clinic_label)
+    stored_label = f"ADMIN_PRO:{clinic_label}" if admin_requested else clinic_label
 
     # Calcular expiracion
     expires_at = (datetime.now() + timedelta(hours=Config.TOKEN_EXPIRY_HOURS)).isoformat()
 
     # Guardar en DB
-    saved = db.create_activation_token(token, clinic_label, expires_at)
+    saved = db.create_activation_token(token, stored_label, expires_at)
     if not saved:
         raise HTTPException(status_code=500, detail="No se pudo guardar el token")
 
-    log.info(f"[api] token creado para '{clinic_label}': {token[:20]}...")
+    log.info(f"[api] token creado para '{stored_label}': {token[:20]}...")
 
     return {
         "ok": True,
         "token": token,
         "clinic_label": clinic_label,
+        "token_type": "admin_pro" if admin_requested else "business_owner",
         "expires_at": expires_at,
         "instructions": f"Envia este token exacto al administrador de {clinic_label}. Expira en {Config.TOKEN_EXPIRY_HOURS}h."
     }
@@ -1277,7 +1282,7 @@ async def api_auth_register(request: Request):
     if not email or not password or not name or not token:
         raise HTTPException(status_code=400, detail="Faltan campos requeridos")
     
-    if not token.startswith("ACTV-"):
+    if not is_activation_token(token):
         raise HTTPException(status_code=400, detail="Token no valido")
         
     token_data = db.get_activation_token(token)
@@ -1304,10 +1309,11 @@ async def api_auth_register(request: Request):
     pass_hash = hash_password(password)
     try:
         with db._conn() as c:
+            role = "admin_pro" if is_admin_activation_token(token) else "owner"
             c.execute("""
                 INSERT OR REPLACE INTO admins (chat_id, email, password_hash, name, role, activated_by_token, is_active)
-                VALUES (?, ?, ?, ?, 'owner', ?, 1)
-            """, (f"owner_{secrets.token_hex(4)}", email, pass_hash, name, token))
+                VALUES (?, ?, ?, ?, ?, ?, 1)
+            """, (f"owner_{secrets.token_hex(4)}", email, pass_hash, name, role, token))
     except Exception as e:
         log.error(f"Error insertando admin: {e}")
         
@@ -1350,15 +1356,26 @@ async def api_auth_dev_register(request: Request):
     if not email or not password or not dev_token:
         raise HTTPException(status_code=400, detail="Todos los campos son requeridos")
         
-    if not Config.MASTER_API_KEY or not secrets.compare_digest(dev_token, Config.MASTER_API_KEY):
-        raise HTTPException(status_code=401, detail="Token de acceso para desarrolladores incorrecto")
+    if Config.MASTER_API_KEY and secrets.compare_digest(dev_token, Config.MASTER_API_KEY):
+        token_mode = "master"
+    else:
+        token_mode = "admin_pro"
+        if not is_admin_activation_token(dev_token):
+            raise HTTPException(status_code=401, detail="Token de acceso para desarrolladores incorrecto")
+        token_data = db.get_activation_token(dev_token)
+        if not token_data:
+            raise HTTPException(status_code=404, detail="Token Conny Pro Admin inexistente")
+        if token_data.get("used_at"):
+            raise HTTPException(status_code=400, detail="El token Conny Pro Admin ya fue usado")
         
     hashed = hash_password(password)
     success = db.create_dev_account(email, hashed)
     if not success:
         raise HTTPException(status_code=500, detail="Error al registrar la cuenta de desarrollador")
+    if token_mode == "admin_pro":
+        db.consume_activation_token(dev_token, f"dev:{email}")
         
-    return {"ok": True, "message": "Cuenta de desarrollador registrada con exito"}
+    return {"ok": True, "message": "Cuenta de desarrollador registrada con exito", "token_type": token_mode}
 
 @app.get("/api/tokens")
 async def api_list_tokens(request: Request):

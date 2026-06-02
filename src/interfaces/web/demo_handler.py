@@ -60,9 +60,16 @@ async def handle_demo_message(
         owner_confusion_or_language_signal as _owner_confusion_or_language_signal
     )
 
+    from src.interfaces.web.demo_admin_commands import (
+        _strip_jid as _strip_jid,
+        is_admin_chat as _is_admin_demo,
+        looks_like_contact_command as _looks_like_contact_cmd,
+        handle_admin_contact_command as _handle_admin_contact_cmd,
+    )
+
     # Check if optional symbols are available
     _SESSION_MANAGER_AVAILABLE = getattr(conny_module, "_SESSION_MANAGER_AVAILABLE", False)
-    _BLACKONE_PATCHES = getattr(conny_module, "_BLACKONE_PATCHES", False)
+    _INNVISOR_PATCHES = getattr(conny_module, "_INNVISOR_PATCHES", False)
     _CONNY_DOMINO_AVAILABLE = getattr(conny_module, "_CONNY_DOMINO_AVAILABLE", False)
     build_demo_domino_payload = getattr(conny_module, "build_demo_domino_payload", None)
     build_prospect_pitch_system_prompt = getattr(conny_module, "build_prospect_pitch_system_prompt", None)
@@ -141,7 +148,9 @@ async def handle_demo_message(
                 del self._demo_sessions[k]
             try:
                 with db._conn() as c:
-                    c.execute("DELETE FROM conversations WHERE chat_id=?", (chat_id,))
+                    existing = c.execute("SELECT COUNT(*) FROM conversations WHERE chat_id=?", (chat_id,)).fetchone()
+                    if existing and existing[0] <= 2:
+                        c.execute("DELETE FROM conversations WHERE chat_id=?", (chat_id,))
             except Exception: pass
         sk = f"demo_{chat_id}"
     else:
@@ -184,10 +193,11 @@ async def handle_demo_message(
                 mem = get_memory(instance_id)
                 mem.delete_session_cache(chat_id)
             except Exception: pass
-            try:
-                with db._conn() as c:
-                    c.execute("DELETE FROM conversations WHERE chat_id=?", (chat_id,))
-            except Exception: pass
+            if last_seen > 0:
+                try:
+                    with db._conn() as c:
+                        c.execute("DELETE FROM conversations WHERE chat_id=?", (chat_id,))
+                except Exception: pass
 
     history  = db.get_history(chat_id) if db else []
     now_dt   = now_col()
@@ -218,6 +228,8 @@ async def handle_demo_message(
     sim_mode_active = bool(self._demo_sessions.get(bsim_key, False))
     ready_for_customer = bool(self._demo_sessions.get(bready_key, False))
     llm_runtime_ready = self._llm_runtime_available()
+
+    is_admin_demo = _is_admin_demo(chat_id, clinic, db) if not sim_mode_active else False
 
     def _detect_demo_owner_language(raw_text: str, current_lang: str = "es") -> str:
         normalized = _normalize_conv_text(raw_text or "")
@@ -385,14 +397,14 @@ async def handle_demo_message(
 
     # ── SEND GUARD — pitch inteligente + fix de cortes ──────────────────
     _guard = None
-    if _BLACKONE_PATCHES:
+    if _INNVISOR_PATCHES:
         try:
             _guard = SendGuard(context="demo", business_name=business_name)
         except Exception:
             _guard = None
 
     # Smart handoff proactivo ANTES del LLM (prospecto quiere hablar con humano)
-    if _BLACKONE_PATCHES and _guard:
+    if _INNVISOR_PATCHES and _guard:
         try:
             _proactive = _guard.check_handoff(text, history)
             if _proactive and _SMART_HANDOFF and handoff_manager:
@@ -415,8 +427,8 @@ async def handle_demo_message(
             }
         )
         _is_first_demo_turn = not any(m.get("role") == "assistant" for m in history)
-        # Fix Black One / BlackBoss + cortes ANTES de procesar
-        if _BLACKONE_PATCHES:
+        # Fix Innvisor / BlackBoss + cortes ANTES de procesar
+        if _INNVISOR_PATCHES:
             try:
                 if _guard and business_name:
                     _guard.business_name = business_name
@@ -584,7 +596,7 @@ async def handle_demo_message(
     _pre_text_low = text.lower().strip()
 
     # ── PITCH INTELIGENTE — prospecto B2B confundido ─────────────────────
-    if _BLACKONE_PATCHES:
+    if _INNVISOR_PATCHES:
         try:
             _pitch_blockers = (
                 "para que", "para qué", "por que", "por qué",
@@ -798,11 +810,89 @@ async def handle_demo_message(
             log.error(f"[demo] llm error: {e}")
             return None
 
+    # ── Admin: beta demo mode toggle — antes de intercept para dejar pasar ──
+    _beta_key = sk + "_beta_demo"
+    _beta_active = bool(self._demo_sessions.get(_beta_key, False))
+    if is_admin_demo:
+        _gen_beta = _get_demo_engine() or llm_engine
+        if _gen_beta:
+            if _beta_active:
+                try:
+                    r, _ = await _gen_beta.complete(
+                        [{"role": "system", "content": "Responde solo SI o NO. El admin quiere SALIR del modo demo beta y volver a modo admin?"},
+                         {"role": "user", "content": text}],
+                        model_tier="fast", temperature=0.1, max_tokens=10,
+                    )
+                    if r and r.strip().upper() == "SI":
+                        self._demo_sessions.pop(_beta_key, None)
+                        _beta_active = False
+                except Exception:
+                    pass
+            else:
+                try:
+                    r, _ = await _gen_beta.complete(
+                        [{"role": "system", "content": "Responde solo SI o NO. El admin quiere ACTIVAR el modo demo beta para que Conny lo trate como un lead normal?"},
+                         {"role": "user", "content": text}],
+                        model_tier="fast", temperature=0.1, max_tokens=10,
+                    )
+                    if r and r.strip().upper() == "SI":
+                        self._demo_sessions[_beta_key] = True
+                        _beta_active = True
+                except Exception:
+                    pass
+
+    # ── Admin: intercept ALL admin messages ─────────────────────────────────
+    if is_admin_demo and not _beta_active:
+        log.info(f"[demo] Admin message from {chat_id}: {text[:80]}")
+        _save("user", text)
+        _raw_admin = _strip_jid(chat_id)
+        _admin_name = ""
+        try:
+            _admin_rec = db.get_admin(chat_id) or db.get_admin(_raw_admin)
+            if _admin_rec:
+                _admin_name = _admin_rec.get("name", "") or ""
+        except Exception:
+            pass
+
+        if _looks_like_contact_cmd(text):
+            result = await _handle_admin_contact_cmd(
+                self, chat_id, text, clinic, db,
+                llm_engine=llm_engine,
+                admin_name=_admin_name,
+                demo_llm=_llm,
+            )
+            if result:
+                _save("assistant", " ||| ".join(result))
+                return result
+            return []
+
+        # General admin command: LLM conversation
+        try:
+            sys_ctx = "Eres Conny."
+            if _admin_name:
+                sys_ctx += f" Le estás respondiendo a {_admin_name}, el admin."
+            sys_ctx += " Respondé en 2 burbujas cortas separadas por |||."
+            gen_eng = _get_demo_engine() or llm_engine
+            if gen_eng:
+                r, _ = await gen_eng.complete(
+                    [{"role": "system", "content": sys_ctx},
+                     {"role": "user", "content": text}],
+                    model_tier="fast", temperature=0.82, max_tokens=400,
+                )
+                if r:
+                    parts = [p.strip() for p in r.split("|||") if p.strip()]
+                    if parts:
+                        _save("assistant", " ||| ".join(parts[:2]))
+                        return parts[:2]
+        except Exception:
+            pass
+        return []
+
     async def _llm_classify_business_name(raw_text: str) -> Tuple[bool, Optional[str]]:
         return await llm_classify_business_name(raw_text, _get_demo_engine())
 
     async def _llm_conv_pitch(temp=0.85, max_t=8192, recent_limit=12):
-        """LLM con el pitch de Black One para prospectos confundidos."""
+        """LLM con el pitch de Innvisor para prospectos confundidos."""
         try:
             pitch_sys = build_prospect_pitch_system_prompt(business_name)
         except Exception:
@@ -912,8 +1002,8 @@ async def handle_demo_message(
             }
         )
         _is_first_demo_turn = not any(m.get("role") == "assistant" for m in history)
-        # ── BLACK ONE: fix Black One + cortes antes de procesar ──────────
-        if _BLACKONE_PATCHES:
+        # ── INNVISOR: fix Innvisor + cortes antes de procesar ──────────
+        if _INNVISOR_PATCHES:
             try:
                 if _guard and business_name:
                     _guard.business_name = business_name
@@ -1065,7 +1155,7 @@ async def handle_demo_message(
             detail_tokens = ("chat", "cliente", "demo", "tono", "responder", "whatsapp")
             return not any(token in lowered_response for token in detail_tokens)
         if any(token in lowered_user for token in ("quien te hizo", "quién te hizo", "como tenerte", "cómo tenerte", "quien te creo", "quién te creó")):
-            return "black one" not in lowered_response or "3124348669" not in lowered_response
+            return "innvisor" not in lowered_response or "3243699856" not in lowered_response
         if any(token in lowered_user for token in ("audio", "audios", "nota de voz", "pdf", "archivo", "documento", "imagen")):
             return not any(token in lowered_response for token in ("audio", "pdf", "documento", "imagen", "transcrib"))
         if any(token in lowered_user for token in ("me mandaron tu numero", "me mandaron tu número", "me pasaron tu numero", "me pasaron tu número", "que haces exactamente", "qué haces exactamente", "no entiendo que haces", "no entiendo qué haces")):
@@ -1344,11 +1434,11 @@ CÓMO SUENAS: como una persona real de Medellín escribiendo en WhatsApp.
 - Si te hablan en inglés, respondes en inglés perfecto, súper casual y natural de WhatsApp.
 
 TU ESTRATEGIA DE DEMO (no la menciones, solo ejecútala):
-1. PRIMERO: Si te saludan por primera vez, haz una introducción completa y amable que no confunda a las personas que llegan referidas (ellos a veces no saben qué eres). Explica claramente de qué trata todo esto ANTES de pedir nada. Ej. "¡Hola! soy Conny 👋 Me crearon en Kimika para responder los chats de WhatsApp de los negocios de forma automática, así los dueños descansan. ||| Te pasaron mi número para que te haga una demostración en vivo de cómo trabajaría para tu empresa. ||| Cuéntame, ¿cómo se llama tu negocio o de qué se trata para personalizar la demo?". ¡NUNCA pidas el negocio sin explicar qué eres y para qué estás aquí!
+1. PRIMERO: Si te saludan por primera vez, haz una introducción completa y amable que no confunda a las personas que llegan referidas (ellos a veces no saben qué eres). Explica claramente de qué trata todo esto ANTES de pedir nada. Ej. "¡Hola! soy Conny 👋 Me crearon en Innvisor para responder los chats de WhatsApp de los negocios de forma automática, así los dueños descansan. ||| Te pasaron mi número para que te haga una demostración en vivo de cómo trabajaría para tu empresa. ||| Cuéntame, ¿cómo se llama tu negocio o de qué se trata para personalizar la demo?". ¡NUNCA pidas el negocio sin explicar qué eres y para qué estás aquí!
 2. SEGUNDO: cuando te lo den, busca info del negocio y entra en personaje.
 3. TERCERO: invita a que te escriban como si fueran un cliente real.
 4. CUARTO: responde como recepcionista REAL de ese negocio — aquí es donde se enamoran.
-5. QUINTO: después de 2-3 simulaciones, cierra: "si te gustó, Santiago te cuenta los planes: 3124348669"
+5. QUINTO: después de 2-3 simulaciones, cierra: "si te gustó, Santiago te cuenta los planes: 3243699856"
 
 REGLAS DE FORMATO (IMPORTANTÍSIMAS):
 - Escribe de manera ultra natural y fluida, como si chatearas rápido con un amigo.
@@ -1391,7 +1481,7 @@ IDENTIDAD — NUNCA SALGAS DE ESTE PERSONAJE:
 - Cuando no tienes contexto de negocio todavía, igual respondes con seguridad y pides el nombre al final, una sola vez, de forma simple.
 
 REGLAS EXTRA DE ESTA DEMO:
-- si preguntan quién te hizo, quién te creó o cómo tener esto: responde que te hizo Black One. Contacto: 3124348669. Persona: Santiago Rubio
+- si preguntan quién te hizo, quién te creó o cómo tener esto: responde que te hizo Innvisor. Contacto: 3243699856. Persona: Santiago Rubio
 - si preguntan si aceptas audios, notas de voz, imágenes, PDFs o documentos: responde que sí, cuando el canal lo soporte, puedes transcribir, leer y usar ese contenido
 - si te hacen una pregunta general fuera de contexto, respóndela bien primero y luego vuelve suave a la demo si hace sentido
 - si sospechan estafa o no quieren dar el nombre del negocio, baja la guardia y explica para qué lo pides sin sonar defensiva
@@ -1642,7 +1732,7 @@ REGLAS ABSOLUTAS - NO ROMPER NUNCA:
 
 RESPUESTAS PARA PREGUNTAS COMUNES:
 - Cuánto cuesta → "El precio lo define el especialista en la valoración. Agenda tu cita y ahí te dicen"
-- Cómo te contrato → "Para eso puedes hablar con Santiago al 3124348669 - él te explica todo"
+- Cómo te contrato → "Para eso puedes hablar con Santiago al 3243699856 - él te explica todo"
 - Qué servicios → "Tenemos variedad de servicios. Cuál te interesa?"
 
 TONO: Cálido, profesional, como receptionistareal.
@@ -1695,9 +1785,9 @@ TONO: Cálido, profesional, como receptionistareal.
         and not _force_business_bind
         and not is_name_candidate
     ):
-        # BLACK ONE: Si el prospecto está confundido y pregunta qué hace Conny,
+        # INNVISOR: Si el prospecto está confundido y pregunta qué hace Conny,
         # usar el pitch inteligente en vez del onboarding genérico
-        if _BLACKONE_PATCHES and self._demo_sessions.get(sk + "_pitch_mode"):
+        if _INNVISOR_PATCHES and self._demo_sessions.get(sk + "_pitch_mode"):
             try:
                 _pitch_r, _pitch_had_output = await _demo_llm_conv_quality_chain(
                     build_prospect_pitch_system_prompt(business_name),
@@ -2319,7 +2409,7 @@ Máximo 1 oración por burbuja. Natural y seguro."""
 
     # ── PITCH MODE: preguntas de prospecto B2B ─────────────────────────────────────────
     # Cuando el usuario pregunta sobre el servicio/pitch de Conny - DETECTAR ANTES
-    if _BLACKONE_PATCHES and not business_name:
+    if _INNVISOR_PATCHES and not business_name:
         _prospect_service_questions = [
             "que harias", "qué harías", "que harias en", "qué harías en",
             "que haces", "qué haces",
@@ -2804,9 +2894,9 @@ SI QUIEREN AGENDAR
 
 IDENTIDAD Y CREADOR — REGLA DURA
 - si preguntan quién te hizo, quién te creó, cómo conseguirte o de qué empresa eres: di exactamente esto
-  → "me hizo Black One, una empresa de software y gobernanza de agentes de IA ||| la creó Santiago Rubio — contacto: 3124348669"
+  → "me hizo Innvisor, una empresa de software y gobernanza de agentes de IA ||| la creó Santiago Rubio — contacto: 3243699856"
 - NUNCA digas "Google", "Anthropic", "OpenAI" ni ningún proveedor de LLM como tu creador
-- tu creador es Black One / Santiago Rubio, punto
+- tu creador es Innvisor / Santiago Rubio, punto
 """
         customer_history = sim_history[-8:]
         customer_had_output = False
@@ -2823,15 +2913,15 @@ IDENTIDAD Y CREADOR — REGLA DURA
         )
         if any(sig in _text_low_sim for sig in _creator_signals):
             customer_reply = (
-                "me hizo Black One, una empresa de software y gobernanza de agentes de IA"
-                " ||| la creó Santiago Rubio — si quieres algo así para tu negocio, el contacto es 3124348669"
+                "me hizo Innvisor, una empresa de software y gobernanza de agentes de IA"
+                " ||| la creó Santiago Rubio — si quieres algo así para tu negocio, el contacto es 3243699856"
             )
             # FIX BUG 5: restaurar history ANTES de llamar a _send.
             # history fue cambiado a customer_history (últimos 8 mensajes) líneas arriba.
             # Si retornamos sin restaurar, _send calcula _is_first_demo_turn con el
             # historial truncado, lo que puede hacer que should_normalize_first_turn=True
             # y pase la respuesta del creador por _normalize_first_contact_response,
-            # modificando o corrompiendo "me hizo Black One...".
+            # modificando o corrompiendo "me hizo Innvisor...".
             # El finally: history = original_history NUNCA corre en esta ruta.
             history = original_history
             return _send(customer_reply)
@@ -2850,7 +2940,7 @@ IDENTIDAD Y CREADOR — REGLA DURA
 - si preguntan por cita o siguiente paso, muévelos directo hacia el agendado
 - si expresan miedo, valídalo y responde con seguridad
 - si preguntan si entiendes audios, notas de voz, PDFs, imágenes o documentos: responde que sí, cuando el canal lo permite, puedes transcribirlos o leerlos
-- si preguntan quién te hizo o quién te creó: di "me hizo Black One, una empresa de software y gobernanza de agentes de IA ||| la creó Santiago Rubio — contacto: 3124348669"
+- si preguntan quién te hizo o quién te creó: di "me hizo Innvisor, una empresa de software y gobernanza de agentes de IA ||| la creó Santiago Rubio — contacto: 3243699856"
 - NUNCA digas que te hizo Google, Anthropic, OpenAI ni ningún proveedor de IA
 - si preguntan por un servicio (botox, relleno, etc.): confirma que sí lo manejan y pregunta qué quieren saber
 """,
@@ -3414,7 +3504,7 @@ OBJECIONES
 "en otro lado" → "claro ||| nosotros somos fabricantes directos, eso cambia precio y garantía"
 "no sé si me quede" → "eso lo vemos en persona — traes la medida y te lo mostramos en el espacio"
 "eres un bot?" → "soy la asesora de {business_name}, trabajo por acá todo el día"
-"cómo tener esto" / "quién te hizo" → "me hizo Black One ||| si quieres algo así, el contacto es 3124348669 con Santiago Rubio"
+"cómo tener esto" / "quién te hizo" → "me hizo Innvisor ||| si quieres algo así, el contacto es 3243699856 con Santiago Rubio"
 - si preguntan si aceptas audios, notas de voz, imágenes, PDFs o documentos: responde que sí, cuando el canal lo permite, puedes transcribir, leer y usar ese contenido
 - si preguntan algo general o fuera de contexto: respóndelo bien primero y luego vuelve suave al negocio solo si hace sentido
 {v8_build_quality_system_prompt_addon(chat_id=chat_id, archetype="amigable", history=history) if anti_robot_filter else ""}

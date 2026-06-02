@@ -329,7 +329,7 @@ def patch_demo_send(
     """
     Retorna un wrapper de _send que aplica:
       1. guard_response (fix de cortes)
-      2. fix_creator_in_response (Black One, no BlackBoss)
+      2. fix_creator_in_response (Innvisor, no BlackBoss)
 
     Usar en _handle_demo_message así:
         def _send(r): ...  # definición original
@@ -348,7 +348,7 @@ def patch_demo_send(
         def fix_creator_in_response(r): return r  # type: ignore
 
     def guarded_send(r: str) -> Any:
-        # 1. Fix Black One / BlackBoss
+        # 1. Fix Innvisor / BlackBoss
         if _has_pitch_upgrade:
             r = fix_creator_in_response(r)
 
@@ -411,7 +411,7 @@ def check_proactive_handoff(user_msg: str, history: List[Dict[str, Any]]) -> Opt
                 "urgency": "high",
                 "suggested_reply": (
                     "claro, te paso con Santiago directamente ||| "
-                    "su contacto es 3124348669 — él te da la propuesta según tu negocio"
+                    "su contacto es 3243699856 — él te da la propuesta según tu negocio"
                 ),
             }
 
@@ -425,7 +425,7 @@ def check_proactive_handoff(user_msg: str, history: List[Dict[str, Any]]) -> Opt
                     "suggested_reply": (
                         "entendido, sin problema ||| "
                         "si en algún momento quieres verme en acción, "
-                        "el contacto de Black One es 3124348669"
+                        "el contacto de Innvisor es 3243699856"
                     ),
                 }
 

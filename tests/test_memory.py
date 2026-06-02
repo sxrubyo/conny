@@ -38,7 +38,7 @@ def test_entity_extraction():
     try:
         engine = ConnyMemoryEngine(base_dir=tmpdir)
         messages = [
-            {"role": "user", "content": "Me llamo Santiago, mi telefono es 3124348669 y mi correo es santiago@test.com"},
+            {"role": "user", "content": "Me llamo Santiago, mi telefono es 3243699856 y mi correo es santiago@test.com"},
             {"role": "assistant", "content": "Perfecto Santiago, te agendo"},
         ]
         _run(engine.ingest_conversation("test_instance", "chat_002", messages))
@@ -49,7 +49,7 @@ def test_entity_extraction():
         ent_file = Path(tmpdir) / "test_instance" / "semantic" / "entities.json"
         assert ent_file.exists()
         entities = json.loads(ent_file.read_text())
-        assert "3124348669" in entities.get("phones", {})
+        assert "3243699856" in entities.get("phones", {})
         assert "santiago@test.com" in entities.get("emails", {})
     finally:
         shutil.rmtree(tmpdir, ignore_errors=True)

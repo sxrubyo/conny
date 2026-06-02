@@ -34,6 +34,68 @@ def truncate_block(text: str, max_chars: int) -> str:
     return f"{clipped}..."
 
 
+def build_business_context(clinic: dict, db, instance_path: str = None) -> str:
+    """
+    Construye el contexto del negocio para el system prompt.
+    Lee de DB + archivos de knowledge si existen.
+    """
+    parts = []
+    
+    name = clinic.get("name", "")
+    if name:
+        parts.append(f"Negocio: {name}")
+    
+    services = clinic.get("services", "")
+    if isinstance(services, list):
+        services = ", ".join(services)
+    if services:
+        parts.append(f"Servicios: {services}")
+    
+    prices = clinic.get("prices", "") or clinic.get("pricing", "")
+    if isinstance(prices, dict):
+        prices = ", ".join(f"{k}: {v}" for k, v in prices.items())
+    if prices:
+        parts.append(f"Precios: {prices}")
+    
+    schedule = clinic.get("schedule", "") or clinic.get("hours", "")
+    if isinstance(schedule, dict):
+        schedule = ", ".join(f"{k}: {v}" for k, v in schedule.items())
+    if schedule:
+        parts.append(f"Horarios: {schedule}")
+    
+    address = clinic.get("address", "") or clinic.get("location", "")
+    if address:
+        parts.append(f"Ubicación: {address}")
+    
+    # Leer archivos de knowledge si existen
+    if instance_path:
+        import os
+        from pathlib import Path
+        # Intentar varias rutas comunes para knowledge
+        paths_to_try = [
+            Path(instance_path) / "knowledge",
+            Path(f"instances/{instance_path}/knowledge"),
+            Path(f"/home/ubuntu/conny/instances/{instance_path}/knowledge"),
+            Path(f"knowledge/{instance_path}")
+        ]
+        
+        for knowledge_dir in paths_to_try:
+            if knowledge_dir.exists():
+                for md_file in sorted(knowledge_dir.glob("*.md"))[:5]:  # max 5 archivos
+                    try:
+                        content = md_file.read_text(encoding="utf-8").strip()
+                        if content:
+                            parts.append(f"\n--- {md_file.stem} ---\n{content[:1000]}")
+                    except Exception:
+                        pass
+                break # Si encontramos uno que existe, paramos
+    
+    if not parts:
+        return "El negocio no ha completado su configuración todavía."
+    
+    return "\n".join(parts)
+
+
 def build_compact_examples(examples: str, max_chars: int = 650, max_lines: int = 16) -> str:
     if not examples:
         return ""

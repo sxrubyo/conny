@@ -48,29 +48,25 @@ def _strip_leading_greeting(text: str) -> str:
 
 
 def _first_contact_intro(clinic: Dict[str, Any], agent_name: str = "Conny") -> str:
-    clinic_name = (clinic.get("name") or "").strip()
+    # ── Override del Admin ──────────────────────────────────────────────
+    manual = clinic.get("custom_greeting_1")
+    if manual:
+        return manual
+        
+    clinic_name = str(clinic.get("name") or "").strip()
     if clinic_name:
-        return f"Hola! Soy {agent_name} de {clinic_name}."
-    return f"Hola! Soy {agent_name}."
+        return f"Hola, soy {agent_name} de {clinic_name}"
+    return f"Hola, soy {agent_name}"
 
 
 def _first_contact_welcome_line(clinic: Dict[str, Any], user_msg: str) -> str:
-    clinic_name = (clinic.get("name") or "").strip()
-    normalized = _normalize_conv_text(user_msg or "")
-    if "buenas tardes" in normalized:
-        opening = "Hola, buenas tardes"
-    elif "buenos dias" in normalized:
-        opening = "Hola, buenos días"
-    elif "buenas noches" in normalized:
-        opening = "Hola, buenas noches"
-    elif "buenas" in normalized:
-        opening = "Hola, buenas"
-    else:
-        opening = "Hola"
-    
-    if clinic_name:
-        return f"{opening}! Bienvenido a {clinic_name}."
-    return f"{opening}! Cómo estás?"
+    # ── Override del Admin ──────────────────────────────────────────────
+    manual = clinic.get("custom_greeting_2")
+    if manual:
+        return manual
+
+    # ── Saludo por Defecto (Upgrade) ───────────────────────────────────
+    return "Gracias por contactarte con nosotros como te puedo ayudar??"
 
 
 def _first_contact_identity_line(clinic: Dict[str, Any], agent_name: str = "Conny") -> str:

@@ -152,7 +152,7 @@ const commandGroups = [
 function printBanner() {
   console.log();
   console.log(chalk.hex('#EC4899').bold('  conny-agent') + 
-              chalk.hex('#8B5CF6').dim(` · v${packageVersion} · kimika.ai`));
+              chalk.hex('#8B5CF6').dim(` · v${packageVersion} · innvisor.ai`));
   console.log(chalk.hex('#444')('  ─────────────────────────'));
   console.log();
 }

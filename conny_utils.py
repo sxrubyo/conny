@@ -6,12 +6,21 @@ import re
 from typing import Any, Dict, List, Optional
 
 ACTIVATION_PREFIX = "ACTV-"
+ADMIN_ACTIVATION_PREFIX = "ADMN-"
 INVITE_PREFIX = "JINV-"
 
 def is_activation_token(text: str) -> bool:
     """Detecta si el mensaje es un token de activacion."""
     t = text.strip().upper()
-    return t.startswith(ACTIVATION_PREFIX) and len(t) >= 30
+    return (
+        (t.startswith(ACTIVATION_PREFIX) and len(t) >= 30)
+        or is_admin_activation_token(t)
+    )
+
+def is_admin_activation_token(text: str) -> bool:
+    """Detecta tokens de Conny Pro Admin."""
+    t = text.strip().upper()
+    return t.startswith(ADMIN_ACTIVATION_PREFIX) and len(t) >= 30
 
 def is_invite_token(text: str) -> bool:
     """Detecta si el mensaje es un token de invitacion."""
@@ -24,11 +33,20 @@ def generate_activation_token(label: str) -> str:
     Formato: ACTV-[label_sanitizado]-[32_chars_hex]
     """
     import string
-    sanitized = re.sub(r'[^a-zA-Z0-9]', '', label.lower())[:10]
+    sanitized = re.sub(r'[^a-zA-Z0-9]', '', label.lower())[:10].upper()
     if not sanitized:
-        sanitized = "generic"
+        sanitized = "GENERIC"
     entropy = secrets.token_hex(16).upper()
     return f"{ACTIVATION_PREFIX}{sanitized}-{entropy}"
+
+def generate_admin_activation_token(label: str) -> str:
+    """
+    Genera un token de activacion para Conny Pro Admin.
+    Este token activa una cuenta operadora, no una conversacion de cliente.
+    """
+    sanitized = (re.sub(r'[^a-zA-Z0-9]', '', label.lower())[:10] or "admin").upper()
+    entropy = secrets.token_hex(18).upper()
+    return f"{ADMIN_ACTIVATION_PREFIX}{sanitized}-{entropy}"
 
 def hash_password(password: str) -> str:
     """Hash de contrasena con PBKDF2 + salt."""

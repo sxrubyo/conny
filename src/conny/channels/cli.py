@@ -178,7 +178,7 @@ except ImportError:
 # ══════════════════════════════════════════════════════════════════════════════
 # CONFIGURACIÓN
 # ══════════════════════════════════════════════════════════════════════════════
-VERSION = "9.7.6"
+VERSION = "9.8.0"
 CONNY_HOME = os.getenv("CONNY_HOME", str(Path.home() / ".conny"))
 CONNY_DIR = os.getenv("CONNY_DIR", str(Path(__file__).resolve().parent))
 INSTANCES_DIR = os.getenv("INSTANCES_DIR", str(Path.home() / "conny-instances"))
@@ -5149,6 +5149,12 @@ def cmd_demo(args):
 
         ev_path = f"{inst.dir}/.env"
         update_env_key(ev_path, "DEMO_MODE", "false")
+        # Also update project root .env for PM2-managed process
+        if inst.is_base:
+            try:
+                update_env_key("/home/ubuntu/conny/.env", "DEMO_MODE", "false")
+            except Exception:
+                pass
         pm2_name = "conny" if inst.is_base else f"conny-{inst.name}"
         with Spinner("Desactivando modo demo...") as sp:
             pm2("restart", pm2_name)
@@ -5253,6 +5259,11 @@ def cmd_demo(args):
         update_env_key(ev_path, "DEMO_BUSINESS_NAME", business_name)
         update_env_key(ev_path, "DEMO_SECTOR",        demo_sector)
         update_env_key(ev_path, "DEMO_SESSION_TTL",   str(ttl_min * 60))
+        if inst.is_base:
+            try:
+                update_env_key("/home/ubuntu/conny/.env", "DEMO_MODE", "true")
+            except Exception:
+                pass
         load_env.cache_clear()  # Fix Bug 4: forzar lectura fresca del .env
         sp.finish("Configuración aplicada")
 
@@ -6399,11 +6410,15 @@ def cmd_token(args):
     
     Uso:
       conny token                    → genera para la instancia base
+      conny token --admin            → genera token Conny Pro Admin
       conny token 1                  → genera para la instancia 1
       conny token "Clinica Demo"     → genera con ese nombre
       conny token all                → genera para todas las instancias
     """
     name = getattr(args, 'name', '') or getattr(args, 'subcommand', '') or ''
+    admin_mode = bool(getattr(args, "admin", False)) or name.lower() in ("--admin", "admin", "pro")
+    if name.lower() in ("--admin", "admin", "pro"):
+        name = ""
 
     def _gen_token(inst, label_override=""):
         import sqlite3
@@ -6414,11 +6429,11 @@ def cmd_token(args):
         label = label_override or inst.label
         
         # Generar token
-        sanitized = re.sub(r'[^a-zA-Z0-9]', '', label.lower())[:10]
+        sanitized = re.sub(r'[^a-zA-Z0-9]', '', label.lower())[:10].upper()
         if not sanitized:
-            sanitized = "generic"
-        entropy = secrets.token_hex(16).upper()
-        token = f"ACTV-{sanitized}-{entropy}"
+            sanitized = "GENERIC"
+        entropy = secrets.token_hex(18 if admin_mode else 16).upper()
+        token = f"{'ADMN' if admin_mode else 'ACTV'}-{sanitized}-{entropy}"
         
         expires_at = (datetime.now() + timedelta(hours=72)).isoformat()
         
@@ -6435,18 +6450,23 @@ def cmd_token(args):
                     created_at TEXT NOT NULL
                 )
             """)
+            stored_label = f"ADMIN_PRO:{label}" if admin_mode else label
             cur.execute("""
-                INSERT INTO activation_tokens 
+                INSERT INTO activation_tokens
                 (token, clinic_label, expires_at, created_at)
                 VALUES (?, ?, ?, ?)
-            """, (token, label, expires_at, datetime.now().isoformat()))
+            """, (token, stored_label, expires_at, datetime.now().isoformat()))
             conn.commit()
             conn.close()
             
-            ok(f"Token generado offline para: {q(C.YLW, label)}")
+            kind = "Conny Pro Admin" if admin_mode else "activación"
+            ok(f"Token {kind} generado offline para: {q(C.YLW, label)}")
             print(f"\n    {q(C.YLW, token, bold=True)}\n")
             info(f"Expira: {expires_at[:16]}")
-            info("Envíalo al admin — lo usará para desbloquear el Dashboard o en WhatsApp")
+            if admin_mode:
+                info("Activa el modo operador: el admin lo escribe en WhatsApp/Telegram para tomar control de la instancia.")
+            else:
+                info("Envíalo al admin — lo usará para desbloquear el Dashboard o en WhatsApp")
         except Exception as e:
             fail(f"No se pudo generar offline: {e}")
 
@@ -11710,6 +11730,7 @@ def main():
     parser.add_argument("--quiet", "-q", action="store_true")
     parser.add_argument("--json", "-j", action="store_true", help="Output JSON")
     parser.add_argument("--auto", "-y", action="store_true", help="Auto-confirm")
+    parser.add_argument("--admin", action="store_true", help="Genera token Conny Pro Admin")
     parser.add_argument("--dry-run", "-n", action="store_true", dest="dry_run",
                         help="Preview sin ejecutar (sync)")
     parser.add_argument("--no-restart", action="store_true", dest="no_restart",

@@ -21,6 +21,11 @@ class ConnyUltra:
         self.self_improvement = None
         self.admin_learning: AdminLearningEngine = None
         self.simulator: SimulationEngine = None
+        
+        # Auto-evolución (v10)
+        self._instance_id = os.getenv("INSTANCE_ID", "default")
+        from conny_core.evolution import EvolutionManager
+        self.evolution = EvolutionManager(self._instance_id, db)
         # ── Atributos base (antes de managers que los usan) ──────────────────────
         self._demo_sessions: Dict[str, float] = {}
         self._emoji_chats_off: set = set()
@@ -854,25 +859,40 @@ class ConnyUltra:
                 return await self._handle_admin_message(chat_id, text, clinic, is_audio=is_audio, attachments=attachments)
             
             if not is_setup_done:
-                log.warning(f"[Router] Remitente {chat_id} no es admin y la instancia no está configurada aún. Ruteando a Setup.")
-                return await self._handle_admin_message(chat_id, text, clinic, is_audio=is_audio, attachments=attachments)
+                log.warning(
+                    f"[Router] Remitente {chat_id} no es admin y la instancia no está configurada aún. "
+                    "Bloqueando setup hasta token de activación."
+                )
+                return ["Ingresa tu Token de Activación para comenzar."]
 
             # Ruteo normal para paciente en producción
             log.info(f"[Router] Remitente {chat_id} clasificado como Paciente. Ruteando a flujo de producción.")
             history = db.get_history(chat_id)
             conv_state = db.get_conversation_state(chat_id)
-            return await self._process_patient_message(chat_id, text, clinic, history, conv_state, is_audio=is_audio, attachments=attachments)
+            result = await self._process_patient_message(chat_id, text, clinic, history, conv_state, is_audio=is_audio, attachments=attachments)
+            if result:
+                return result
 
         except Exception as e:
-            log.error(f"Error processing message from {chat_id}: {e}", exc_info=True)
+            log.warning(f"[Router] fallback LLM para {chat_id}: {e}")
             db.record_metric("error", "message_processing", 1, {"error": str(e)})
 
             # Recuperación inteligente: intentar respuesta LLM directa como fallback
             try:
                 if llm_engine and text and text.strip():
                     clinic = db.get_clinic()
-                    biz_name = clinic.get("name", "") if clinic else ""
-                    fallback_sys = f"Eres Conny, recepcionista virtual{' de ' + biz_name if biz_name else ''}. Responde de forma breve, cálida y natural. Si no tienes contexto suficiente, pide al usuario que te cuente más."
+                    biz_name = clinic.get("name", "Innvisor") if clinic else "Innvisor"
+                    fallback_sys = (
+                        f"sos conny. trabajas para {biz_name}. hablas corto, natural, como un ser humano. "
+                        "minusculas, sin emojis, sin ¿? sin jotas. "
+                        "dividi el mensaje en burbujas separadas por ||| "
+                        "si no sabes algo preguntas con ganas de aprender. "
+                        "si te piden info que no tenes pedi enlaces o pdfs. "
+                        "aprendes el nombre del admin y lo recordas siempre. "
+                        "nunca digas el nombre del negocio a menos que el contexto lo pida. "
+                        "nada de 'en que puedo ayudarte' ni 'recepcionista virtual'. "
+                        "directo, util, humano."
+                    )
                     fallback_r, _ = await llm_engine.complete(
                         [{"role": "system", "content": fallback_sys}, {"role": "user", "content": text}],
                         model_tier="fast", temperature=0.8, max_tokens=200, use_cache=False,
@@ -882,14 +902,36 @@ class ConnyUltra:
             except Exception:
                 pass
 
-            # Último recurso: respuesta genérica humana (nunca decir "cruce de cables")
-            import random as _r
-            _fallbacks = [
-                "cuéntame un poco más, no te alcancé a entender bien",
-                "perdona, me perdí un momento ||| qué me decías?",
-                "disculpa, no te pillé bien ||| me repites?",
-            ]
-            return [_r.choice(_fallbacks)]
+            return []
+    async def _process_patient_message(self, chat_id: str, text: str, clinic: Dict,
+                                        history: List, conv_state: Any,
+                                        is_audio: bool = False,
+                                        attachments: Optional[List[Dict[str, Any]]] = None) -> List[str]:
+        """Procesa un mensaje de paciente delegando al gestor de producción."""
+        try:
+            if self.production_mgr:
+                return await self.production_mgr.handle(
+                    chat_id, text, clinic, history, conv_state
+                )
+        except Exception as e:
+            log.warning(f"[_process_patient_message] error delegando a production_mgr: {e}")
+
+        # Fallback de emergencia si production_mgr falla
+        try:
+            _gen = getattr(getattr(self, "generator", None), "llm", None) or getattr(self, "llm_engine", None)
+            if _gen and text and text.strip():
+                r, _ = await _gen.complete(
+                    [{"role": "system",
+                      "content": "sos conny. hablas corto, natural, como un ser humano. minusculas, sin emojis, sin ¿? sin jotas. dividi el mensaje en burbujas separadas por ||| si no sabes algo preguntas con ganas de aprender. si te piden info que no tenes pedi enlaces o pdfs. aprendes el nombre del admin y lo recordas siempre. nunca digas el nombre del negocio a menos que el contexto lo pida. nada de 'en que puedo ayudarte' ni 'recepcionista virtual'. directo, util, humano."},
+                     {"role": "user", "content": text}],
+                    model_tier="fast", temperature=0.8, max_tokens=200, use_cache=False,
+                )
+                if r and r.strip():
+                    return self._split_bubbles(r, chat_id=chat_id)
+        except Exception:
+            pass
+        return []
+
     async def _handle_demo_message(self, chat_id: str, text: str,
                                     clinic: Dict,
                                     attachments: Optional[List[Dict[str, Any]]] = None) -> List[str]:
@@ -899,6 +941,26 @@ class ConnyUltra:
     async def _handle_admin_message(self, chat_id: str, text: str, clinic: Dict,
                                    is_audio: bool = False,
                                    attachments: Optional[List[Dict[str, Any]]] = None) -> List[str]:
+        # 0. Actualizar perfil del admin (Namespace admin_profile)
+        try:
+            profile = db.get_admin_profile(chat_id)
+            
+            # Registrar hora activa
+            from datetime import datetime
+            now_hour = datetime.now().hour
+            hours = profile.get("active_hours", {})
+            hours[str(now_hour)] = hours.get(str(now_hour), 0) + 1
+            
+            # Registrar comando frecuente si aplica
+            cmd_freq = profile.get("frequent_commands", {})
+            if text.startswith("/"):
+                cmd = text.split()[0].lower()
+                cmd_freq[cmd] = cmd_freq.get(cmd, 0) + 1
+                
+            db.update_admin_profile(chat_id, active_hours=hours, frequent_commands=cmd_freq)
+        except Exception as e:
+            log.warning(f"[admin_profile] error updating profile: {e}")
+
         # 1. Ingest assets if there are attachments
         if attachments:
             assets_res = await self._admin_ingest_assets(chat_id, text, attachments, clinic)
@@ -928,28 +990,20 @@ class ConnyUltra:
                 if is_authenticated_admin:
                     return await self._handle_setup(chat_id, text, clinic)
                 else:
-                    # Paciente que llega antes de que el admin configure la clinica
-                    # No revelar nada del sistema, responder neutral
-                    clinic_name = clinic.get("name") or ""
-                    if clinic_name:
-                        return [f"Hola. En este momento estamos terminando de configurar el sistema. Vuelve pronto."]
-                    else:
-                        if db.list_admins():
-                            return ["Hola. En este momento no estamos disponibles. Vuelve pronto."]
-                        else:
-                            sector = clinic.get("sector", "otro")
-                            sector_name = "negocio"
-                            try:
-                                sector_name = SECTORS.get(sector, SECTORS["otro"]).name if sector else "negocio"
-                            except Exception:
-                                pass
-                            clinic_name = clinic.get("name") or f"{sector_name} en proceso"
-                            return [
-                                f"¡Hola! 👋 Bienvenido a {clinic_name}.",
-                                "Soy Conny, la recepcionista virtual.",
-                                "Todavía estoy aprendiendo cómo funciona tu negocio — para eso necesito que me cuentes un poco.",
-                                "Cuando estés listo, escribe /configurar y empezamos. Si quieres probarme primero, escribe algo y te respondo como si ya estuviera configurada.",
-                            ]
+                    # Paciente sin token — pedir activación por LLM o hardcoded
+                    try:
+                        _tok_llm = getattr(getattr(self, "generator", None), "llm", None)
+                        if _tok_llm:
+                            r, _ = await _tok_llm.complete(
+                                [{"role": "system", "content": "Eres Conny. El sistema no está activado aún. Respondé de forma breve y amable que para usar el servicio necesita un token de activación. Decí exactamente: 'Ingresa tu Token de Activación para comenzar.' No des más información."},
+                                 {"role": "user", "content": text}],
+                                model_tier="fast", temperature=0.3, max_tokens=100,
+                            )
+                            if r and r.strip():
+                                return [r.strip()]
+                    except Exception:
+                        pass
+                    return ["Ingresa tu Token de Activación para comenzar."]
 
             # Comandos slash
             cmd = text.lower().strip()
@@ -1211,219 +1265,94 @@ class ConnyUltra:
     
     async def _handle_setup(self, chat_id: str, text: str, clinic: Dict) -> List[str]:
         """
-        Setup inteligente con autodiscovery.
-        Cuando el admin escribe el nombre, buscamos la clinica en Google
-        y pre-llenamos todo. Si se encuentra, solo confirman. Si no, 5 pasos rapidos.
+        Setup inteligente y proactivo con LLM.
+        Si es una instancia nueva, Conny guía al admin para extraer la información.
         """
+        from conny import llm_engine
 
-        setup_step   = clinic.get("setup_step", "idle")
-        setup_buffer = clinic.get("setup_buffer", {})
-        if isinstance(setup_buffer, str):
-            setup_buffer = json.loads(setup_buffer) if setup_buffer else {}
+        # Si el admin dice "reset" o algo así, podríamos volver al modo idle,
+        # pero por ahora seguimos el flujo natural.
+        
+        CONNY_ADMIN_ONBOARDING_PROMPT = """
+Eres Conny. Acabas de ser instalada en un negocio nuevo y necesitas aprender 
+todo sobre él antes de poder atender clientes.
 
-        step_names = ["name", "tagline", "services", "schedule", "phone", "pricing"]
+Tu objetivo en esta conversación: extraer del admin TODA la información que 
+necesitas para trabajar. No puedes atender clientes sin esta información.
 
-        # ── Inicio ─────────────────────────────────────────────────────────────
-        if setup_step == "idle":
-            admin_name_greeting = ""
+Inicia con este mensaje exacto si es el primer contacto:
+"hola! soy Conny, tu nueva recepcionista virtual 👋
+antes de empezar a atender clientes necesito conocer bien el negocio
+para poder responder bien |||
+cuéntame: ¿cómo se llama el negocio y qué ofrecen?"
+
+Después de recibir respuesta, continúa extrayendo en conversación natural:
+1. Nombre del negocio y descripción
+2. Servicios principales y precios (o rango de precios)
+3. Horarios de atención  
+4. Dirección o zona
+5. ¿Cómo deben agendar citas los clientes?
+6. ¿Hay algo que Conny NO debe decir o prometer?
+7. ¿Cuál es el objetivo principal: agendar citas, vender, informar?
+
+REGLA: No inventes información del negocio. Si el admin no te dijo algo, 
+pregúntalo antes de atender clientes reales con esa duda.
+"""
+
+        history = db.get_history(chat_id)
+        messages = [
+            {"role": "system", "content": CONNY_ADMIN_ONBOARDING_PROMPT}
+        ]
+        
+        # Limitar historial para el setup
+        for m in history[-10:]:
+            messages.append({"role": m.get("role", "user"), "content": m.get("content", "")})
+        
+        # Si es el primer mensaje del admin (o está vacío), forzamos el inicio
+        if not text or not text.strip() or len(history) == 0:
+            user_input = "hola" # Trigger inicial
+        else:
+            user_input = text
+
+        messages.append({"role": "user", "content": user_input})
+
+        try:
+            response, _ = await llm_engine.complete(
+                messages, model_tier="fast", temperature=0.7
+            )
+            
+            # Intentar extraer info para guardar en DB mientras conversamos
             try:
-                rec = db.get_admin(chat_id) if db else None
-                if rec and rec.get("name") and rec["name"] not in ("", "Admin"):
-                    admin_name_greeting = f" Hola, {rec['name']}."
+                # Si el LLM detectó el nombre del negocio, lo guardamos
+                if "negocio" in response.lower() or "clínica" in response.lower():
+                    # Aquí podríamos usar un pequeño extractor, pero por ahora
+                    # confiamos en que el admin confirmará al final.
+                    pass
             except Exception:
                 pass
-            db.update_clinic(setup_step="name")
-            return [
-                f"¡Hola!{admin_name_greeting} Vamos a dejarme lista para tu negocio.",
-                "¿Cómo se llama tu clínica o negocio?"
-            ]
 
-        # ── Confirmar datos descubiertos en web ─────────────────────────────────
-        if setup_step == "confirm_discovered":
-            text_low = text.lower().strip()
-            if text_low in ["si", "sip", "sep", "dale", "correcto", "ok", "yes", "listo", "claro"]:
-                # Aplicar todo lo descubierto
-                discovered = setup_buffer.get("discovered", {})
-                db.update_clinic(
-                    name=discovered.get("name", setup_buffer.get("name", "Mi Clinica")),
-                    tagline=discovered.get("tagline", ""),
-                    services=discovered.get("services", []),
-                    schedule=discovered.get("schedule", {}),
-                    phone=discovered.get("phone", ""),
-                    address=discovered.get("address", ""),
-                    setup_done=1,
-                    setup_step="idle",
-                    setup_buffer={}
-                )
-                name = discovered.get("name", "tu clinica")
-                svcs = ", ".join(discovered.get("services", [])) or "sin definir"
-                return [
-                    f"Listo. Quede configurada para {name}.",
-                    f"Servicios: {svcs}.\n\nDesde ahora me encargo de tus pacientes.\nComandos: /citas | /config | /metricas | /personalidad"
-                ]
-            else:
-                # No confirmo, ir a setup manual desde donde quedamos
-                db.update_clinic(setup_step="tagline", setup_buffer=setup_buffer)
-                return [
-                    "Sin problema, vamos a completar esto manualmente.",
-                    "Tienes un slogan o descripcion corta? Si no, escribe 'no'."
-                ]
+            # Si el admin dice algo que suena a "ya terminamos" o el LLM lo indica,
+            # podríamos marcar setup_done=1. Pero mejor que sea explícito o 
+            # cuando tengamos los campos mínimos.
+            
+            # Para esta implementación, seguimos usando el autodiscovery si el admin da el nombre
+            if len(history) < 2 and len(user_input.split()) < 5:
+                # Si es un nombre corto, intentamos autodiscovery
+                discovered = await self._discover_clinic_from_web(user_input)
+                if discovered and discovered.get("confidence", 0) >= 0.6:
+                    # Mezclamos la respuesta del LLM con el discovery
+                    db.update_clinic(setup_step="confirm_discovered", setup_buffer=json.dumps({"discovered": discovered, "name": user_input}))
+                    return [
+                        response,
+                        f"Por cierto, encontré esto en internet: {discovered.get('address', '')}. ¿Es correcto?"
+                    ]
 
-        if setup_step not in step_names:
-            db.update_clinic(setup_step="idle", setup_buffer={})
-            return ["Algo salio mal. Escribe /setup para comenzar de nuevo."]
+            return self._split_bubbles(response, chat_id=chat_id)
 
-        idx = step_names.index(setup_step)
+        except Exception as e:
+            log.error(f"[setup] error en onboarding proactivo: {e}")
+            return ["hola! soy Conny. cuéntame cómo se llama tu negocio para empezar."]
 
-        # ── Procesar respuesta ─────────────────────────────────────────────────
-        if setup_step == "services":
-            raw_svcs = [s.strip() for s in text.split(",") if s.strip()]
-            # Validar: si parece una URL, un comando, o una sola frase larga -> rechazar
-            is_garbage = (
-                len(raw_svcs) == 1 and (
-                    len(raw_svcs[0]) > 50 or
-                    any(kw in raw_svcs[0].lower() for kw in [
-                        "google", "busca", "http", "www", ".com", "facebook",
-                        "instagram", "busqueda", "encuentra"
-                    ])
-                )
-            )
-            if is_garbage:
-                return [
-                    "Eso no parece una lista de servicios.",
-                    "Escribelos separados por coma:\nEj: Botox, Rellenos, Limpieza facial, Laser CO2, Radiofrecuencia"
-                ]
-            setup_buffer["services"] = [s.title() for s in raw_svcs]
-        elif setup_step == "tagline":
-            setup_buffer["tagline"] = "" if text.lower().strip() in ["no", "n", "-", "ninguno"] else text.strip()
-        elif setup_step == "schedule":
-            setup_buffer["schedule"] = {"General": text.strip()}
-        elif setup_step == "pricing":
-            # Parsear precios libres: "Botox: 350.000, Rellenos: 500.000" o texto libre
-            pricing_dict = {}
-            text_low_p = text.lower().strip()
-            if text_low_p not in ["no", "n", "-", "ninguno", "despues", "luego"]:
-                for line in re.split(r'[,\n;]+', text):
-                    line = line.strip()
-                    if ':' in line:
-                        parts = line.split(':', 1)
-                        svc = parts[0].strip()
-                        price = parts[1].strip()
-                        if svc and price:
-                            pricing_dict[svc] = price
-                    elif '-' in line:
-                        parts = line.split('-', 1)
-                        svc = parts[0].strip()
-                        price = parts[1].strip()
-                        if svc and price:
-                            pricing_dict[svc] = price
-            setup_buffer["pricing"] = pricing_dict
-        else:
-            setup_buffer[setup_step] = text.strip()
-
-        # ── Si acaba de darnos el nombre, buscar en Google ─────────────────────
-        if setup_step == "name":
-            clinic_name = text.strip()
-            discovered  = await self._discover_clinic_from_web(clinic_name)
-
-            if discovered and discovered.get("confidence", 0) >= 0.5:
-                # Guardamos todo en buffer
-                setup_buffer["discovered"] = discovered
-                setup_buffer["name"] = clinic_name
-
-                svcs  = ", ".join(discovered.get("services", [])) or "no encontre servicios"
-                phone = discovered.get("phone", "")
-                sched = discovered.get("schedule_text", "")
-                addr  = discovered.get("address", "")
-
-                summary_parts = [f"Servicios: {svcs}"]
-                if sched:
-                    summary_parts.append(f"Horario: {sched}")
-                if phone:
-                    summary_parts.append(f"Tel: {phone}")
-                if addr:
-                    summary_parts.append(f"Direccion: {addr}")
-                summary = ". ".join(summary_parts)
-
-                db.update_clinic(
-                    setup_step="confirm_discovered",
-                    setup_buffer=setup_buffer
-                )
-                return [
-                    f"Encontre info de {clinic_name} en internet.",
-                    f"{summary}.\n\nConfirmas estos datos? (si / no)"
-                ]
-            else:
-                # No encontre nada, seguir con setup normal
-                db.update_clinic(
-                    setup_step=step_names[1],
-                    setup_buffer=setup_buffer
-                )
-                return self._setup_next_bubbles("name", text.strip(), "tagline", setup_buffer)
-
-        # ── Siguiente paso normal ──────────────────────────────────────────────
-        if idx + 1 < len(step_names):
-            next_step = step_names[idx + 1]
-            db.update_clinic(setup_step=next_step, setup_buffer=setup_buffer)
-            return self._setup_next_bubbles(setup_step, text.strip(), next_step, setup_buffer)
-
-        # ── Finalizar setup ───────────────────────────────────────────────────
-        db.update_clinic(
-            name=setup_buffer.get("name", "Mi Clinica"),
-            tagline=setup_buffer.get("tagline", ""),
-            services=setup_buffer.get("services", []),
-            schedule=setup_buffer.get("schedule", {}),
-            phone=setup_buffer.get("phone", ""),
-            pricing=setup_buffer.get("pricing", {}),
-            setup_done=1,
-            setup_step="idle",
-            setup_buffer={}
-        )
-        name = setup_buffer.get("name", "tu clinica")
-        svcs = ", ".join(setup_buffer.get("services", [])) or "sin definir"
-        pricing_count = len(setup_buffer.get("pricing", {}))
-        pricing_note  = f" con {pricing_count} precios cargados" if pricing_count else ""
-
-        # Guardar identidad en memoria permanente
-        db.remember("clinic_name",     name,                               "identity")
-        db.remember("clinic_services", ", ".join(setup_buffer.get("services", [])), "clinic")
-        db.remember("clinic_phone",    setup_buffer.get("phone", ""),     "clinic")
-        db.remember("platform",        Config.PLATFORM,                    "identity")
-        db.remember("setup_completed", "true",                             "identity")
-
-        # Notificar a Omni que esta instancia quedó configurada
-        asyncio.create_task(asyncio.to_thread(
-            notify_omni, "setup_completado",
-            f"Nueva instancia configurada: {name} (sector: {Config.SECTOR})", name
-        ))
-
-        # Guía de siguiente paso — WhatsApp si aún no está conectado
-        whatsapp_connected = db.recall("whatsapp_connected") == "true"
-
-        if whatsapp_connected:
-            next_step = (
-                "\n\nYa tienes WhatsApp conectado. Listo para recibir pacientes."
-            )
-        else:
-            next_step = (
-                "\n\nSiguiente paso — conectar WhatsApp:\n"
-                "Pégame aquí tu Phone Number ID y Access Token de Meta Business.\n"
-                "Formato:\n"
-                "  WA_PHONE_ID: 123456789012345\n"
-                "  WA_TOKEN: EAAxxxxx...\n\n"
-                "Si aun no los tienes, escribe /whatsapp y te explico cómo obtenerlos."
-            )
-
-        kb_invite = (
-            "\n\nTambién puedes enviarme un documento con toda la info de tu clinica "
-            "(precios detallados, protocolos, FAQs) y lo aprendo todo de una vez."
-        ) if _KB_AVAILABLE else ""
-
-        return [
-            f"¡Listo! Soy {name}.{pricing_note}",
-            f"Servicios: {svcs}.{next_step}{kb_invite}",
-            "Estoy aquí cuando llegue tu primer paciente. Cuéntame más sobre cómo te gusta que les hable y yo aprendo.",
-        ]
 
     async def _discover_clinic_from_web(self, clinic_name: str, city: str = "Medellin") -> Dict:
         """
@@ -2120,12 +2049,52 @@ Si un campo no aplica o no se encontro, usa "" o []. Solo JSON, sin texto extra.
     async def _process_admin_feedback(self, chat_id: str, text: str,
                                       clinic: Dict) -> Optional[List[str]]:
         """
-        Detecta si el admin está:
-        A) Dando feedback sobre una conversación revisada
-        B) Respondiendo a la pregunta de disponibilidad que Conny le hizo
-        C) Usando el puente — enviando un mensaje directo a un paciente activo
+        Procesa feedback del admin y evoluciona.
         """
+        # 1. Auto-evolución (saludo, frases prohibidas, identidad)
+        evolution = getattr(self, "evolution", None)
+        if evolution:
+            evo_reply = await evolution.apply_instruction(text)
+            if evo_reply:
+                return [evo_reply]
+
         text_low = text.lower().strip()
+
+        # ── D. Respuesta a pregunta de conocimiento (escalación) ──────────────
+        pending = self._admin_pending.get(chat_id) if hasattr(self, "_admin_pending") else None
+        if pending and pending.get("action") == "answer_gap":
+            patient_id = pending.get("patient_chat_id")
+            question = pending.get("original_question")
+            instance_id = getattr(self, "_instance_id", "default")
+
+            if patient_id and question:
+                try:
+                    from conny_learning import learning_engine
+                    # 1. Guardar en conocimiento
+                    await learning_engine.learn_from_admin(instance_id, question, text, admin_id=chat_id)
+                    
+                    # 2. Responder al paciente
+                    patient_name = ""
+                    try:
+                        with db._conn() as c:
+                            row = c.execute("SELECT name FROM patients WHERE chat_id=?", (patient_id,)).fetchone()
+                            if row: patient_name = row["name"] or ""
+                    except Exception: pass
+                    
+                    greeting = f"hola{f' {patient_name}' if patient_name else ''}! "
+                    patient_msg = f"{greeting}ya me confirmaron ||| {text}"
+                    await self._send_message(patient_id, patient_msg)
+                    db.save_message(patient_id, "assistant", patient_msg.replace("|||", " "))
+                    
+                    # 3. Limpiar pendiente
+                    del self._admin_pending[chat_id]
+                    
+                    return [
+                        "entendido, ya aprendí esa respuesta y se la mandé al paciente",
+                        f"respuesta guardada para: \"{question[:50]}...\""
+                    ]
+                except Exception as e:
+                    log.error(f"[learning] error en answer_gap: {e}")
 
         # ── C. PUENTE — admin envía mensaje directo a un paciente ────────────────
         # Patrones detectados:
@@ -3219,6 +3188,34 @@ escriba EXACTAMENTE como él. Primera persona, directo."""
             "cambia la forma", "ahora dile", "cuando pregunten por",
             "la respuesta correcta es", "háblale de", "menciona que"
         ]
+        
+        # ── INTERCEPCIÓN DE ACCIONES DE SISTEMA (Demo, Restart, etc) ──────────
+        if "modo demo" in text_low or "activa demo" in text_low or "demo on" in text_low or "demo off" in text_low:
+            is_on = any(w in text_low for w in ["activa", "poner", "on", "encender"])
+            action = "on" if is_on else "off"
+            db_val = "true" if is_on else "false"
+            
+            msg = f"entendido, voy a poner el modo demo en {action} y reiniciar el sistema ||| dame unos segundos"
+            try:
+                # 1. Cambiar flag en DB
+                with db._conn() as c:
+                    c.execute("INSERT OR REPLACE INTO system_config (key, value, updated_at) VALUES ('demo_mode', ?, datetime('now'))", (db_val,))
+                
+                # 2. Actualizar .env (usando sed para ser quirúrgico)
+                import subprocess
+                env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".env")
+                if os.path.exists(env_path):
+                    cmd_sed = f"sed -i 's/^DEMO_MODE=.*/DEMO_MODE={db_val}/g' {env_path}"
+                    subprocess.run(cmd_sed, shell=True)
+                
+                # 3. Ejecutar reinicio
+                # Usar Popen con shell=True para que PM2 se entere bien
+                subprocess.Popen("pm2 restart conny", shell=True, start_new_session=True)
+                return [msg]
+            except Exception as e:
+                log.error(f"[system] error activando demo: {e}")
+                return [f"intenté activar el modo demo pero hubo un error técnico: {e}"]
+
         if any(s in text_low for s in LEARNING_SIGNALS):
             if self.admin_learning:
                 reply = self.admin_learning.add_instruction(chat_id, text)
@@ -3371,6 +3368,13 @@ escriba EXACTAMENTE como él. Primera persona, directo."""
             ]), chat_id, clinic, user_msg=text)
             return self._split_bubbles(reply_text)
 
+        if text_low in ("continuar fallback", "continuar con fallback", "si fallback", "sí fallback"):
+            reply = self._admin_local_fallback(text, text_low, clinic, agent_name, chat_id)
+            reply_text = self._apply_admin_output_pipeline(" ||| ".join(reply) if reply else "", chat_id, clinic, user_msg=text)
+            db.save_message(chat_id, "user", text)
+            db.save_message(chat_id, "assistant", reply_text if reply_text else "")
+            return self._split_bubbles(reply_text)
+
         # ── Historial de admin (últimos 8 mensajes) ───────────────────────────
         admin_history = db.get_history(chat_id, limit=8)
 
@@ -3380,11 +3384,33 @@ escriba EXACTAMENTE como él. Primera persona, directo."""
                 self._admin_llm_brain(chat_id, text, admin_history, clinic, agent_name),
                 timeout=12.0
             )
+        except LLMServiceError as e:
+            reply = [
+                "No voy a ocultarte esto con un fallback.",
+                e.public_message,
+                "Continuar con fallback? Responde exactamente: continuar fallback. No recomendado si quieres que todo lo decida el LLM."
+            ]
+            reply_text = " ||| ".join(reply)
+            db.save_message(chat_id, "user", text)
+            db.save_message(chat_id, "assistant", reply_text)
+            return self._split_bubbles(reply_text)
         except asyncio.TimeoutError:
-            result = None
+            reply_text = (
+                "El modelo tardó más de 12 segundos y no respondió a tiempo. ||| "
+                "Continuar con fallback? Responde exactamente: continuar fallback. No recomendado si quieres que todo lo decida el LLM."
+            )
+            db.save_message(chat_id, "user", text)
+            db.save_message(chat_id, "assistant", reply_text)
+            return self._split_bubbles(reply_text)
         except Exception as e:
             log.error(f"[admin_brain] error: {e}", exc_info=True)
-            result = None
+            reply_text = (
+                f"El cerebro LLM falló antes de responder. Detalle: {str(e)[:500]} ||| "
+                "Continuar con fallback? Responde exactamente: continuar fallback. No recomendado."
+            )
+            db.save_message(chat_id, "user", text)
+            db.save_message(chat_id, "assistant", reply_text)
+            return self._split_bubbles(reply_text)
 
         if result is None:
             # LLM caído — fallback local inteligente
@@ -3428,6 +3454,16 @@ escriba EXACTAMENTE como él. Primera persona, directo."""
         db.save_message(chat_id, "user", text)
         if reply_text:
             db.save_message(chat_id, "assistant", reply_text)
+        try:
+            from src.conny.admin_memory import AdminSoulMemory
+            AdminSoulMemory().remember_turn(
+                chat_id=chat_id,
+                admin_text=text,
+                conny_reply=reply_text,
+                clinic=clinic,
+            )
+        except Exception as mem_err:
+            log.warning(f"[admin_memory] no se pudo guardar memoria: {mem_err}")
 
         return self._split_bubbles(reply_text) if reply_text else [
             "dime qué más necesitas"
@@ -3522,6 +3558,12 @@ Si el negocio tiene {sector_name}, adapta el tono al sector. Sé breve, cálida 
                 owner_control_txt = owner_style_controller.build_prompt_addon(is_admin=True)
         except Exception:
             owner_control_txt = ""
+        admin_soul_txt = ""
+        try:
+            from src.conny.admin_memory import AdminSoulMemory
+            admin_soul_txt = AdminSoulMemory().load_context(chat_id)
+        except Exception as mem_err:
+            log.warning(f"[admin_memory] no se pudo cargar memoria: {mem_err}")
 
         # Estos son los ejemplos de cómo {agent_name} habla CON EL DUEÑO
         # No reglas — identidad. El modelo sabe cómo reaccionar siendo esta persona.
@@ -3542,55 +3584,51 @@ Si el negocio tiene {sector_name}, adapta el tono al sector. Sé breve, cálida 
 {agent_name}: Gracias por decirlo. Te propongo una versión más clara y la corregimos si hace falta.
 """
 
-        system_prompt = f"""Eres {agent_name}. Trabajas para {clinic.get("name", "la clínica")} como asistente virtual que atiende clientes. Ahora mismo el dueño, {admin_name}, te habla por Telegram para configurarte o probarte.
+        # Cargar perfil persistente del admin (Namespace admin_profile)
+        admin_profile = db.get_admin_profile(chat_id)
+        admin_profile_txt = ""
+        if admin_profile:
+            p_parts = []
+            if admin_profile.get("name"): p_parts.append(f"Nombre: {admin_profile['name']}")
+            if admin_profile.get("preferences"): p_parts.append(f"Preferencias: {json.dumps(admin_profile['preferences'], ensure_ascii=False)}")
+            if admin_profile.get("frequent_commands"):
+                sorted_cmds = sorted(admin_profile['frequent_commands'].items(), key=lambda x: x[1], reverse=True)[:3]
+                p_parts.append(f"Comandos frecuentes: {', '.join([c for c, _ in sorted_cmds])}")
+            if admin_profile.get("active_hours"):
+                sorted_hours = sorted(admin_profile['active_hours'].items(), key=lambda x: x[1], reverse=True)[:1]
+                if sorted_hours:
+                    p_parts.append(f"Suele estar activo a las: {sorted_hours[0][0]}:00")
+            if p_parts:
+                admin_profile_txt = "\n## PERFIL DEL ADMIN (persistente):\n" + "\n".join([f"- {p}" for p in p_parts])
+        
+        system_prompt = f"""Eres {agent_name}. Tu identidad corporativa es Innvisor.
+Trabajas como la recepcionista ejecutiva de {clinic.get("name", "este negocio")}.
+Ahora mismo hablas con tu administrador, {admin_name}.
 
-PRIMERO Y MÁS IMPORTANTE: eres una asistente de IA. Puedes hablar de CUALQUIER tema — matemáticas, estrategia, debugging, conocimiento general, lo que sea. No hay restricciones de tema. Si sabes la respuesta, dala. Si no sabes, dilo en una oración y sigues normal.
+ESTADO DE ENTRENAMIENTO:
+Si el negocio es nuevo o no tienes información sobre servicios/precios:
+1. Confirma honestamente: "Como soy nueva en {clinic.get("name", "el negocio")}, todavía no tengo información sobre eso".
+2. Sé proactiva: Invita al admin a enseñarte los detalles para que puedas atender bien a los pacientes.
 
-Estado del negocio:
-- Clínica: {clinic.get("name", "sin nombre")} | Sector: {clinic.get("sector", "otro")}
-- Servicios: {", ".join(services) if services else "ninguno configurado aún"}
-- Teléfono: {clinic.get("phone") or "no configurado"}{skills_txt}{diag_txt}
+REGLAS DE COMUNICACIÓN CON EL ADMIN:
+- TONO: Cálido pero estrictamente profesional y ejecutivo. Cero informalidad de calle. NUNCA uses "vos".
+- SIN MULETILLAS: No digas jamás "en qué puedo ayudarte" ni frases pasivas de asistente.
+- PROACTIVIDAD: Tu objetivo es que el admin te entrene. Si detectas que falta info, pídela.
+- CIERRE OBLIGATORIO: Todos tus mensajes DEBEN terminar con una pregunta concreta que invite al admin a realizar una acción o enseñarte algo.
+- IDENTIDAD: Fuiste creada por Innvisor (Santiago Rubio, 3243699856).
 
-{owner_control_txt if owner_control_txt else ""}
+{admin_profile_txt}
+{f"{chr(10)}## MEMORIA SOUL DEL ADMIN{chr(10)}{admin_soul_txt}" if admin_soul_txt else ""}
 
-Lo que ya hablaron hoy:
-{history_txt if history_txt else "(primera conversación)"}
+Estado actual del negocio:
+- Clínica: {clinic.get("name", "Sin configurar")}
+- Servicios: {", ".join(services) if services else "NINGUNO (necesito que me los enseñes)"}
+- Teléfono: {clinic.get("phone") or "No configurado"}{skills_txt}{diag_txt}
 
-Lo que acabas de decir (no lo repitas):
-{last_replies_txt}
-
-Así hablas con el dueño:{_admin_examples}
-
-REGLAS PARA HABLAR CON EL DUEÑO:
-- habla como alguien del equipo, no como manual ni chatbot
-- con el dueño jamás uses el mismo tono que con un paciente
-- ortografía cuidada, inicio en mayúscula y trato respetuoso
-- si el dueño marca un tono más profesional, usa Usted sin sonar distante
-- máximo 2 burbujas cortas salvo que pidan detalle
-- evita coletillas flojas como "dime", "oye", "a ver", "pues", "qué te trae por acá"
-- si el dueño dice "hablas raro" o "no me gusta", no te defiendas: pide el ejemplo exacto o propone una versión mejor
-- si el pedido es ambiguo, primero clarify en una sola pregunta útil
-- NUNCA termines un mensaje recordando tus funciones de admin o configurador
-- NUNCA digas "como tu asistente virtual..." o "desde mi rol de configuradora..."
-- si algo está fuera de lo que puedes hacer, dilo en una oración corta y ya
-- no uses jerga técnica salvo que el dueño la pida explícitamente
-- nunca digas que trabajas para Nova ni uses branding heredado de otra instancia
-- no dejes frases colgadas ni cierres incompletos
-- si el dueño pregunta quién te hizo: Black One, Santiago Rubio, 3124348669
-
-LO QUE SÍ PUEDES RESPONDER (sin límites):
-- Preguntas técnicas: código, debugging, APIs, arquitectura
-- Estrategia de negocio: pricing, marketing, operaciones
-- Matemáticas y cálculos
-- Preguntas generales de conocimiento
-- Cualquier cosa que te pregunte — si no lo sabes, di que no y ya
-
-Responde naturalmente. Cuando necesites actuar sobre la config del negocio, usa JSON para eso internamente pero en el chat solo escribe tu respuesta normal, nunca el JSON directo.
-
-Cuando el dueño pida simulación: action "simulate"
-Cuando dé datos para actualizar: action correspondiente
-Cuando solo conversa: action "none", respuesta natural y corta
-No hables como dashboard, soporte técnico ni consola."""
+INSTRUCCIONES DE SISTEMA:
+- Responde siempre como parte del equipo de Innvisor.
+- Si el admin pide "activar modo demo", confirma y ejecuta.
+"""
 
         messages = [
             {"role": "system", "content": system_prompt},
@@ -3812,11 +3850,10 @@ No hables como dashboard, soporte técnico ni consola."""
                               clinic: Dict, agent_name: str,
                               chat_id: str = "") -> List[str]:
         """
-        Fallback cuando el LLM no está disponible.
-        Respuestas naturales y cortas. Sin muros de texto. Sin call center.
+        Fallback profesional cuando el LLM no está disponible.
         """
         text_norm = _normalize_conv_text(text)
-        admin_name = "Santiago"
+        admin_name = "Administrador"
         try:
             admin = db.get_admin(chat_id) if chat_id else None
             if admin and admin.get("name"):
@@ -3824,33 +3861,34 @@ No hables como dashboard, soporte técnico ni consola."""
         except Exception:
             pass
 
-        # Simulación — máxima prioridad
+        # Simulación
         SIM = ["simula", "simulaci", "como cliente", "prueba", "muéstrame",
                "hagamos", "cómo hablarías", "modo cliente", "demuéstrame"]
         if any(s in text_low for s in SIM):
             return [
-                "dale, entra con /simular-cliente",
-                "puedes poner un escenario: precio, miedo, primer_contacto, o solo /simular-cliente libre"
+                "Entendido. Por favor, utilice el comando /simular-cliente seguido del escenario (ej: /simular-cliente precio).",
+                "Quedo a la espera de su instrucción."
             ]
 
         if any(token in text_low for token in ["quien te hizo", "quién te hizo", "como tenerte", "cómo tenerte", "quien te creo", "quién te creó"]):
             return [
-                "Me hizo Black One, empresa de software y gobernanza de agentes de IA, la creó Santiago Rubio.",
-                "Si quiere algo así para su negocio, el contacto es 3124348669."
+                "Me hizo Black One, bajo la dirección de Santiago Rubio.",
+                "Contacto directo: 3243699856.",
+                "¿Desea que revisemos alguna configuración de su instancia ahora?"
             ]
 
         if any(token in text_low for token in ["audio", "audios", "nota de voz", "pdf", "documento", "documentos", "imagen", "imagenes", "imágenes"]):
             return [
-                "Sí. Cuando el canal lo permite, puedo trabajar con audios, imágenes, PDFs y documentos.",
-                "Los puedo transcribir, leer y usar para responder mejor o para configurar la instancia."
+                "Sí. Cuando el canal lo permite, puedo trabajar con audios, PDFs, documentos e imágenes.",
+                "Los puedo transcribir, leer y usar como memoria de la instancia."
             ]
 
-        # Saludos solos — devolver saludo natural, nunca "qué necesitas?"
+        # Saludos
         SOLO_GREET = {"hola", "hey", "buenas", "ey", "holi", "hola!", "buenas!", "hola buenas", "buenas tardes", "buenos dias", "buenos días", "buenas noches"}
         if text_low.strip().rstrip("!").strip() in SOLO_GREET:
             return [
                 f"Hola, {admin_name}.",
-                "Estoy lista para ayudarte con la instancia, el tono, los servicios o las pruebas."
+                "Estoy lista para gestionar la configuración de su instancia, ajustar el tono o realizar pruebas de servicios. ¿Por dónde desea que comencemos?"
             ]
 
         # Estado / cómo estás

@@ -203,16 +203,15 @@
 
                 <!-- Formulario de Acceso Desarrolladores (Devs) -->
                 <div id="developer-login-view" class="auth-panel-content" style="display: none;">
-                    <div class="auth-header">
-                        <h2 class="welcome-title">Conny Dev.</h2>
-                        <p class="welcome-subtitle">Portal de Desarrollo</p>
+                    <div class="auth-header" style="text-align: center; margin-bottom: 30px;">
+                        <div style="width: 48px; height: 48px; background: rgba(139, 92, 246, 0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px auto; border: 1px solid rgba(139, 92, 246, 0.3);">
+                            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#a78bfa" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+                        </div>
+                        <h2 class="welcome-title" style="color: #f3f4f6; font-size: 24px; font-weight: 700;">Developer Console</h2>
+                        <p class="welcome-subtitle" style="color: #9ca3af; font-size: 14px;">Acceso restringido. Utiliza el CLI de Conny para generar credenciales.</p>
                     </div>
 
-                    <!-- Selector de Pestañas Dev (Login / Registro) -->
-                    <div class="dev-tabs" style="margin-top: 20px;">
-                        <button type="button" id="tab-dev-login" class="dev-tab active">Iniciar Sesión</button>
-                        <button type="button" id="tab-dev-register" class="dev-tab">Registrarse</button>
-                    </div>
+                    
                     
                     <!-- Tab: Iniciar Sesión Dev -->
                     <div id="dev-login-tab-content">
@@ -229,37 +228,7 @@
                         </form>
                     </div>
 
-                    <!-- Tab: Registrar Cuenta Dev -->
-                    <div id="dev-register-tab-content" style="display: none;">
-                        <form id="dev-register-form">
-                            <div class="input-group">
-                                <label for="dev-reg-email">Correo Electrónico</label>
-                                <input type="email" id="dev-reg-email" required placeholder="correo@dev.com">
-                            </div>
-                            <div class="input-group">
-                                <label for="dev-reg-password">Contraseña</label>
-                                <input type="password" id="dev-reg-password" required placeholder="Crea tu contraseña">
-                            </div>
-                            <div class="input-group" style="margin-bottom: 20px;">
-                                <label for="dev-reg-token">Token de Acceso Dev</label>
-                                <input type="password" id="dev-reg-token" required placeholder="Llave Maestra de Instancia">
-                            </div>
-                            <button type="submit" class="btn btn-primary btn-block btn-login-submit">Registrar Cuenta Dev</button>
-                        </form>
-                    </div>
-                    
-                    <div class="login-divider" style="margin: 24px 0 16px 0;">
-                        <span>o regresa</span>
-                    </div>
-
-                    <button type="button" id="btn-back-to-admin" class="btn-back-admin">
-                        <span>Volver a Acceso Admin</span>
-                    </button>
-                    
-                    <div id="dev-login-error" class="error-msg" style="margin-top: 14px;"></div>
-                </div>
-
-                <!-- Formulario de Onboarding de Google (Crear Cuenta) -->
+                    <!-- Formulario de Onboarding de Google (Crear Cuenta) -->
                 <div id="google-onboarding-view" class="auth-panel-content" style="display: none;">
                     <div class="auth-header" style="display: flex; align-items: center; gap: 16px;">
                         <div>
@@ -361,7 +330,7 @@
                     </linearGradient>
                 </defs>
             </svg>
-            <nav class="sidebar-nav">
+            <nav class="sidebar-nav" id="client-sidebar-nav">
                 <button class="nav-item active" data-view="chats" title="Chats WhatsApp">
                     <svg class="nav-icon" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z"/></svg>
                     <span class="nav-text">Chats</span>
@@ -394,6 +363,39 @@
                     <span class="nav-text">Consola Dev</span>
                 </button>
             </nav>
+            <nav class="sidebar-nav" id="dev-sidebar-nav" style="display: none;">
+                <button class="nav-item active" data-view="dev-instances" title="Instancias PM2">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line>
+                    </svg>
+                    <span class="nav-text">Instancias</span>
+                </button>
+                <button class="nav-item" data-view="dev-prompts" title="Editor de Prompts">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
+                    <span class="nav-text">Prompts</span>
+                </button>
+                <button class="nav-item" data-view="dev-models" title="Modelos LLM">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line>
+                    </svg>
+                    <span class="nav-text">LLMs</span>
+                </button>
+                <button class="nav-item" data-view="dev-tokens" title="Tokens y Admins">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
+                    <span class="nav-text">Accesos</span>
+                </button>
+                <button class="nav-item" data-view="dev-logs" title="Terminal Logs">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line>
+                    </svg>
+                    <span class="nav-text">Terminal</span>
+                </button>
+            </nav>
+
 
             <div class="sidebar-footer">
                 <button class="nav-item settings-btn" data-view="settings" id="nav-settings-btn" title="Configuración">
@@ -797,175 +799,135 @@
 
 
 
-            <!-- View: Consola Dev (Developer Admin Console) -->
-            <section id="view-dev-console" class="tab-view">
-                <div class="view-header" style="border-bottom: 1px solid rgba(139, 92, 246, 0.2); padding-bottom: 18px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+            
+            <!-- DEV VIEWS -->
+            
+            <!-- 1. Instancias -->
+            <section id="view-dev-instances" class="tab-view active">
+                <div class="view-header" style="border-bottom: 1px solid rgba(139, 92, 246, 0.2); padding-bottom: 18px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center;">
                     <div>
-                        <h2 style="color: #a78bfa; font-weight: 700; margin-bottom: 4px; text-shadow: 0 0 12px rgba(139, 92, 246, 0.25); display: flex; align-items: center; gap: 10px;">
-                            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: #a78bfa;"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
-                            Consola de Desarrollo
+                        <h2 style="color: #a78bfa; font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 10px;">
+                            Instancias (PM2)
                         </h2>
-                        <p style="color: var(--text-secondary); margin: 0; font-size: 13px;">Supervisa sub-instancias PM2, ajusta modelos LLM en caliente y calibra prompts SQLite locales.</p>
+                        <p style="color: var(--text-secondary); margin: 0; font-size: 13px;">Gestión y control del ciclo de vida de los procesos PM2 locales.</p>
                     </div>
-                    <div style="display: flex; gap: 8px;">
-                        <button type="button" id="btn-refresh-instances" class="btn" style="background: rgba(139, 92, 246, 0.15); color: #c084fc; border: 1px solid rgba(139, 92, 246, 0.35); padding: 8px 14px; font-size: 12px; font-weight: 600; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
-                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-                            Sincronizar
-                        </button>
+                    <button type="button" id="btn-refresh-instances" class="btn" style="background: rgba(139, 92, 246, 0.15); color: #c084fc; border: 1px solid rgba(139, 92, 246, 0.35); padding: 8px 14px; font-size: 12px; font-weight: 600; border-radius: 8px; cursor: pointer;">
+                        Sincronizar
+                    </button>
+                </div>
+                
+                <div class="dev-panel" style="background: rgba(20, 16, 33, 0.45); border: 1px solid rgba(139, 92, 246, 0.2); border-radius: 12px; padding: 20px;">
+                    <div class="table-container" style="overflow-x: auto; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05); background: rgba(10, 8, 20, 0.45);">
+                        <table class="premium-table" style="width: 100%; border-collapse: collapse; text-align: left;">
+                            <thead>
+                                <tr style="border-bottom: 1px solid rgba(139, 92, 246, 0.2); background: rgba(139, 92, 246, 0.05);">
+                                    <th style="padding: 12px 16px; font-size: 12px; font-weight: 600; color: #a78bfa; text-transform: uppercase;">Nombre / Clínica</th>
+                                    <th style="padding: 12px 16px; font-size: 12px; font-weight: 600; color: #a78bfa; text-transform: uppercase;">Puerto</th>
+                                    <th style="padding: 12px 16px; font-size: 12px; font-weight: 600; color: #a78bfa; text-transform: uppercase;">Estado PM2</th>
+                                    <th style="padding: 12px 16px; font-size: 12px; font-weight: 600; color: #a78bfa; text-transform: uppercase;">Modelo Activo</th>
+                                    <th style="padding: 12px 16px; font-size: 12px; font-weight: 600; color: #a78bfa; text-transform: uppercase; text-align: right;">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dev-instances-tbody">
+                                <!-- Inyectado dinámicamente -->
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-
-                <div class="dev-grid-layout" style="display: grid; grid-template-columns: repeat(12, 1fr); gap: 20px; padding: 0 2px;">
-                    
-                    <!-- 1. Instance Manager (Ancho Completo 12 Cols) -->
-                    <div class="dev-panel" style="grid-column: span 12; background: rgba(20, 16, 33, 0.45); border: 1px solid rgba(139, 92, 246, 0.2); border-radius: 12px; padding: 20px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);">
-                        <h3 style="font-size: 16px; font-weight: 600; color: #f3f4f6; margin: 0 0 16px 0; display: flex; align-items: center; gap: 8px;">
-                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
-                            Gestión de Sub-Instancias locales (PM2)
-                        </h3>
-                        <div class="table-container" style="overflow-x: auto; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05); background: rgba(10, 8, 20, 0.45);">
-                            <table class="premium-table" style="width: 100%; border-collapse: collapse; text-align: left;">
-                                <thead>
-                                    <tr style="border-bottom: 1px solid rgba(139, 92, 246, 0.2); background: rgba(139, 92, 246, 0.05);">
-                                        <th style="padding: 12px 16px; font-size: 12px; font-weight: 600; color: #a78bfa; text-transform: uppercase; letter-spacing: 0.5px;">Nombre / Clínica</th>
-                                        <th style="padding: 12px 16px; font-size: 12px; font-weight: 600; color: #a78bfa; text-transform: uppercase; letter-spacing: 0.5px;">Puerto</th>
-                                        <th style="padding: 12px 16px; font-size: 12px; font-weight: 600; color: #a78bfa; text-transform: uppercase; letter-spacing: 0.5px;">Estado PM2</th>
-                                        <th style="padding: 12px 16px; font-size: 12px; font-weight: 600; color: #a78bfa; text-transform: uppercase; letter-spacing: 0.5px;">Modelo Activo</th>
-                                        <th style="padding: 12px 16px; font-size: 12px; font-weight: 600; color: #a78bfa; text-transform: uppercase; letter-spacing: 0.5px; text-align: right;">Acciones de Control</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="dev-instances-tbody">
-                                    <!-- Inyectado dinámicamente -->
-                                    <tr>
-                                        <td colspan="5" style="padding: 24px; text-align: center; color: var(--text-secondary); font-size: 13px;">
-                                            <span style="display: inline-block; animation: spin 1s linear infinite; margin-right: 8px;">🔄</span> Cargando instancias desde el entorno del sistema...
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
+                
+                <!-- Create New Instance -->
+                <div class="dev-panel" style="background: rgba(20, 16, 33, 0.45); border: 1px solid rgba(139, 92, 246, 0.2); border-radius: 12px; padding: 20px; margin-top: 20px;">
+                    <h3 style="font-size: 16px; font-weight: 600; color: #f3f4f6; margin: 0 0 16px 0;">Nueva Instancia</h3>
+                    <div style="display: flex; gap: 12px; align-items: center;">
+                        <input type="text" id="new-instance-name" placeholder="Nombre (ej: clinicamedica)" style="flex: 1; padding: 10px 14px; border-radius: 8px; border: 1px solid rgba(139, 92, 246, 0.3); background: rgba(0,0,0,0.2); color: white;">
+                        <button id="btn-create-instance" class="btn btn-primary" style="padding: 10px 20px; border-radius: 8px;">Desplegar Instancia</button>
                     </div>
-
-                    <!-- 2. Prompt Editor (6 Cols) -->
-                    <div class="dev-panel" style="grid-column: span 6; background: rgba(20, 16, 33, 0.45); border: 1px solid rgba(139, 92, 246, 0.2); border-radius: 12px; padding: 20px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); display: flex; flex-direction: column;">
-                        <h3 style="font-size: 16px; font-weight: 600; color: #f3f4f6; margin: 0 0 16px 0; display: flex; align-items: center; gap: 8px;">
-                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                            Editor de Prompt y Personalidad
-                        </h3>
-                        <div class="input-group" style="margin-bottom: 14px;">
-                            <label for="dev-prompt-instance-select" style="font-size: 12px; font-weight: 600; color: #a78bfa; margin-bottom: 6px; display: block; text-transform: uppercase;">Seleccionar Instancia SQLite</label>
-                            <select id="dev-prompt-instance-select" style="width: 100%; padding: 10px 14px; font-size: 13px; border-radius: 6px; background: rgba(10, 8, 20, 0.65); border: 1px solid rgba(139, 92, 246, 0.3); color: #f3f4f6;">
-                                <option value="">-- Elige una instancia activa --</option>
-                            </select>
-                        </div>
-                        <div class="input-group" style="margin-bottom: 16px; flex: 1; display: flex; flex-direction: column;">
-                            <label for="dev-prompt-textarea" style="font-size: 12px; font-weight: 600; color: #a78bfa; margin-bottom: 6px; display: block; text-transform: uppercase;">Instrucciones del Sistema (system_prompt)</label>
-                            <textarea id="dev-prompt-textarea" placeholder="Selecciona una instancia para cargar y calibrar sus directrices de comportamiento en la base de datos..." style="width: 100%; flex: 1; min-height: 180px; padding: 12px; font-size: 13px; border-radius: 6px; background: rgba(10, 8, 20, 0.85); border: 1px solid rgba(139, 92, 246, 0.3); color: #f3f4f6; font-family: inherit; line-height: 1.5; resize: vertical; box-sizing: border-box;"></textarea>
-                        </div>
-                        <div style="display: flex; justify-content: flex-end; gap: 8px;">
-                            <span id="prompt-status-msg" style="font-size: 12px; display: flex; align-items: center; margin-right: auto;"></span>
-                            <button type="button" id="btn-save-prompt" class="btn btn-primary" style="padding: 10px 20px; font-size: 13px; font-weight: 600; border-radius: 6px; background: linear-gradient(135deg, #8b5cf6, #4f46e5); border: 1px solid rgba(139, 92, 246, 0.3);  cursor: pointer; color: white;">
-                                Guardar en SQLite
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- 3. Model Switcher & New Instance Wizard (6 Cols en total) -->
-                    <div style="grid-column: span 6; display: flex; flex-direction: column; gap: 20px;">
-                        
-                        <!-- Model Switcher (Hotswap) -->
-                        <div class="dev-panel" style="background: rgba(20, 16, 33, 0.45); border: 1px solid rgba(139, 92, 246, 0.2); border-radius: 12px; padding: 20px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);">
-                            <h3 style="font-size: 16px; font-weight: 600; color: #f3f4f6; margin: 0 0 16px 0; display: flex; align-items: center; gap: 8px;">
-                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-                                Hotswap de Modelo de IA en Caliente
-                            </h3>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
-                                <div class="input-group">
-                                    <label for="dev-model-instance-select" style="font-size: 12px; font-weight: 600; color: #a78bfa; margin-bottom: 6px; display: block; text-transform: uppercase;">Instancia</label>
-                                    <select id="dev-model-instance-select" style="width: 100%; padding: 10px 14px; font-size: 13px; border-radius: 6px; background: rgba(10, 8, 20, 0.65); border: 1px solid rgba(139, 92, 246, 0.3); color: #f3f4f6;">
-                                        <option value="">-- Seleccionar --</option>
-                                    </select>
-                                </div>
-                                <div class="input-group">
-                                    <label for="dev-model-select" style="font-size: 12px; font-weight: 600; color: #a78bfa; margin-bottom: 6px; display: block; text-transform: uppercase;">Modelo LLM</label>
-                                    <select id="dev-model-select" style="width: 100%; padding: 10px 14px; font-size: 13px; border-radius: 6px; background: rgba(10, 8, 20, 0.65); border: 1px solid rgba(139, 92, 246, 0.3); color: #f3f4f6;">
-                                        <option value="gemini-2.5-flash">Fast (Gemini 2.5 Flash)</option>
-                                        <option value="claude-3-5-sonnet">Reasoning (Claude 3.5 Sonnet)</option>
-                                        <option value="deepseek-reasoner">Reasoning (DeepSeek R1)</option>
-                                        <option value="gemini-2.5-flash-lite">Lite (Gemini Flash Lite)</option>
-                                        <option value="llama-3.1-70b">Llama 3.1 (70B Meta)</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div style="display: flex; justify-content: flex-end;">
-                                <span id="model-status-msg" style="font-size: 12px; display: flex; align-items: center; margin-right: auto;"></span>
-                                <button type="button" id="btn-apply-model" class="btn btn-primary" style="padding: 10px 18px; font-size: 13px; font-weight: 600; border-radius: 6px; background: linear-gradient(135deg, #8b5cf6, #4f46e5); border: 1px solid rgba(139, 92, 246, 0.3); cursor: pointer; color: white;">
-                                    Aplicar Modelo
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- New Instance Wizard -->
-                        <div class="dev-panel" style="background: rgba(20, 16, 33, 0.45); border: 1px solid rgba(139, 92, 246, 0.2); border-radius: 12px; padding: 20px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);">
-                            <h3 style="font-size: 16px; font-weight: 600; color: #f3f4f6; margin: 0 0 16px 0; display: flex; align-items: center; gap: 8px;">
-                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
-                                Aprovisionador de Nueva Instancia
-                            </h3>
-                            <form id="dev-new-instance-form">
-                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
-                                    <div class="input-group">
-                                        <label for="dev-new-name" style="font-size: 12px; font-weight: 600; color: #a78bfa; margin-bottom: 6px; display: block; text-transform: uppercase;">Nombre de Instancia</label>
-                                        <input type="text" id="dev-new-name" required placeholder="Ej. Melissa-X" style="width: 100%; padding: 10px 14px; font-size: 13px; border-radius: 6px; background: rgba(10, 8, 20, 0.65); border: 1px solid rgba(139, 92, 246, 0.3); color: #f3f4f6; box-sizing: border-box;">
-                                    </div>
-                                    <div class="input-group">
-                                        <label for="dev-new-sector" style="font-size: 12px; font-weight: 600; color: #a78bfa; margin-bottom: 6px; display: block; text-transform: uppercase;">Sector / Especialidad</label>
-                                        <select id="dev-new-sector" style="width: 100%; padding: 10px 14px; font-size: 13px; border-radius: 6px; background: rgba(10, 8, 20, 0.65); border: 1px solid rgba(139, 92, 246, 0.3); color: #f3f4f6; box-sizing: border-box;">
-                                            <option value="dental">Dental</option>
-                                            <option value="medicina_general">Medicina General</option>
-                                            <option value="estetica">Estética / Skin</option>
-                                            <option value="psicologia">Psicología</option>
-                                            <option value="kinesiologia">Kinesiología</option>
-                                            <option value="otro">Otro</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div style="display: flex; justify-content: flex-end; align-items: center; gap: 12px;">
-                                    <span id="new-instance-status-msg" style="font-size: 12px; display: flex; align-items: center; margin-right: auto;"></span>
-                                    <button type="submit" class="btn btn-primary" style="padding: 10px 18px; font-size: 13px; font-weight: 600; border-radius: 6px; background: linear-gradient(135deg, #8b5cf6, #4f46e5); border: 1px solid rgba(139, 92, 246, 0.3); cursor: pointer; color: white;">
-                                        Arrancar Instancia
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-
-                    <!-- 4. Real-time Logs Terminal (Ancho Completo 12 Cols) -->
-                    <div class="dev-panel" style="grid-column: span 12; background: rgba(20, 16, 33, 0.45); border: 1px solid rgba(139, 92, 246, 0.2); border-radius: 12px; padding: 20px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
-                            <h3 style="font-size: 16px; font-weight: 600; color: #f3f4f6; margin: 0; display: flex; align-items: center; gap: 8px;">
-                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 17l6-6-6-6M12 19h8"/></svg>
-                                Telemetría y Live Logs del Sistema (Tail)
-                            </h3>
-                            <div class="input-group" style="margin: 0; display: flex; align-items: center; gap: 10px;">
-                                <label for="dev-logs-instance-select" style="font-size: 11px; font-weight: 600; color: #a78bfa; white-space: nowrap; text-transform: uppercase;">Tails de logs:</label>
-                                <select id="dev-logs-instance-select" style="padding: 6px 12px; font-size: 12px; border-radius: 4px; background: rgba(10, 8, 20, 0.65); border: 1px solid rgba(139, 92, 246, 0.3); color: #f3f4f6;">
-                                    <option value="conny">Instancia Base (conny.log)</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="terminal-window" style="background: #090514; border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 8px; padding: 16px; box-shadow: inset 0 0 15px rgba(0,0,0,0.85); overflow: hidden; display: flex; flex-direction: column;">
-                            <div style="display: flex; gap: 6px; margin-bottom: 12px; border-bottom: 1px solid rgba(139, 92, 246, 0.15); padding-bottom: 8px; align-items: center;">
-                                <span style="width: 10px; height: 10px; border-radius: 50%; background: #ef4444; display: inline-block;"></span>
-                                <span style="width: 10px; height: 10px; border-radius: 50%; background: #f59e0b; display: inline-block;"></span>
-                                <span style="width: 10px; height: 10px; border-radius: 50%; background: #10b981; display: inline-block;"></span>
-                                <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: rgba(139, 92, 246, 0.7); margin-left: 10px; text-transform: lowercase;">bash - tail -n 100 logs/conny.log</span>
-                            </div>
-                            <pre id="dev-terminal-logs" style="margin: 0; font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 12px; color: #a78bfa; line-height: 1.6; overflow-y: auto; max-height: 280px; min-height: 180px; white-space: pre-wrap; word-break: break-all; padding-right: 8px; scrollbar-width: thin; scrollbar-color: rgba(139, 92, 246, 0.3) transparent;"></pre>
-                        </div>
-                    </div>
-
+                    <p id="new-instance-status-msg" style="margin: 10px 0 0 0; font-size: 13px;"></p>
                 </div>
             </section>
+            
+            <!-- 2. Prompts -->
+            <section id="view-dev-prompts" class="tab-view">
+                <div class="view-header" style="border-bottom: 1px solid rgba(139, 92, 246, 0.2); padding-bottom: 18px; margin-bottom: 24px;">
+                    <h2 style="color: #a78bfa; font-weight: 700; margin-bottom: 4px;">Editor de Prompts</h2>
+                    <p style="color: var(--text-secondary); margin: 0; font-size: 13px;">Edita el system prompt base de cada instancia en SQLite.</p>
+                </div>
+                <div class="dev-panel" style="background: rgba(20, 16, 33, 0.45); border: 1px solid rgba(139, 92, 246, 0.2); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; height: 70vh;">
+                    <select id="dev-prompt-instance-select" style="padding: 10px; border-radius: 8px; border: 1px solid rgba(139, 92, 246, 0.3); background: rgba(0,0,0,0.2); color: white; margin-bottom: 16px; outline: none;"></select>
+                    <textarea id="dev-prompt-textarea" style="flex: 1; background: #0f0a1c; border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 8px; padding: 16px; color: #a78bfa; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.5; outline: none; resize: none;" spellcheck="false" placeholder="Selecciona una instancia para cargar su prompt..."></textarea>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px;">
+                        <span id="prompt-status-msg" style="font-size: 13px; color: #34d399;"></span>
+                        <button id="btn-save-prompt" class="btn btn-primary" style="border-radius: 8px; padding: 8px 24px;">Guardar Prompt</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3. Modelos -->
+            <section id="view-dev-models" class="tab-view">
+                <div class="view-header" style="border-bottom: 1px solid rgba(139, 92, 246, 0.2); padding-bottom: 18px; margin-bottom: 24px;">
+                    <h2 style="color: #a78bfa; font-weight: 700; margin-bottom: 4px;">Gestión de LLMs</h2>
+                    <p style="color: var(--text-secondary); margin: 0; font-size: 13px;">Cambio de modelos de IA en caliente.</p>
+                </div>
+                <div class="dev-panel" style="background: rgba(20, 16, 33, 0.45); border: 1px solid rgba(139, 92, 246, 0.2); border-radius: 12px; padding: 20px;">
+                    <div style="display: flex; flex-direction: column; gap: 16px;">
+                        <select id="dev-model-instance-select" style="padding: 10px; border-radius: 8px; border: 1px solid rgba(139, 92, 246, 0.3); background: rgba(0,0,0,0.2); color: white;"></select>
+                        <select id="dev-model-select" style="padding: 10px; border-radius: 8px; border: 1px solid rgba(139, 92, 246, 0.3); background: rgba(0,0,0,0.2); color: white;">
+                            <option value="google/gemini-2.5-flash">Gemini 2.5 Flash</option>
+                            <option value="google/gemini-2.5-pro">Gemini 2.5 Pro</option>
+                            <option value="anthropic/claude-3-haiku">Claude 3.5 Haiku</option>
+                            <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
+                        </select>
+                        <button id="btn-apply-model" class="btn btn-primary" style="border-radius: 8px;">Aplicar Modelo y Reiniciar Instancia</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 4. Accesos (Tokens & Admins) -->
+            <section id="view-dev-tokens" class="tab-view">
+                <div class="view-header" style="border-bottom: 1px solid rgba(139, 92, 246, 0.2); padding-bottom: 18px; margin-bottom: 24px;">
+                    <h2 style="color: #a78bfa; font-weight: 700; margin-bottom: 4px;">Tokens y Accesos</h2>
+                    <p style="color: var(--text-secondary); margin: 0; font-size: 13px;">Gestión de Access Tokens para nuevos clientes.</p>
+                </div>
+                <div class="dev-panel" style="background: rgba(20, 16, 33, 0.45); border: 1px solid rgba(139, 92, 246, 0.2); border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 16px; align-items: center;">
+                        <h3 style="font-size: 16px; font-weight: 600; color: #f3f4f6; margin: 0;">Access Tokens Generados</h3>
+                        <button id="btn-dev-create-token" class="btn btn-primary" style="padding: 8px 16px; border-radius: 8px; font-size: 13px;">+ Generar Token</button>
+                    </div>
+                    <div class="table-container" style="overflow-x: auto; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05); background: rgba(10, 8, 20, 0.45);">
+                        <table class="premium-table" style="width: 100%; border-collapse: collapse; text-align: left;">
+                            <thead>
+                                <tr style="border-bottom: 1px solid rgba(139, 92, 246, 0.2); background: rgba(139, 92, 246, 0.05);">
+                                    <th style="padding: 12px 16px; font-size: 12px; color: #a78bfa; text-transform: uppercase;">Token</th>
+                                    <th style="padding: 12px 16px; font-size: 12px; color: #a78bfa; text-transform: uppercase;">Clínica (Label)</th>
+                                    <th style="padding: 12px 16px; font-size: 12px; color: #a78bfa; text-transform: uppercase;">Estado</th>
+                                    <th style="padding: 12px 16px; font-size: 12px; color: #a78bfa; text-transform: uppercase; text-align: right;">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dev-tokens-tbody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 5. Terminal -->
+            <section id="view-dev-logs" class="tab-view">
+                <div class="view-header" style="border-bottom: 1px solid rgba(139, 92, 246, 0.2); padding-bottom: 18px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h2 style="color: #a78bfa; font-weight: 700; margin-bottom: 4px;">Terminal Logs</h2>
+                        <p style="color: var(--text-secondary); margin: 0; font-size: 13px;">Visor de logs en tiempo real (conny.log).</p>
+                    </div>
+                    <select id="dev-logs-instance-select" style="padding: 8px; border-radius: 6px; border: 1px solid rgba(139, 92, 246, 0.3); background: rgba(0,0,0,0.2); color: white;"></select>
+                </div>
+                <div class="dev-panel" style="background: #000; border: 1px solid #333; border-radius: 8px; padding: 16px; height: 65vh; overflow: hidden; position: relative;">
+                    <div id="dev-terminal-logs" style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #a78bfa; line-height: 1.5; height: 100%; overflow-y: auto; white-space: pre-wrap; padding-bottom: 20px;">
+                        Loading syslogs...
+                    </div>
+                </div>
+            </section>
+
+            <!-- END DEV VIEWS -->
+
         </main>
     </div>
 
@@ -1264,6 +1226,65 @@ if(el || elLogin) {
     <div id="lightbox-modal" class="lightbox-modal">
         <div class="lightbox-close" id="lightbox-close">&times;</div>
         <img id="lightbox-img" class="lightbox-content" src="" alt="Ampliar adjunto">
+    </div>
+
+    <!-- Modal de Acceso para Devs -->
+    <div id="dev-login-modal" class="modal-overlay" style="display: none; align-items: center; justify-content: center; z-index: 9999;">
+        <div class="modal-content" style="max-width: 420px; width: 100%; background: #1a1625; border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 12px; padding: 32px; box-shadow: 0 0 0 transparent;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="width: 40px; height: 40px; background: rgba(139, 92, 246, 0.1); border-radius: 8px; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(139, 92, 246, 0.3);">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#a78bfa" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+                    </div>
+                    <div>
+                        <h2 style="color: #f3f4f6; font-size: 20px; font-weight: 700; margin: 0;">Conny Dev</h2>
+                        <p style="color: #9ca3af; font-size: 13px; margin: 2px 0 0 0;">Portal de Desarrollo</p>
+                    </div>
+                </div>
+                <button type="button" id="btn-close-dev-modal" style="background: none; border: none; color: #9ca3af; cursor: pointer; padding: 4px;">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            
+            <div class="dev-tabs" style="display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 12px;">
+                <button type="button" id="tab-dev-login" class="dev-tab active" style="background: transparent; border: none; color: #a78bfa; font-weight: 600; cursor: pointer; padding: 4px 8px; font-size: 14px;">Iniciar Sesión</button>
+                <button type="button" id="tab-dev-register" class="dev-tab" style="background: transparent; border: none; color: #6b7280; font-weight: 600; cursor: pointer; padding: 4px 8px; font-size: 14px;">Registrarse</button>
+            </div>
+
+            <div id="dev-login-tab-content">
+                <form id="dev-login-form-new">
+                    <div class="input-group" style="margin-bottom: 16px;">
+                        <label for="dev-login-email" style="display: block; color: #d1d5db; font-size: 13px; margin-bottom: 6px;">Correo de Desarrollador</label>
+                        <input type="email" id="dev-login-email" required placeholder="correo@dev.com" style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid rgba(139, 92, 246, 0.3); background: rgba(0,0,0,0.2); color: white; box-sizing: border-box; outline: none;">
+                    </div>
+                    <div class="input-group" style="margin-bottom: 24px;">
+                        <label for="dev-login-password" style="display: block; color: #d1d5db; font-size: 13px; margin-bottom: 6px;">Contraseña</label>
+                        <input type="password" id="dev-login-password" required placeholder="Tu contraseña" style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid rgba(139, 92, 246, 0.3); background: rgba(0,0,0,0.2); color: white; box-sizing: border-box; outline: none;">
+                    </div>
+                    <p id="dev-login-error" style="color: #ef4444; font-size: 13px; margin: -10px 0 16px 0; min-height: 18px;"></p>
+                    <button type="submit" class="btn btn-primary" style="width: 100%; border-radius: 8px; padding: 12px; font-weight: 600;">Entrar como Dev</button>
+                </form>
+            </div>
+
+            <div id="dev-register-tab-content" style="display: none;">
+                <form id="dev-register-form">
+                    <div class="input-group" style="margin-bottom: 16px;">
+                        <label for="dev-reg-email" style="display: block; color: #d1d5db; font-size: 13px; margin-bottom: 6px;">Correo Nuevo</label>
+                        <input type="email" id="dev-reg-email" required placeholder="correo@dev.com" style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid rgba(139, 92, 246, 0.3); background: rgba(0,0,0,0.2); color: white; box-sizing: border-box; outline: none;">
+                    </div>
+                    <div class="input-group" style="margin-bottom: 16px;">
+                        <label for="dev-reg-password" style="display: block; color: #d1d5db; font-size: 13px; margin-bottom: 6px;">Contraseña Segura</label>
+                        <input type="password" id="dev-reg-password" required placeholder="Crea una contraseña" style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid rgba(139, 92, 246, 0.3); background: rgba(0,0,0,0.2); color: white; box-sizing: border-box; outline: none;">
+                    </div>
+                    <div class="input-group" style="margin-bottom: 24px;">
+                        <label for="dev-reg-token" style="display: block; color: #d1d5db; font-size: 13px; margin-bottom: 6px;">Token Maestro (Autorización)</label>
+                        <input type="password" id="dev-reg-token" required placeholder="Pídelo al Admin Principal" style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid rgba(139, 92, 246, 0.3); background: rgba(0,0,0,0.2); color: white; box-sizing: border-box; outline: none;">
+                    </div>
+                    <p id="dev-reg-error" style="color: #ef4444; font-size: 13px; margin: -10px 0 16px 0; min-height: 18px;"></p>
+                    <button type="submit" class="btn btn-primary" style="width: 100%; border-radius: 8px; padding: 12px; font-weight: 600;">Registrar Cuenta Dev</button>
+                </form>
+            </div>
+        </div>
     </div>
 </body>
 </html>

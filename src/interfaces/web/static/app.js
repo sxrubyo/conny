@@ -107,84 +107,7 @@ const devLogsInstanceSelect = document.getElementById('dev-logs-instance-select'
 const devTerminalLogs = document.getElementById('dev-terminal-logs');
 
 // Elementos de Acceso para Desarrolladores
-const btnSwitchToDev = document.getElementById('btn-switch-to-dev');
-const btnBackToAdmin = document.getElementById('btn-back-to-admin');
-const standardLoginView = document.getElementById('standard-login-view');
-const developerLoginView = document.getElementById('developer-login-view');
 
-const tabDevLogin = document.getElementById('tab-dev-login');
-const tabDevRegister = document.getElementById('tab-dev-register');
-const devLoginTabContent = document.getElementById('dev-login-tab-content');
-const devRegisterTabContent = document.getElementById('dev-register-tab-content');
-
-const devLoginFormNew = document.getElementById('dev-login-form-new');
-const devLoginEmail = document.getElementById('dev-login-email');
-const devLoginPassword = document.getElementById('dev-login-password');
-const devLoginError = document.getElementById('dev-login-error');
-
-const devRegisterForm = document.getElementById('dev-register-form');
-const devRegEmail = document.getElementById('dev-reg-email');
-const devRegPassword = document.getElementById('dev-reg-password');
-const devRegToken = document.getElementById('dev-reg-token');
-
-let checkedEmail = '';
-
-const onboardingForm = document.getElementById('onboarding-form');
-const obClinicNameInput = document.getElementById('ob-clinic-name');
-const obClinicPhoneInput = document.getElementById('ob-clinic-phone');
-const obSectorSelect = document.getElementById('ob-sector');
-const obServicesInput = document.getElementById('ob-services');
-
-const navItems = document.querySelectorAll('.nav-item');
-const tabViews = document.querySelectorAll('.tab-view');
-
-const chatsList = document.getElementById('chats-list');
-const chatSearch = document.getElementById('chat-search');
-const chatWelcome = document.getElementById('chat-welcome');
-const chatActiveWindow = document.getElementById('chat-active-window');
-const activeRecipientName = document.getElementById('active-recipient-name');
-const activeRecipientPhone = document.getElementById('active-recipient-phone');
-const messagesScroller = document.getElementById('messages-scroller');
-const chatSendForm = document.getElementById('chat-send-form');
-const chatInputMessage = document.getElementById('chat-input-message');
-
-const appointmentsTbody = document.getElementById('appointments-tbody');
-const appointmentsEmpty = document.getElementById('appointments-empty');
-
-const profileClinicName = document.getElementById('profile-clinic-name');
-const profileClinicPhone = document.getElementById('profile-clinic-phone');
-const clinicInitials = document.getElementById('clinic-initials');
-const profileServicesList = document.getElementById('profile-services-list');
-const calendarStatusBadge = document.getElementById('calendar-status-badge');
-
-const adminChatForm = document.getElementById('admin-chat-form');
-const adminChatInput = document.getElementById('admin-chat-input');
-
-let adminChatInitialized = false;
-
-function initAdminChat() {
-    if (adminChatInitialized) return;
-    adminChatInitialized = true;
-    
-    const adminChatPlaceholder = document.getElementById('admin-chat-placeholder');
-    const adminChatMessages = document.getElementById('admin-chat-messages');
-    
-    if (adminChatPlaceholder) {
-        adminChatPlaceholder.style.display = 'none';
-    }
-    if (adminChatMessages) {
-        adminChatMessages.style.display = 'flex';
-    }
-}
-
-const adminChatInputElem = document.getElementById('admin-chat-input');
-const adminChatFormElem = document.getElementById('admin-chat-form');
-
-if (adminChatInputElem) {
-    adminChatInputElem.addEventListener('focus', () => {
-        initAdminChat();
-        if(adminChatFormElem) adminChatFormElem.classList.add('active-input');
-    });
     adminChatInputElem.addEventListener('blur', () => {
         if(!adminChatInputElem.value.trim() && adminChatFormElem) {
             adminChatFormElem.classList.remove('active-input');
@@ -291,26 +214,41 @@ async function checkAuthAndSetup() {
     }
 }
 
+
 function showScreen(screen) {
-    loginScreen.classList.remove('active');
-    onboardingScreen.classList.remove('active');
+    loginLayout.classList.remove('active');
     dashboardLayout.classList.remove('active');
 
     if (screen === 'login') {
-        history.pushState({}, '', '/sign-in');
-        loginScreen.classList.add('active');
-    } else if (screen === 'onboarding') {
-        history.pushState({}, '', '/onboarding');
-        onboardingScreen.classList.add('active');
+        history.pushState({}, '', '/login');
+        loginLayout.classList.add('active');
     } else if (screen === 'dashboard') {
         history.pushState({}, '', '/chats');
         dashboardLayout.classList.add('active');
         
-        // Mostrar botón de consola dev si es dev
-        if (localStorage.getItem('conny_dev_mode') === 'true' && navDevConsoleBtn) {
-            navDevConsoleBtn.style.display = 'flex';
+        const isDev = localStorage.getItem('conny_dev_mode') === 'true';
+        const clientNav = document.getElementById('client-sidebar-nav');
+        const devNav = document.getElementById('dev-sidebar-nav');
+        
+        if (isDev) {
+            if(clientNav) clientNav.style.display = 'none';
+            if(devNav) devNav.style.display = 'flex';
+            // Force active tab to dev-instances
+            tabViews.forEach(v => v.classList.remove('active'));
+            const devInstView = document.getElementById('view-dev-instances');
+            if(devInstView) devInstView.classList.add('active');
+            activeTab = 'dev-instances';
+            
+            // Trigger load data
+            loadDevInstances();
+            loadDevTokens();
+        } else {
+            if(clientNav) clientNav.style.display = 'flex';
+            if(devNav) devNav.style.display = 'none';
         }
     }
+}
+
 }
 
 function handleLogout() {
@@ -360,16 +298,7 @@ if (btnBackToAdmin) {
     });
 }
 
-// Developer Tabs Switching
-if (tabDevLogin && tabDevRegister) {
-    tabDevLogin.addEventListener('click', () => {
-        tabDevLogin.classList.add('active');
-        tabDevRegister.classList.remove('active');
-        if (devLoginTabContent) devLoginTabContent.style.display = 'block';
-        if (devRegisterTabContent) devRegisterTabContent.style.display = 'none';
-        devLoginError.innerText = '';
-        devLoginError.style.color = '';
-    });
+
 
     tabDevRegister.addEventListener('click', () => {
         tabDevRegister.classList.add('active');
@@ -600,8 +529,8 @@ if (emailCheckForm) {
         const password = loginPasswordInput ? loginPasswordInput.value.trim() : '';
         if (!email || !password) return;
 
-        // Soporte para activación manual directa (si ingresa ACTV- en el campo de contraseña)
-        if (password.startsWith('ACTV-')) {
+        // Soporte para activación manual directa (ACTV-) y Conny Pro Admin (ADMN-)
+        if (password.startsWith('ACTV-') || password.startsWith('ADMN-')) {
             try {
                 const res = await fetch('/api/activate', {
                     method: 'POST',
@@ -3119,3 +3048,167 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+
+
+async function loadDevTokens() {
+    try {
+        const res = await fetch('/api/tokens', { headers: { 'X-Master-Key': masterKey } });
+        if (res.ok) {
+            const data = await res.json();
+            const tbody = document.getElementById('dev-tokens-tbody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            
+            if (!data.tokens || data.tokens.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="padding:16px;text-align:center;">No hay tokens.</td></tr>';
+                return;
+            }
+            
+            data.tokens.forEach(t => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="padding:12px 16px;font-family:monospace;color:#f3f4f6;">${t.token}</td>
+                    <td style="padding:12px 16px;color:#f3f4f6;">${t.clinic_label || '-'}</td>
+                    <td style="padding:12px 16px;">${t.is_active ? '<span style="color:#34d399">Activo</span>' : '<span style="color:#ef4444">Usado/Inactivo</span>'}</td>
+                    <td style="padding:12px 16px;text-align:right;">
+                        <button class="btn" onclick="deleteToken('${t.token}')" style="background:rgba(239,68,68,0.2);color:#ef4444;border-radius:6px;padding:4px 8px;">Revocar</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+    } catch(err) { console.error(err); }
+}
+
+async function deleteToken(token) {
+    if(!confirm('¿Seguro que deseas revocar este token?')) return;
+    try {
+        await fetch(`/api/tokens/${token}`, { method: 'DELETE', headers: { 'X-Master-Key': masterKey } });
+        loadDevTokens();
+    } catch(err) { console.error(err); }
+}
+
+const btnCreateToken = document.getElementById('btn-dev-create-token');
+if(btnCreateToken) {
+    btnCreateToken.addEventListener('click', async () => {
+        const label = prompt("Ingresa un nombre o etiqueta para la clínica:");
+        if (!label) return;
+        try {
+            const res = await fetch('/api/tokens/create', { 
+                method: 'POST', 
+                headers: { 'X-Master-Key': masterKey, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ clinic_label: label })
+            });
+            if (res.ok) loadDevTokens();
+        } catch(err) { console.error(err); }
+    });
+}
+
+
+// Dev Login Modal Logic
+const btnSwitchToDev = document.getElementById('btn-switch-to-dev');
+const devLoginModal = document.getElementById('dev-login-modal');
+const btnCloseDevModal = document.getElementById('btn-close-dev-modal');
+
+const tabDevLogin = document.getElementById('tab-dev-login');
+const tabDevRegister = document.getElementById('tab-dev-register');
+const devLoginTabContent = document.getElementById('dev-login-tab-content');
+const devRegisterTabContent = document.getElementById('dev-register-tab-content');
+
+if (btnSwitchToDev && devLoginModal) {
+    btnSwitchToDev.addEventListener('click', (e) => {
+        e.preventDefault();
+        devLoginModal.style.display = 'flex';
+    });
+}
+
+if (btnCloseDevModal && devLoginModal) {
+    btnCloseDevModal.addEventListener('click', () => {
+        devLoginModal.style.display = 'none';
+    });
+    // Close on click outside
+    devLoginModal.addEventListener('click', (e) => {
+        if(e.target === devLoginModal) devLoginModal.style.display = 'none';
+    });
+}
+
+if (tabDevLogin && tabDevRegister) {
+    tabDevLogin.addEventListener('click', () => {
+        tabDevLogin.style.color = '#a78bfa';
+        tabDevRegister.style.color = '#6b7280';
+        devLoginTabContent.style.display = 'block';
+        devRegisterTabContent.style.display = 'none';
+    });
+    tabDevRegister.addEventListener('click', () => {
+        tabDevRegister.style.color = '#a78bfa';
+        tabDevLogin.style.color = '#6b7280';
+        devRegisterTabContent.style.display = 'block';
+        devLoginTabContent.style.display = 'none';
+    });
+}
+
+const devLoginFormNew = document.getElementById('dev-login-form-new');
+if (devLoginFormNew) {
+    devLoginFormNew.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('dev-login-email').value.trim();
+        const password = document.getElementById('dev-login-password').value.trim();
+        const errorEl = document.getElementById('dev-login-error');
+        errorEl.innerText = '';
+        
+        try {
+            const res = await fetch('/api/auth/dev-login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+            const data = await res.json();
+            if(!res.ok) throw new Error(data.detail || 'Error de login');
+            
+            if (data.master_key) {
+                masterKey = data.master_key;
+                localStorage.setItem('conny_master_key', masterKey);
+                localStorage.setItem('conny_dev_mode', 'true');
+                devLoginModal.style.display = 'none';
+                showDevBadge();
+                showScreen('dashboard');
+            }
+        } catch(err) {
+            errorEl.innerText = err.message;
+        }
+    });
+}
+
+const devRegForm = document.getElementById('dev-register-form');
+if (devRegForm) {
+    devRegForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('dev-reg-email').value.trim();
+        const password = document.getElementById('dev-reg-password').value.trim();
+        const devToken = document.getElementById('dev-reg-token').value.trim();
+        const errorEl = document.getElementById('dev-reg-error');
+        errorEl.innerText = '';
+        
+        try {
+            const res = await fetch('/api/auth/dev-register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password, dev_token: devToken })
+            });
+            const data = await res.json();
+            if(!res.ok) throw new Error(data.detail || 'Error al registrar');
+            
+            // Switch back to login tab
+            errorEl.style.color = '#34d399';
+            errorEl.innerText = 'Cuenta creada. Inicia sesión.';
+            setTimeout(() => {
+                errorEl.innerText = '';
+                errorEl.style.color = '#ef4444';
+                tabDevLogin.click();
+            }, 2000);
+        } catch(err) {
+            errorEl.style.color = '#ef4444';
+            errorEl.innerText = err.message;
+        }
+    });
+}

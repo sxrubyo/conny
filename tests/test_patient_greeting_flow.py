@@ -377,7 +377,7 @@ def test_admin_local_fallback_explains_creator_and_capabilities() -> None:
     joined_creator = " ".join(creator).lower()
     joined_audio = " ".join(audio).lower()
     assert "black" in joined_creator
-    assert "3124348669" in joined_creator
+    assert "3243699856" in joined_creator
     assert "audios" in joined_audio
     assert "pdf" in joined_audio
 

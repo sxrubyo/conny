@@ -141,7 +141,7 @@ class ConnyAdmin:
         # Determinar nivel de conocimiento
         knowledge_level = self._assess_knowledge_level(soul_context, teachings_context, clinic)
 
-                sys_prompt = f"""Eres Conny, la empleada que atiende los clientes de {clinic_name}.
+        sys_prompt = f"""Eres Conny, la empleada que atiende los clientes de {clinic_name}.
 
 SITUACIÓN ACTUAL:
 - Estás hablando con tu JEFE (el dueño o administrador del negocio)
@@ -180,7 +180,17 @@ COMPORTAMIENTO OBLIGATORIO (¡MUY IMPORTANTE!):
             log.info(f"[admin] {meta.get('provider','?')} latency={meta.get('latency_ms',0)}ms")
         except Exception as e:
             log.error(f"[admin] LLM error: {e}")
-            response = "perdona, se me fue la señal un momento ||| qué me decías?"
+            if hasattr(e, "public_message"):
+                response = (
+                    "No voy a ocultarte esto con un fallback. ||| "
+                    f"{e.public_message} ||| "
+                    "Continuar con fallback? Responde exactamente: continuar fallback. No recomendado si quieres que todo lo decida el LLM."
+                )
+            else:
+                response = (
+                    f"El cerebro LLM falló antes de responder. Detalle: {str(e)[:500]} ||| "
+                    "Continuar con fallback? Responde exactamente: continuar fallback. No recomendado."
+                )
 
         if not response or not response.strip():
             response = "cuéntame más, estoy tomando nota de todo"
@@ -665,9 +675,13 @@ class AuthEngine:
 
     async def _start_activation(self, chat_id: str, token_raw: str) -> List[str]:
         from conny import db
+        from conny_utils import is_admin_activation_token
         token = token_raw.strip().upper(); td = db.get_activation_token(token)
         if not td: return ["Token no válido."]
-        db.set_auth_session(chat_id, flow="activate", step="name", temp_data={"token": token})
+        token_type = "admin_pro" if is_admin_activation_token(token) else "business_owner"
+        db.set_auth_session(chat_id, flow="activate", step="name", temp_data={"token": token, "token_type": token_type})
+        if token_type == "admin_pro":
+            return ["Código Conny Pro válido. Cómo te llamas?"]
         return ["Código válido. Cómo te llamas?"]
 
     async def _handle_activation_flow(self, chat_id: str, text: str, session: Dict) -> List[str]:
@@ -684,8 +698,25 @@ class AuthEngine:
             tmp["password_hash"] = hash_password(text.strip()); db.set_auth_session(chat_id, "activate", "confirm", tmp)
             return ["Confirmas? (si/no)"]
         if step == "confirm" and text.lower().strip() == "si":
-            db.create_admin(chat_id=chat_id, email=tmp["email"], password_hash=tmp["password_hash"], name=tmp["name"], role="owner")
-            db.clear_auth_session(chat_id); return ["Listo, cuenta creada. Ahora cuéntame del negocio"]
+            from conny_utils import _parse_admin_ids
+            token = tmp.get("token", "")
+            token_type = tmp.get("token_type", "business_owner")
+            role = "admin_pro" if token_type == "admin_pro" else "owner"
+            db.create_admin(chat_id=chat_id, email=tmp["email"], password_hash=tmp["password_hash"], name=tmp["name"], role=role, token=token)
+            if token:
+                db.consume_activation_token(token, chat_id)
+            clinic = db.get_clinic()
+            admin_ids = _parse_admin_ids(clinic.get("admin_chat_ids", []))
+            if chat_id not in admin_ids:
+                admin_ids.append(chat_id)
+                db.update_clinic(admin_chat_ids=admin_ids)
+            db.clear_auth_session(chat_id)
+            if token_type == "admin_pro":
+                return [
+                    "Listo. Conny Pro Admin quedó activado para este chat.",
+                    "Desde aquí puedes administrar la instancia, crear flujos y corregir la operación con permisos de operador."
+                ]
+            return ["Listo, cuenta creada. Ahora cuéntame del negocio"]
         return ["Cancelado."]
 
     async def _handle_login_flow(self, chat_id: str, text: str, session: Dict) -> List[str]:

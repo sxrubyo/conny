@@ -250,7 +250,7 @@ def build_pm2_start_command(instance_dir: str, pm2_name: str, log_dir: str) -> L
     ]
 
 
-VERSION = "9.7.6"
+VERSION = "9.8.0"
 CONNY_HOME = os.getenv("CONNY_HOME", str(Path.home() / ".conny"))
 CONNY_DIR = os.getenv("CONNY_DIR", str(Path(__file__).resolve().parent))
 INSTANCES_DIR = _default_instances_dir()
@@ -876,7 +876,7 @@ def prompt(label, default="", secret=False):
     d = f" [{default}]" if default else ""
     try:
         import getpass
-        v = getpass.getpass(f"\n  {q(C.P2, '▸')}  {label}{q(C.G3, d)}  ") if secret else input(f"\n  {q(C.P2, '▸')}  {label}{q(C.G3, d)}  ")
+        v = input(f"\n  {q(C.P2, '▸')}  {label}{q(C.G3, d)}  ") if secret else input(f"\n  {q(C.P2, '▸')}  {label}{q(C.G3, d)}  ")
     except (EOFError, KeyboardInterrupt):
         print()
         return default
@@ -6296,11 +6296,15 @@ def cmd_token(args):
     
     Uso:
       conny token                    → genera para la instancia base
+      conny token --admin            → genera token Conny Pro Admin
       conny token 1                  → genera para la instancia 1
       conny token "Clinica Demo"     → genera con ese nombre
       conny token all                → genera para todas las instancias
     """
     name = getattr(args, 'name', '') or getattr(args, 'subcommand', '') or ''
+    admin_mode = bool(getattr(args, "admin", False)) or name.lower() in ("--admin", "admin", "pro")
+    if name.lower() in ("--admin", "admin", "pro"):
+        name = ""
 
     def _gen_token(inst, label_override=""):
         ev = dict(load_env(f"{inst.dir}/.env"))
@@ -6310,11 +6314,67 @@ def cmd_token(args):
             return
         label = label_override or inst.label
         base_url = f"http://localhost:{inst.port}"
+        payload = {"clinic_label": label}
+        if admin_mode:
+            payload["token_type"] = "admin_pro"
+            payload["admin"] = True
+
+        def _print_token(token, expires, offline=False):
+            kind = "Conny Pro Admin" if admin_mode else "activación"
+            suffix = " offline" if offline else ""
+            ok(f"Token {kind}{suffix} generado para: {q(C.YLW, label)}")
+            print(f"\n    {q(C.YLW, token, bold=True)}\n")
+            info(f"Expira: {expires}")
+            if admin_mode:
+                info("Activa el modo operador: el admin lo escribe en WhatsApp/Telegram para tomar control de la instancia.")
+            else:
+                info("Envialo al admin — lo escribe en el chat de WhatsApp/Telegram")
+
+        def _gen_offline(reason: str):
+            import secrets as _secrets
+            import re as _re
+            db_path = inst.db_path
+            if not db_path:
+                fail(f"No se pudo generar: {reason}")
+                return
+            label_clean = _re.sub(r'[^a-zA-Z0-9]', '', label.lower())[:10].upper() or ("ADMIN" if admin_mode else "GENERIC")
+            entropy = _secrets.token_hex(18 if admin_mode else 16).upper()
+            token = f"{'ADMN' if admin_mode else 'ACTV'}-{label_clean}-{entropy}"
+            expires_at = (datetime.now() + timedelta(hours=72)).isoformat()
+            stored_label = f"ADMIN_PRO:{label}" if admin_mode else label
+            try:
+                os.makedirs(os.path.dirname(db_path), exist_ok=True)
+                conn = sqlite3.connect(db_path)
+                cur = conn.cursor()
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS activation_tokens (
+                        token TEXT PRIMARY KEY,
+                        clinic_label TEXT NOT NULL,
+                        expires_at TEXT NOT NULL,
+                        used_at TEXT,
+                        used_by_chat_id TEXT,
+                        is_active INTEGER DEFAULT 1,
+                        created_at TEXT DEFAULT (datetime('now'))
+                    )
+                """)
+                cur.execute("""
+                    INSERT INTO activation_tokens
+                    (token, clinic_label, expires_at, created_at)
+                    VALUES (?, ?, ?, ?)
+                """, (token, stored_label, expires_at, datetime.now().isoformat()))
+                conn.commit()
+                conn.close()
+                warn(f"API local no disponible ({reason}); usé generación offline segura.")
+                _print_token(token, expires_at[:16], offline=True)
+            except Exception as offline_error:
+                fail(f"No se pudo generar: {reason}")
+                fail(f"Fallback offline falló: {offline_error}")
+
         try:
             if _HTTPX:
                 r = _httpx.post(
                     f"{base_url}/api/tokens/create",
-                    json={"clinic_label": label},
+                    json=payload,
                     headers={"X-Master-Key": master_key},
                     timeout=10
                 )
@@ -6323,7 +6383,7 @@ def cmd_token(args):
                 import urllib.request as _ur
                 req = _ur.Request(
                     f"{base_url}/api/tokens/create",
-                    data=json.dumps({"clinic_label": label}).encode(),
+                    data=json.dumps(payload).encode(),
                     headers={"Content-Type": "application/json", "X-Master-Key": master_key},
                     method="POST"
                 )
@@ -6331,15 +6391,11 @@ def cmd_token(args):
             token = data.get("token", "")
             expires = data.get("expires_at", "")[:16] if data.get("expires_at") else "72h"
             if token:
-                ok(f"Token generado para: {q(C.YLW, label)}")
-                print(f"\n    {q(C.YLW, token, bold=True)}\n")
-                info(f"Expira: {expires}")
-                info("Envialo al admin — lo escribe en el chat de WhatsApp/Telegram")
+                _print_token(token, expires)
             else:
-                fail(f"Error: {data}")
+                _gen_offline(f"respuesta API sin token: {data}")
         except Exception as e:
-            fail(f"No se pudo generar: {e}")
-            info(f"¿Está corriendo? conny restart {inst.name}")
+            _gen_offline(str(e))
 
     # Generar para todas
     if name.lower() in ("all", "todas", "todos"):
@@ -7126,6 +7182,40 @@ def cmd_sync_web(args):
     ok(f"Instancia {inst.label} vinculada y sincronizada correctamente.")
     info("Puedes gestionarla desde el portal web usando tu token.")
 
+
+
+def cmd_dev_account(args):
+    """Crea una cuenta de desarrollador para la UI web."""
+    print("\n══ Cuenta de Desarrollador (Web Dev Console) ══")
+    import os, sqlite3, secrets, hashlib
+    import getpass
+    
+    db_path = "/home/ubuntu/conny/conny_ultra.db"
+    if not os.path.exists(db_path):
+        db_path = "/home/ubuntu/conny/conny.db"
+        
+    email = input(f"  {q(C.CYN, 'Email del Dev:')} ").strip().lower()
+    if not email: return
+    password = getpass.getpass(f"  {q(C.CYN, 'Contraseña:')} ").strip()
+    if not password: return
+    
+    try:
+        salt = secrets.token_hex(16)
+        key = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("utf-8"), 260_000).hex()
+        hashed = f"{salt}:{key}"
+        
+        conn = sqlite3.connect(db_path)
+        c = conn.cursor()
+        c.execute("CREATE TABLE IF NOT EXISTS dev_accounts (email TEXT PRIMARY KEY, password_hash TEXT)")
+        c.execute("INSERT OR REPLACE INTO dev_accounts (email, password_hash) VALUES (?, ?)", (email, hashed))
+        conn.commit()
+        conn.close()
+        ok(f"Cuenta '{email}' creada con éxito.")
+        info("Ya puedes entrar en la web mediante el botón 'API Access / Conny Dev'.")
+    except Exception as e:
+        fail(f"Error al crear cuenta localmente: {e}")
+
+
 ROUTES = {
 
     "auth": cmd_auth,
@@ -7134,6 +7224,7 @@ ROUTES = {
     "portal": cmd_portal,
     "web": cmd_portal,
     "sync-web": cmd_sync_web,
+    "dev-account": cmd_dev_account, "dev": cmd_dev_account,
     # Principal
     "init": cmd_init,
     "new": cmd_new, "nuevo": cmd_new, "crear": cmd_new,
@@ -11699,6 +11790,7 @@ def main():
     parser.add_argument("--quiet", "-q", action="store_true")
     parser.add_argument("--json", "-j", action="store_true", help="Output JSON")
     parser.add_argument("--auto", "-y", action="store_true", help="Auto-confirm")
+    parser.add_argument("--admin", action="store_true", help="Genera token Conny Pro Admin")
     parser.add_argument("--dry-run", "-n", action="store_true", dest="dry_run",
                         help="Preview sin ejecutar (sync)")
     parser.add_argument("--no-restart", action="store_true", dest="no_restart",

@@ -3095,3 +3095,33 @@ body.dark-theme .playground-chat-window form {
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45) !important;
     border-color: rgba(156, 163, 175, 0.5) !important;
 }
+
+.btn-back-mobile {
+    display: none;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px 8px 4px 0;
+    margin-right: 4px;
+    color: var(--text-secondary);
+}
+
+@media (max-width: 768px) {
+    .whatsapp-sidebar {
+        width: 100% !important;
+    }
+    .whatsapp-layout:not(.mobile-chat-active) .whatsapp-chat-area {
+        display: none !important;
+    }
+    .whatsapp-layout.mobile-chat-active .whatsapp-sidebar {
+        display: none !important;
+    }
+    .whatsapp-layout.mobile-chat-active .whatsapp-chat-area {
+        display: flex !important;
+        width: 100% !important;
+    }
+    .btn-back-mobile {
+        display: flex !important;
+        align-items: center;
+    }
+}

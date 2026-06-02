@@ -1,5 +1,17 @@
 # Changelog
 
+## 9.8.0 - 2026-06-02
+
+- blocked first-contact setup for unknown chats until a valid activation token is provided
+- added `conny token --admin` with `ADMN-` Conny Pro Admin tokens, offline SQLite generation and web/API developer access
+- fixed token casing and case-insensitive token lookup so generated tokens validate reliably
+- made `/api/activate`, web registration and developer registration accept Conny Pro Admin tokens safely
+- added admin Soul memory folders under `soul/admins/<chat_id>` for persistent operator context and learned business/ops facts
+- introduced typed LLM service errors so quota/API-key failures are shown to admins before any fallback
+- changed admin fallback into an explicit opt-in flow via `continuar fallback`
+- cleaned npm packaging to exclude patch/fix scripts and private per-business brand asset folders
+- fixed first contact greeting regression (`Holaal`) and restored admin capability fallback for audios, PDFs and documents
+
 ## 9.7.6 - 2026-05-26
 
 - fixed demo LLM resolution through the Conny facade so tests and runtime use the configured engine instead of a stale runtime module

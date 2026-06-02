@@ -129,6 +129,6 @@ def get_closing_response() -> str:
     """When prospect wants to buy, close with Santiago's contact."""
     return (
         "me alegra que te haya gustado la demo! |||"
-        " para activarlo en tu negocio, Santiago te explica todo: 3124348669 |||"
+        " para activarlo en tu negocio, Santiago te explica todo: 3243699856 |||"
         " la activación es rápida, en menos de 5 minutos ya estoy respondiendo tu WhatsApp"
     )
