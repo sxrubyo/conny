@@ -656,6 +656,7 @@ async def _handle_demo_message(self, chat_id: str, text: str,
             ),
         ]
         had_output = False
+        last_candidate = None
         for prompt_now, temp_now, max_now, tier_now, limit_now in attempts:
             # No lanzar repair si ya pasó demasiado tiempo desde que llegó el mensaje
             if time.time() - _chain_start > _CHAIN_TIMEOUT_S:
@@ -670,9 +671,12 @@ async def _handle_demo_message(self, chat_id: str, text: str,
             )
             if candidate and candidate.strip():
                 had_output = True
+                last_candidate = candidate
                 if not validator(candidate):
                     return candidate, True
-        return None, had_output
+        if had_output and last_candidate:
+            return last_candidate, True
+        return None, False
 
     def _save(role, msg):
         if db:
@@ -1067,6 +1071,7 @@ async def _handle_demo_message(self, chat_id: str, text: str,
             ),
         ]
         had_output = False
+        last_candidate = None
         for prompt_now, temp_now, max_now, tier_now in attempts:
             candidate = await _llm(
                 prompt_now,
@@ -1077,9 +1082,12 @@ async def _handle_demo_message(self, chat_id: str, text: str,
             )
             if candidate and candidate.strip():
                 had_output = True
+                last_candidate = candidate
                 if not validator(candidate):
                     return candidate, True
-        return None, had_output
+        if had_output and last_candidate:
+            return last_candidate, True
+        return None, False
 
     def _demo_owner_last_resort(
         user_text: str,
@@ -1784,63 +1792,7 @@ Máximo 1 oración por burbuja. Natural y seguro."""
             max_t=220,
         )
         if not r:
-            if found:
-                r = _lang_text(
-                    f"ya tengo {nombre} ||| ya me ubiqué con cómo tendría que sonar esto ||| Escríbeme como si fueras un cliente y te respondo",
-                    f"I’ve got {nombre} now ||| I already know how this chat should sound ||| text me like a real client and I’ll reply in context",
-                    f"já tenho {nombre} ||| já entendi como esse chat precisa soar ||| me escreve como um cliente real e eu respondo em contexto",
-                )
-            else:
-                # v12: no info → opciones naturales, sin exponer estado interno
-                if _owner_is_english():
-                    _no_info_opts = [
-                        f"got it, {nombre} ||| tell me what the business does and I’ll shape the demo around that",
-                        f"okay, {nombre} ||| I’m not finding solid public info yet, so tell me what you offer and I’ll ground it from there",
-                        f"I’ve got the name now ||| give me a quick picture of the business and I’ll keep going",
-                    ]
-                elif _owner_is_portuguese():
-                    _no_info_opts = [
-                        f"perfeito, {nombre} ||| me conta com o que o negócio trabalha e eu monto a demo nisso",
-                        f"ok, {nombre} ||| ainda não achei informação pública forte, então me conta o que vocês oferecem e eu ajusto a demo",
-                        f"já tenho o nome ||| me dá um resumo rápido do negócio e eu sigo daqui",
-                    ]
-                else:
-                    _no_info_opts = [
-                        f"ya anoté {nombre} ||| cuéntame a qué se dedican y te muestro cómo respondería",
-                        f"listo, {nombre} ||| no los encuentro en Google todavía — cuéntame qué hacen y arrancamos",
-                        f"ya los tengo ||| igual puedo hacer la demo — escríbeme un poco de qué trata el negocio",
-                    ]
-                r = _r.choice(_no_info_opts)
-
-        # ── Burbuja extra: confirmación del link ─────────────────────────
-        # Solo si encontramos info real (no cuando usamos el fallback de Google search)
-        import urllib.parse as _up
-        is_fallback_url = biz_url.startswith("https://www.google.com/search") or biz_url.startswith("https://www.google.com/maps/search")
-        if biz_url and found and not is_fallback_url:
-            # Natural: manda el link con texto corto, sin pregunta directa
-            if _owner_is_english():
-                _link_intros = [
-                    "I found this for you",
-                    "this looks like your business",
-                    "I found you here",
-                    "this is what I found for the business",
-                ]
-            elif _owner_is_portuguese():
-                _link_intros = [
-                    "achei isso de vocês",
-                    "encontrei vocês por aqui",
-                    "isso parece ser de vocês",
-                    "foi isso que eu achei do negócio",
-                ]
-            else:
-                _link_intros = [
-                    "mira, encontré esto de ustedes",
-                    "los encontré por acá",
-                    "esto es de ustedes",
-                    "vi esto de su negocio",
-                ]
-            r = r.rstrip() + f" ||| {_r.choice(_link_intros)} ||| {biz_url}"
-
+            return _send("⚠️ Fallo del modelo LLM. No obtuve respuesta. Por favor, envía tu mensaje nuevamente.")
         return _send(r)
 
     # ── Confirmación positiva del link: "sí ese es / correcto / sí" ───────────
@@ -2133,7 +2085,7 @@ Natural, sin punto al final, sin ¿¡, en minúscula.""",
                     f"perfecto, ya leí el documento de {business_name}"
                     f" ||| ya sé de qué se tratan — probemos, Escríbeme algo como cliente"
                 )
-                return _send(r or fallback)
+                return _send(r if r else "⚠️ Fallo del modelo LLM. No obtuve respuesta. Por favor, envía tu mensaje nuevamente.")
             else:
                 # Doc llegó pero no pudimos extraer texto (imagen, binario raro)
                 return _send(
@@ -2222,7 +2174,7 @@ Natural, sin punto al final, sin ¿¡, en minúscula.""",
                 f"listo, ya entendí bien lo que hace {business_name} ||| "
                 f"arrancamos? Escríbeme algo como cliente a ver qué pasa"
             )
-            return _send(r or fallback)
+            return _send(r if r else "⚠️ Fallo del modelo LLM. No obtuve respuesta. Por favor, envía tu mensaje nuevamente.")
 
         elif not _has_what:
             # Falta: qué hacen
@@ -2233,7 +2185,7 @@ Todavía no sabes exactamente qué servicios o productos ofrecen.
 Haz UNA pregunta natural para entenderlo. Muy corta. Sin punto al final. En minúscula. Sin ¿ ni ¡.""",
                 "preguntando qué hacen", max_t=80
             )
-            return _send(r or "y a qué se dedican exactamente")
+            return _send(r if r else "⚠️ Fallo del modelo LLM. No obtuve respuesta. Por favor, envía tu mensaje nuevamente.")
 
         elif not _has_where:
             # Falta: dónde están
@@ -2245,7 +2197,7 @@ Haz UNA pregunta natural para saberlo. Muy corta. Sin punto al final. En minúsc
 Ejemplo: "y dónde están ubicados?" o "en qué ciudad o barrio están" """,
                 "preguntando ubicación", max_t=80
             )
-            return _send(r or "¿y dónde están ubicados?")
+            return _send(r if r else "⚠️ Fallo del modelo LLM. No obtuve respuesta. Por favor, envía tu mensaje nuevamente.")
 
         else:
             # Seguir aprendiendo con una pregunta más
@@ -2256,7 +2208,7 @@ Haz UNA pregunta más para entender mejor al negocio (horario, qué los diferenc
 Muy corta. Sin punto al final. En minúscula. Sin ¿ ni ¡.""",
                 "pregunta adicional", max_t=80
             )
-            return _send(r or "¿y cuál es su horario de atención?")
+            return _send(r if r else "⚠️ Fallo del modelo LLM. No obtuve respuesta. Por favor, envía tu mensaje nuevamente.")
 
     # ── INTERCEPTOR: preguntas meta (soy bot? eres real? eres IA?) ─────────
     # Deben responderse ANTES del flujo normal — sin buscar en web ni confundirse
@@ -2405,6 +2357,7 @@ IDENTIDAD Y CREADOR — REGLA DURA
 """
         customer_history = sim_history[-8:]
         customer_had_output = False
+        last_candidate = None
         customer_reply = None
         original_history = history
         history = customer_history
@@ -2552,7 +2505,7 @@ Maneja en 2 burbujas (|||). REGLAS ESTRICTAS:
 
 Ejemplo del tono que quiero:
   "sí, hay de todo en el mercado ||| qué presupuesto tienes más o menos, para ver qué te muestro" """, "maneja la objeción")
-            return _send((r or f"sí, hay de todo en el mercado ||| qué presupuesto tienes más o menos, para ver qué te muestro") + _next_trick())
+            return _send((r + _next_trick()) if r else "⚠️ Fallo del modelo LLM. No obtuve respuesta. Por favor, envía tu mensaje nuevamente.")
 
         if detected_cmd == "/cita":
             r = await _llm(f"""Eres Conny, asesora de {business_name}. Un cliente acaba de decir que quiere ir o comprar.
@@ -2568,7 +2521,7 @@ Flujo sugerido:
 Sin punto al final. Sin ¿¡. Máximo 1-2 oraciones por burbuja.
 Ejemplo del tono: "qué producto te interesa llevar ||| esta semana puedo el miércoles o el viernes — cuál te queda" """,
                 "quiero comprar / quiero ir", max_t=350)
-            return _send((r or f"qué te interesa llevar ||| esta semana tengo el miércoles o el viernes, cuál te queda mejor") + _next_trick())
+            return _send((r + _next_trick()) if r else "⚠️ Fallo del modelo LLM. No obtuve respuesta. Por favor, envía tu mensaje nuevamente.")
 
         if detected_cmd == "/stats":
             return _send(f"el 78% de los clientes no vuelven si no les responden en menos de 5 minutos ||| una cita perdida en {business_name} vale entre $80k y $500k según el servicio ||| Conny responde en menos de 3 segundos, 24/7, sin días libres ni mal humor" + _next_trick())
@@ -2579,7 +2532,7 @@ Ejemplo del tono: "qué producto te interesa llevar ||| esta semana puedo el mi�
         if detected_cmd == "/cierre":
             r = await _llm(f"""Eres Conny de {business_name}. Un cliente lleva 3 mensajes dudando.
 Haz el cierre en 2 burbujas (|||). Directo, con urgencia real. Sin presión forzada. Sin punto al final.""", "no sé, lo pienso")
-            return _send((r or f"claro, sin afán ||| igual te separo un espacio esta semana — si decides que no, lo cancelas. te queda bien el jueves") + _next_trick())
+            return _send((r + _next_trick()) if r else "⚠️ Fallo del modelo LLM. No obtuve respuesta. Por favor, envía tu mensaje nuevamente.")
 
         if detected_cmd == "/list":
             lista = (
@@ -2651,7 +2604,7 @@ Haz el cierre en 2 burbujas (|||). Directo, con urgencia real. Sin presión forz
             r = await _llm(f"""El usuario ha dicho: "{hist_text[:300]}"
 Extrae datos mencionados (nombre, interés, servicio). Demuestra en 2 burbujas (|||) que los recuerdas.
 Si no hay datos: "todavía no me has dado tu nombre — pero cuando lo hagas, lo recuerdo para siempre". Sin punto al final.""", "qué recuerdas")
-            return _send(r or "todo lo que me dices lo guardo ||| nombre, servicio de interés, objeciones — todo queda")
+            return _send(r if r else "⚠️ Fallo del modelo LLM. No obtuve respuesta. Por favor, envía tu mensaje nuevamente.")
 
         if detected_cmd == "/2am":
             return _send(f"son las 2 de la madrugada y estoy aquí ||| tu recepcionista está durmiendo — yo no. nunca" + _next_trick())
@@ -2659,12 +2612,12 @@ Si no hay datos: "todavía no me has dado tu nombre — pero cuando lo hagas, lo
         if detected_cmd == "/competencia":
             r = await _llm(f"""Eres Conny de {business_name}. Un cliente dice: "ya fui a otra parte y no me gustó."
 Responde en 2 burbujas (|||). Sin atacar a la competencia. Natural. Sin punto al final.""", "ya fui a otro lado")
-            return _send((r or f"ay qué pena ||| qué fue lo que no te gustó — acá antes de tocar nada hacemos valoración para asegurarnos del resultado") + _next_trick())
+            return _send((r + _next_trick()) if r else "⚠️ Fallo del modelo LLM. No obtuve respuesta. Por favor, envía tu mensaje nuevamente.")
 
         if detected_cmd == "/precio":
             r = await _llm(f"""Eres Conny de {business_name}. Un cliente dice: "está muy caro."
 Maneja en 2 burbujas (|||). Enfócate en valor. Cierra hacia valoración con día concreto. Sin punto al final.""", "está muy caro")
-            return _send((r or f"sí, vale lo que vale ||| los resultados duran, en la valoración gratis te dicen el número exacto. cuándo puedes") + _next_trick())
+            return _send((r + _next_trick()) if r else "⚠️ Fallo del modelo LLM. No obtuve respuesta. Por favor, envía tu mensaje nuevamente.")
 
         if detected_cmd == "/menu_bot":
             # Modo bot — IVR con emojis, ideal para negocios que prefieren menú estructurado
@@ -3033,7 +2986,7 @@ OBJECIONES
         recent_limit=8,
     )
     if not r:
-        r = _demo_customer_last_resort(text)
+        r = "⚠️ Fallo del modelo LLM. No obtuve respuesta. Por favor, envía tu mensaje nuevamente."
     # Solo revelar truco si la respuesta tiene contenido real (>60 chars)
     # y no termina en pregunta (no interrumpir el flujo de la conversación)
     if _should_reveal_trick and r and len(r.replace("|||","").strip()) > 60:
