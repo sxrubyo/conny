@@ -1,12 +1,12 @@
-"""Tests for conny_voice.py — no robot patterns in output."""
+"""Tests for bublee_voice.py — no robot patterns in output."""
 import sys
 sys.path.insert(0, ".")
 
-from conny_voice import ConnyVoice, ROBOT_PATTERNS
+from bublee_voice import BubleeVoice, ROBOT_PATTERNS
 
 
 def test_removes_ai_self_reference():
-    voice = ConnyVoice()
+    voice = BubleeVoice()
     text = "Como IA, no tengo la capacidad de procesar eso"
     result = voice.humanize(text)
     assert "como ia" not in result.lower()
@@ -14,36 +14,36 @@ def test_removes_ai_self_reference():
 
 
 def test_removes_bot_greeting():
-    voice = ConnyVoice()
-    text = "Hola! Soy Conny, tu asistente virtual. En qué te puedo ayudar?"
+    voice = BubleeVoice()
+    text = "Hola! Soy Bublee, tu asistente virtual. En qué te puedo ayudar?"
     result = voice.humanize(text)
-    assert "soy conny" not in result.lower()
+    assert "soy bublee" not in result.lower()
     assert "asistente virtual" not in result.lower()
 
 
 def test_limits_exclamation_marks():
-    voice = ConnyVoice()
+    voice = BubleeVoice()
     text = "Perfecto! Genial! Maravilloso! Te agendo ya!"
     result = voice.humanize(text)
     assert result.count("!") <= 1
 
 
 def test_removes_por_supuesto():
-    voice = ConnyVoice()
+    voice = BubleeVoice()
     text = "Por supuesto, te agendo la cita para mañana"
     result = voice.humanize(text)
     assert "por supuesto" not in result.lower()
 
 
-def test_response_not_starting_with_conny():
-    voice = ConnyVoice()
-    text = "Conny, aquí te confirmo la cita"
+def test_response_not_starting_with_bublee():
+    voice = BubleeVoice()
+    text = "Bublee, aquí te confirmo la cita"
     result = voice.humanize(text)
-    assert not result.lower().startswith("conny")
+    assert not result.lower().startswith("bublee")
 
 
 def test_no_robot_patterns_in_sample_responses():
-    voice = ConnyVoice()
+    voice = BubleeVoice()
     samples = [
         "Te agendo la cita para el martes a las 3pm",
         "El precio depende de la valoración personalizada",
@@ -58,7 +58,7 @@ def test_no_robot_patterns_in_sample_responses():
 
 
 def test_thinking_block_injection():
-    voice = ConnyVoice()
+    voice = BubleeVoice()
     prompt = "Eres una recepcionista de clinica"
     result = voice.inject_thinking_block(prompt, lang="es")
     assert "INSTRUCCIÓN INTERNA" in result
@@ -66,7 +66,7 @@ def test_thinking_block_injection():
 
 
 def test_split_long_response():
-    voice = ConnyVoice()
+    voice = BubleeVoice()
     text = "Primera oracion completa. Segunda oracion completa. Tercera oracion que es mas larga para ver como se divide. Cuarta oracion para completar el test de splitting correctamente."
     bubbles = voice.split_long_response(text, max_chars=100)
     assert len(bubbles) >= 2

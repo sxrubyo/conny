@@ -1,7 +1,7 @@
 # Nova Governance Rules — Default
-# These rules apply to all Conny instances unless overridden.
+# These rules apply to all Bublee instances unless overridden.
 
-agent: Conny
+agent: Bublee
 version: "1.0"
 
 can_do:

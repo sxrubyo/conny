@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Conny runtime execution layer."""
+"""Bublee runtime execution layer."""
 from __future__ import annotations
 
 # Import all globals, vocabularies, and libraries dynamically (including underscore-prefixed names)
@@ -9,8 +9,8 @@ for name in dir(globals_module):
         globals()[name] = getattr(globals_module, name)
 
 
-class ConnyUltra:
-    """Orquestador principal de Conny Ultra V7.0."""
+class BubleeUltra:
+    """Orquestador principal de Bublee Ultra V7.0."""
 
     def __init__(self):
         self.db = db
@@ -21,20 +21,29 @@ class ConnyUltra:
         self.self_improvement = None
         self.admin_learning: AdminLearningEngine = None
         self.simulator: SimulationEngine = None
-        
-        # Auto-evolución (v10)
-        self._instance_id = os.getenv("INSTANCE_ID", "default")
-        from conny_core.evolution import EvolutionManager
-        self.evolution = EvolutionManager(self._instance_id, db)
         # ── Atributos base (antes de managers que los usan) ──────────────────────
         self._demo_sessions: Dict[str, float] = {}
         self._emoji_chats_off: set = set()
         self._chat_routes: Dict[str, Dict[str, Any]] = {}
 
+        # ── Demo: trucos progresivos y comandos del modo demo ─────────────────
+        self._DEMO_TRICKS_ORDER = [
+            ("/objecion",  "ver cómo manejo objeciones en vivo"),
+            ("/cita",      "ver cómo agendo una cita completa"),
+            ("/luxury",    "activar personalidad premium"),
+            ("/empatica",  "cambiar a modo empático y de escucha"),
+            ("/stats",     "ver el impacto en números reales"),
+            ("/prueba",    "lanzarme el mensaje más difícil que tengas"),
+            ("/cierre",    "ver cómo cierro una venta"),
+            ("/directa",   "activar modo al grano sin rodeos"),
+            ("/menu",      "ver modo bot con emojis y menú numerado"),
+            ("/2am",       "verme responder a las 2 de la madrugada"),
+        ]
+
         # Gestores de áreas separadas (v9)
-        self.demo_mgr = ConnyDemo(self)
-        self.admin_mgr = ConnyAdmin(self)
-        self.production_mgr = ConnyProduction(self)
+        self.demo_mgr = BubleeDemo(self)
+        self.admin_mgr = BubleeAdmin(self)
+        self.production_mgr = BubleeProduction(self)
         self._conversation_engine = None
 
         # V7.0 — orquestador de agentes especializados
@@ -87,7 +96,7 @@ class ConnyUltra:
     def _brand_store(self, clinic: Dict[str, Any]) -> Optional["BrandAssetStore"]:
         if not _BRAND_ASSETS_AVAILABLE:
             return None
-        clinic_name = clinic.get("name") or clinic.get("tagline") or Config.SECTOR or "conny"
+        clinic_name = clinic.get("name") or clinic.get("tagline") or Config.SECTOR or "bublee"
         brand_key = clinic_name
         try:
             remembered_slug = (db.recall("instance_slug") or "").strip() if db else ""
@@ -107,10 +116,10 @@ class ConnyUltra:
         init_database()
         init_llm()
         init_auth()
-        self.admin_learning   = AdminLearningEngine(db)
-        self.simulator        = SimulationEngine(self)
-        self.reasoning        = ReasoningEngine(llm_engine)
-        self.generator        = ResponseGenerator(llm_engine, learning_engine=self.admin_learning)
+        # admin_learning/simulator/reasoning/generator se instancian más abajo,
+        # después de restaurar credenciales de WhatsApp y business_bootstrap
+        # (antes se creaban también acá, se descartaban sin usar, y se volvían
+        # a crear más abajo — duplicado innecesario).
         init_calendar()
         await init_mcp()
         try:
@@ -132,9 +141,9 @@ class ConnyUltra:
                     # Auto-crear agente si no hay token configurado
                     if not Config.NOVA_TOKEN:
                         clinic = db.get_clinic()
-                        token_id = await setup_conny_agent(
+                        token_id = await setup_bublee_agent(
                             client, clinic.get("name", "Clinica"),
-                            "Conny"
+                            "Bublee"
                         )
                         if token_id:
                             log.info(f"[nova] agente creado automáticamente: {token_id[:16]}...")
@@ -160,6 +169,11 @@ class ConnyUltra:
         except Exception as exc:
             log.warning(f"[business_bootstrap] error: {exc}")
 
+        # NOTA: antes estas 4 líneas se ejecutaban DOS VECES seguidas dentro
+        # de este mismo initialize() — se creaban admin_learning/simulator/
+        # reasoning/generator, se descartaban sin usar, y se volvían a crear
+        # unas líneas más abajo. Se dejó solo la segunda tanda (que además
+        # agrega self_improvement) para no instanciar objetos al pedo.
         self.admin_learning   = AdminLearningEngine(db)
         self.simulator        = SimulationEngine(self)
         self.reasoning        = ReasoningEngine(llm_engine)
@@ -170,19 +184,19 @@ class ConnyUltra:
         except (NameError, AttributeError):
             log.warning("[startup] SelfImprovementEngine no disponible")
 
-        if Config.CONNY_CORE_ENABLED and _CONNY_CORE_AVAILABLE:
+        if Config.BUBLEE_CORE_ENABLED and _BUBLEE_CORE_AVAILABLE:
             try:
-                self._conversation_registry = PersonaRegistry(Config.CONNY_CORE_PERSONAS_DIR)
+                self._conversation_registry = PersonaRegistry(Config.BUBLEE_CORE_PERSONAS_DIR)
                 self._conversation_engine = ConversationEngine(self._conversation_registry)
-                log.info("[conny_core] conversation core OK")
+                log.info("[bublee_core] conversation core OK")
             except Exception as _mcore_err:
                 self._conversation_registry = None
                 self._conversation_engine = None
-                log.warning(f"[conny_core] no se pudo activar el core nuevo: {_mcore_err}")
+                log.warning(f"[bublee_core] no se pudo activar el core nuevo: {_mcore_err}")
         else:
             self._conversation_registry = None
             self._conversation_engine = None
-            log.info("[conny_core] desactivado o no disponible")
+            log.info("[bublee_core] desactivado o no disponible")
 
         # V8.0 — inicializar sistemas de humanidad real
         # CRÍTICO: envuelto en try/except para que un fallo en V8
@@ -200,12 +214,12 @@ class ConnyUltra:
         # _patch_admin_dispatcher se llama SOLO en lifespan
 
         # V7.0 — activable por flag para rollout seguro
-        v7_enabled = os.getenv("CONNY_V7_ENABLED", "false").lower() in ("1", "true", "yes", "on")
+        v7_enabled = os.getenv("BUBLEE_V7_ENABLED", "false").lower() in ("1", "true", "yes", "on")
         if v7_enabled:
             try:
-                from src.core.orchestrator import ConnyOrchestrator
-                self._orchestrator = ConnyOrchestrator(llm_engine, db)
-                log.info("[v7] orquestador activado por CONNY_V7_ENABLED")
+                from src.core.orchestrator import BubleeOrchestrator
+                self._orchestrator = BubleeOrchestrator(llm_engine, db)
+                log.info("[v7] orquestador activado por BUBLEE_V7_ENABLED")
             except Exception as _v7_init:
                 self._orchestrator = None
                 log.warning(f"[v7] no se pudo activar el orquestador, fallback a generator: {_v7_init}")
@@ -220,7 +234,7 @@ class ConnyUltra:
             scheduled_for=datetime.now() + timedelta(hours=1)
         )
 
-        log.info("═══ CONNY V9.6.1 INICIALIZADA ═══")
+        log.info("═══ BUBLEE V9.6.1 INICIALIZADA ═══")
         asyncio.create_task(self._schedule_daily_report())
     
     async def _schedule_daily_report(self):
@@ -276,7 +290,7 @@ class ConnyUltra:
         is_admin: bool = False,
         channel: str = "",
     ) -> Optional[List[str]]:
-        if not Config.CONNY_CORE_ENABLED or not self._conversation_engine:
+        if not Config.BUBLEE_CORE_ENABLED or not self._conversation_engine:
             return None
         try:
             core_clinic = self._build_conversation_core_clinic(clinic, channel)
@@ -290,11 +304,11 @@ class ConnyUltra:
             if result.handled and result.bubbles:
                 return [bubble.strip() for bubble in result.bubbles if str(bubble).strip()]
         except Exception as exc:
-            log.warning(f"[conny_core] fallo en handle(): {exc}")
+            log.warning(f"[bublee_core] fallo en handle(): {exc}")
         return None
 
     def _llm_runtime_available(self) -> bool:
-        """Indica si Conny tiene un runtime LLM utilizable para priorizarlo sobre fallbacks."""
+        """Indica si Bublee tiene un runtime LLM utilizable para priorizarlo sobre fallbacks."""
         try:
             if llm_engine:
                 return True
@@ -344,7 +358,7 @@ class ConnyUltra:
             any(marker in _normalize_conv_text(str(msg.get("content") or "")) for marker in (
                 "recepcionista virtual",
                 "asesora virtual",
-                "soy conny",
+                "soy bublee",
                 "trabaja por tu negocio",
                 "trabajo por este canal",
             ))
@@ -354,12 +368,12 @@ class ConnyUltra:
         if prior_identity:
             if any(marker in normalized_user for marker in ("eres una ia", "eres ia", "eres una persona", "persona real", "eres un bot", "eres bot")):
                 return [
-                    f"Sigo siendo Conny, la asesora virtual de {clinic_name}",
+                    f"Sigo siendo Bublee, la asesora virtual de {clinic_name}",
                     "Soy una IA hecha para orientar, responder y ayudarte a avanzar sin que todo dependa de una persona pegada al chat",
                 ]
             if any(marker in normalized_user for marker in ("quién eres", "quien eres", "qué eres", "que eres")):
                 return [
-                    f"Soy Conny, la asesora virtual de {clinic_name}",
+                    f"Soy Bublee, la asesora virtual de {clinic_name}",
                     "Soy una IA pensada para atender bien, sostener la conversación y ayudarte con información, disponibilidad y siguiente paso",
                 ]
         try:
@@ -378,7 +392,7 @@ class ConnyUltra:
                 return [part.strip() for part in fallback.split("|||") if part.strip()]
         services_text = ", ".join(services[:2]) if services else "citas e información"
         return [
-            f"Soy Conny, la asesora virtual de {clinic_name}",
+            f"Soy Bublee, la asesora virtual de {clinic_name}",
             f"Soy una IA pensada para ayudarte con {services_text}, horarios y orientación inicial",
             "Si quieres probarme, escríbeme el nombre de tu negocio y te muestro cómo trabajaría contigo",
         ]
@@ -811,6 +825,11 @@ class ConnyUltra:
             "Puedes mandarme logos, manuales, identidad de marca, PDFs, DOCX, TXT, MD o JSON. Lo guardo por instancia y no lo olvido.",
         ]
 
+
+    async def _process_patient_message(self, chat_id: str, text: str, clinic: dict, history: list, conv_state: dict, is_audio: bool = False, attachments: list = None) -> list:
+        if self.production_mgr:
+            return await self.production_mgr.handle(chat_id, text, clinic, history, conv_state, attachments=attachments)
+        return []
     async def process_message(self, chat_id: str, text: str,
                              is_audio: bool = False,
                              attachments: Optional[List[Dict[str, Any]]] = None,
@@ -837,7 +856,7 @@ class ConnyUltra:
             # 1.5. Slash commands (works in all modes)
             if text.strip().startswith("/"):
                 try:
-                    from conny_commands import get_command_handler
+                    from bublee_commands import get_command_handler
                     _cmd_h = get_command_handler(getattr(self, "_instance_id", "default"))
                     _cmd_result = await _cmd_h.handle(chat_id, text.strip(), is_admin=False, clinic=clinic, db=db)
                     if _cmd_result:
@@ -867,100 +886,74 @@ class ConnyUltra:
 
             # Ruteo normal para paciente en producción
             log.info(f"[Router] Remitente {chat_id} clasificado como Paciente. Ruteando a flujo de producción.")
-            history = db.get_history(chat_id)
             conv_state = db.get_conversation_state(chat_id)
-            result = await self._process_patient_message(chat_id, text, clinic, history, conv_state, is_audio=is_audio, attachments=attachments)
-            if result:
-                return result
+            if conv_state and conv_state.escalation_needed and not effective_is_admin:
+                # Si el paciente está pidiendo explícitamente hablar con un humano, no lo silenciamos
+                # para que el production monitor le responda con el mensaje de transferencia y alerte al admin.
+                human_signals = ["hablar con humano", "hablar con una persona", "hablar con alguien",
+                                 "quiero hablar con", "pasame con", "pásame con", "un humano",
+                                 "una persona real", "talk to a human", "real person", "hablar con un humano",
+                                 "asesor humano", "atencion humana", "atención humana", "humano", "asesor",
+                                 "atención", "atencion", "contacto", "hablar con alguien"]
+                wants_human = any(s in text.lower() for s in human_signals)
+                if not wants_human:
+                    log.info(f"[mute] Bot is muted for chat_id={chat_id} (escalation_needed=True)")
+                    return []
+                
+            history = db.get_history(chat_id)
+            return await self._process_patient_message(chat_id, text, clinic, history, conv_state, is_audio=is_audio, attachments=attachments)
 
         except Exception as e:
-            log.warning(f"[Router] fallback LLM para {chat_id}: {e}")
+            log.error(f"Error processing message from {chat_id}: {e}", exc_info=True)
             db.record_metric("error", "message_processing", 1, {"error": str(e)})
 
             # Recuperación inteligente: intentar respuesta LLM directa como fallback
+            # (2 intentos — antes era 1 solo, y con cascada de varias keys/proveedores
+            # vale la pena un segundo intento antes de escalar a un humano)
+            for attempt in range(2):
+                try:
+                    if llm_engine and text and text.strip():
+                        clinic_fb = db.get_clinic()
+                        biz_name = clinic_fb.get("name", "") if clinic_fb else ""
+                        fallback_sys = f"Eres Bublee, recepcionista virtual{' de ' + biz_name if biz_name else ''}. Responde de forma breve, cálida y natural. Si no tienes contexto suficiente, pide al usuario que te cuente más."
+                        fallback_r, _ = await llm_engine.complete(
+                            [{"role": "system", "content": fallback_sys}, {"role": "user", "content": text}],
+                            model_tier="fast", temperature=0.8, max_tokens=200, use_cache=False,
+                        )
+                        if fallback_r and fallback_r.strip():
+                            return self._split_bubbles(fallback_r, chat_id=chat_id)
+                except Exception as e2:
+                    log.warning(f"[recovery] intento {attempt+1}/2 de LLM directo falló: {e2}")
+
+            # ── Último recurso: acá antes había una lista de frases hardcodeadas
+            # ("perdona, me perdí un momento", etc). Eso es exactamente lo que no
+            # se quiere: un texto genérico y repetido al cliente que delata que
+            # el bot se rompió. Ahora, si de verdad no hay ninguna respuesta real
+            # de IA disponible: al paciente NO se le manda nada (lista vacía —
+            # _flush_buffer ya chequea `if bubbles:` antes de enviar), y se avisa
+            # de inmediato al dueño vinculado para que entre en persona.
             try:
-                if llm_engine and text and text.strip():
-                    clinic = db.get_clinic()
-                    biz_name = clinic.get("name", "Innvisor") if clinic else "Innvisor"
-                    fallback_sys = (
-                        f"sos conny. trabajas para {biz_name}. hablas corto, natural, como un ser humano. "
-                        "minusculas, sin emojis, sin ¿? sin jotas. "
-                        "dividi el mensaje en burbujas separadas por ||| "
-                        "si no sabes algo preguntas con ganas de aprender. "
-                        "si te piden info que no tenes pedi enlaces o pdfs. "
-                        "aprendes el nombre del admin y lo recordas siempre. "
-                        "nunca digas el nombre del negocio a menos que el contexto lo pida. "
-                        "nada de 'en que puedo ayudarte' ni 'recepcionista virtual'. "
-                        "directo, util, humano."
-                    )
-                    fallback_r, _ = await llm_engine.complete(
-                        [{"role": "system", "content": fallback_sys}, {"role": "user", "content": text}],
-                        model_tier="fast", temperature=0.8, max_tokens=200, use_cache=False,
-                    )
-                    if fallback_r and fallback_r.strip():
-                        return self._split_bubbles(fallback_r, chat_id=chat_id)
-            except Exception:
-                pass
+                from bublee_utils import notify_owner_of_ai_failure, _parse_admin_ids as _parse_admin_ids_fb1
+                clinic_fb = db.get_clinic()
+                admin_ids = _parse_admin_ids_fb1((clinic_fb or {}).get("admin_chat_ids", []))
+                context_label = "prospecto (demo)" if Config.DEMO_MODE else "paciente"
+                await notify_owner_of_ai_failure(
+                    self._send_message, admin_ids, chat_id, text, context=context_label,
+                )
+            except Exception as e3:
+                log.error(f"[ai_failure] no pude avisarle al dueño sobre {chat_id}: {e3}")
 
             return []
-    async def _process_patient_message(self, chat_id: str, text: str, clinic: Dict,
-                                        history: List, conv_state: Any,
-                                        is_audio: bool = False,
-                                        attachments: Optional[List[Dict[str, Any]]] = None) -> List[str]:
-        """Procesa un mensaje de paciente delegando al gestor de producción."""
-        try:
-            if self.production_mgr:
-                return await self.production_mgr.handle(
-                    chat_id, text, clinic, history, conv_state
-                )
-        except Exception as e:
-            log.warning(f"[_process_patient_message] error delegando a production_mgr: {e}")
-
-        # Fallback de emergencia si production_mgr falla
-        try:
-            _gen = getattr(getattr(self, "generator", None), "llm", None) or getattr(self, "llm_engine", None)
-            if _gen and text and text.strip():
-                r, _ = await _gen.complete(
-                    [{"role": "system",
-                      "content": "sos conny. hablas corto, natural, como un ser humano. minusculas, sin emojis, sin ¿? sin jotas. dividi el mensaje en burbujas separadas por ||| si no sabes algo preguntas con ganas de aprender. si te piden info que no tenes pedi enlaces o pdfs. aprendes el nombre del admin y lo recordas siempre. nunca digas el nombre del negocio a menos que el contexto lo pida. nada de 'en que puedo ayudarte' ni 'recepcionista virtual'. directo, util, humano."},
-                     {"role": "user", "content": text}],
-                    model_tier="fast", temperature=0.8, max_tokens=200, use_cache=False,
-                )
-                if r and r.strip():
-                    return self._split_bubbles(r, chat_id=chat_id)
-        except Exception:
-            pass
-        return []
-
     async def _handle_demo_message(self, chat_id: str, text: str,
                                     clinic: Dict,
                                     attachments: Optional[List[Dict[str, Any]]] = None) -> List[str]:
         from src.interfaces.web.demo_handler import handle_demo_message
+        print("DEBUG RESOLVED FILENAME:", handle_demo_message.__code__.co_filename)
         return await handle_demo_message(self, chat_id, text, clinic, attachments)
 
     async def _handle_admin_message(self, chat_id: str, text: str, clinic: Dict,
                                    is_audio: bool = False,
                                    attachments: Optional[List[Dict[str, Any]]] = None) -> List[str]:
-        # 0. Actualizar perfil del admin (Namespace admin_profile)
-        try:
-            profile = db.get_admin_profile(chat_id)
-            
-            # Registrar hora activa
-            from datetime import datetime
-            now_hour = datetime.now().hour
-            hours = profile.get("active_hours", {})
-            hours[str(now_hour)] = hours.get(str(now_hour), 0) + 1
-            
-            # Registrar comando frecuente si aplica
-            cmd_freq = profile.get("frequent_commands", {})
-            if text.startswith("/"):
-                cmd = text.split()[0].lower()
-                cmd_freq[cmd] = cmd_freq.get(cmd, 0) + 1
-                
-            db.update_admin_profile(chat_id, active_hours=hours, frequent_commands=cmd_freq)
-        except Exception as e:
-            log.warning(f"[admin_profile] error updating profile: {e}")
-
         # 1. Ingest assets if there are attachments
         if attachments:
             assets_res = await self._admin_ingest_assets(chat_id, text, attachments, clinic)
@@ -975,6 +968,7 @@ class ConnyUltra:
     async def _handle_admin_or_setup(self, chat_id: str, text: str,
                                      clinic: Dict) -> List[str]:
         """Maneja modo admin o setup. Nunca lanza excepcion al exterior."""
+        from bublee_utils import _parse_admin_ids
         try:
             # Setup inicial — SOLO si el chat_id ya fue autenticado como admin
             # Protege contra pacientes que lleguen antes de que el admin configure
@@ -995,7 +989,7 @@ class ConnyUltra:
                         _tok_llm = getattr(getattr(self, "generator", None), "llm", None)
                         if _tok_llm:
                             r, _ = await _tok_llm.complete(
-                                [{"role": "system", "content": "Eres Conny. El sistema no está activado aún. Respondé de forma breve y amable que para usar el servicio necesita un token de activación. Decí exactamente: 'Ingresa tu Token de Activación para comenzar.' No des más información."},
+                                [{"role": "system", "content": "Eres Bublee. El sistema no está activado aún. Respondé de forma breve y amable que para usar el servicio necesita un token de activación. Decí exactamente: 'Ingresa tu Token de Activación para comenzar.' No des más información."},
                                  {"role": "user", "content": text}],
                                 model_tier="fast", temperature=0.3, max_tokens=100,
                             )
@@ -1265,94 +1259,219 @@ class ConnyUltra:
     
     async def _handle_setup(self, chat_id: str, text: str, clinic: Dict) -> List[str]:
         """
-        Setup inteligente y proactivo con LLM.
-        Si es una instancia nueva, Conny guía al admin para extraer la información.
+        Setup inteligente con autodiscovery.
+        Cuando el admin escribe el nombre, buscamos la clinica en Google
+        y pre-llenamos todo. Si se encuentra, solo confirman. Si no, 5 pasos rapidos.
         """
-        from conny import llm_engine
 
-        # Si el admin dice "reset" o algo así, podríamos volver al modo idle,
-        # pero por ahora seguimos el flujo natural.
-        
-        CONNY_ADMIN_ONBOARDING_PROMPT = """
-Eres Conny. Acabas de ser instalada en un negocio nuevo y necesitas aprender 
-todo sobre él antes de poder atender clientes.
+        setup_step   = clinic.get("setup_step", "idle")
+        setup_buffer = clinic.get("setup_buffer", {})
+        if isinstance(setup_buffer, str):
+            setup_buffer = json.loads(setup_buffer) if setup_buffer else {}
 
-Tu objetivo en esta conversación: extraer del admin TODA la información que 
-necesitas para trabajar. No puedes atender clientes sin esta información.
+        step_names = ["name", "tagline", "services", "schedule", "phone", "pricing"]
 
-Inicia con este mensaje exacto si es el primer contacto:
-"hola! soy Conny, tu nueva recepcionista virtual 👋
-antes de empezar a atender clientes necesito conocer bien el negocio
-para poder responder bien |||
-cuéntame: ¿cómo se llama el negocio y qué ofrecen?"
-
-Después de recibir respuesta, continúa extrayendo en conversación natural:
-1. Nombre del negocio y descripción
-2. Servicios principales y precios (o rango de precios)
-3. Horarios de atención  
-4. Dirección o zona
-5. ¿Cómo deben agendar citas los clientes?
-6. ¿Hay algo que Conny NO debe decir o prometer?
-7. ¿Cuál es el objetivo principal: agendar citas, vender, informar?
-
-REGLA: No inventes información del negocio. Si el admin no te dijo algo, 
-pregúntalo antes de atender clientes reales con esa duda.
-"""
-
-        history = db.get_history(chat_id)
-        messages = [
-            {"role": "system", "content": CONNY_ADMIN_ONBOARDING_PROMPT}
-        ]
-        
-        # Limitar historial para el setup
-        for m in history[-10:]:
-            messages.append({"role": m.get("role", "user"), "content": m.get("content", "")})
-        
-        # Si es el primer mensaje del admin (o está vacío), forzamos el inicio
-        if not text or not text.strip() or len(history) == 0:
-            user_input = "hola" # Trigger inicial
-        else:
-            user_input = text
-
-        messages.append({"role": "user", "content": user_input})
-
-        try:
-            response, _ = await llm_engine.complete(
-                messages, model_tier="fast", temperature=0.7
-            )
-            
-            # Intentar extraer info para guardar en DB mientras conversamos
+        # ── Inicio ─────────────────────────────────────────────────────────────
+        if setup_step == "idle":
+            admin_name_greeting = ""
             try:
-                # Si el LLM detectó el nombre del negocio, lo guardamos
-                if "negocio" in response.lower() or "clínica" in response.lower():
-                    # Aquí podríamos usar un pequeño extractor, pero por ahora
-                    # confiamos en que el admin confirmará al final.
-                    pass
+                rec = db.get_admin(chat_id) if db else None
+                if rec and rec.get("name") and rec["name"] not in ("", "Admin"):
+                    admin_name_greeting = f" Hola, {rec['name']}."
             except Exception:
                 pass
+            db.update_clinic(setup_step="name")
+            return [
+                f"¡Hola!{admin_name_greeting} Vamos a dejarme lista para tu negocio.",
+                "¿Cómo se llama tu clínica o negocio?"
+            ]
 
-            # Si el admin dice algo que suena a "ya terminamos" o el LLM lo indica,
-            # podríamos marcar setup_done=1. Pero mejor que sea explícito o 
-            # cuando tengamos los campos mínimos.
-            
-            # Para esta implementación, seguimos usando el autodiscovery si el admin da el nombre
-            if len(history) < 2 and len(user_input.split()) < 5:
-                # Si es un nombre corto, intentamos autodiscovery
-                discovered = await self._discover_clinic_from_web(user_input)
-                if discovered and discovered.get("confidence", 0) >= 0.6:
-                    # Mezclamos la respuesta del LLM con el discovery
-                    db.update_clinic(setup_step="confirm_discovered", setup_buffer=json.dumps({"discovered": discovered, "name": user_input}))
-                    return [
-                        response,
-                        f"Por cierto, encontré esto en internet: {discovered.get('address', '')}. ¿Es correcto?"
-                    ]
+        # ── Confirmar datos descubiertos en web ─────────────────────────────────
+        if setup_step == "confirm_discovered":
+            text_low = text.lower().strip()
+            if text_low in ["si", "sip", "sep", "dale", "correcto", "ok", "yes", "listo", "claro"]:
+                # Aplicar todo lo descubierto
+                discovered = setup_buffer.get("discovered", {})
+                db.update_clinic(
+                    name=discovered.get("name", setup_buffer.get("name", "Mi Clinica")),
+                    tagline=discovered.get("tagline", ""),
+                    services=discovered.get("services", []),
+                    schedule=discovered.get("schedule", {}),
+                    phone=discovered.get("phone", ""),
+                    address=discovered.get("address", ""),
+                    setup_done=1,
+                    setup_step="idle",
+                    setup_buffer={}
+                )
+                name = discovered.get("name", "tu clinica")
+                svcs = ", ".join(discovered.get("services", [])) or "sin definir"
+                return [
+                    f"Listo. Quede configurada para {name}.",
+                    f"Servicios: {svcs}.\n\nDesde ahora me encargo de tus pacientes.\nComandos: /citas | /config | /metricas | /personalidad"
+                ]
+            else:
+                # No confirmo, ir a setup manual desde donde quedamos
+                db.update_clinic(setup_step="tagline", setup_buffer=setup_buffer)
+                return [
+                    "Sin problema, vamos a completar esto manualmente.",
+                    "Tienes un slogan o descripcion corta? Si no, escribe 'no'."
+                ]
 
-            return self._split_bubbles(response, chat_id=chat_id)
+        if setup_step not in step_names:
+            db.update_clinic(setup_step="idle", setup_buffer={})
+            return ["Algo salio mal. Escribe /setup para comenzar de nuevo."]
 
-        except Exception as e:
-            log.error(f"[setup] error en onboarding proactivo: {e}")
-            return ["hola! soy Conny. cuéntame cómo se llama tu negocio para empezar."]
+        idx = step_names.index(setup_step)
 
+        # ── Procesar respuesta ─────────────────────────────────────────────────
+        if setup_step == "services":
+            raw_svcs = [s.strip() for s in text.split(",") if s.strip()]
+            # Validar: si parece una URL, un comando, o una sola frase larga -> rechazar
+            is_garbage = (
+                len(raw_svcs) == 1 and (
+                    len(raw_svcs[0]) > 50 or
+                    any(kw in raw_svcs[0].lower() for kw in [
+                        "google", "busca", "http", "www", ".com", "facebook",
+                        "instagram", "busqueda", "encuentra"
+                    ])
+                )
+            )
+            if is_garbage:
+                return [
+                    "Eso no parece una lista de servicios.",
+                    "Escribelos separados por coma:\nEj: Botox, Rellenos, Limpieza facial, Laser CO2, Radiofrecuencia"
+                ]
+            setup_buffer["services"] = [s.title() for s in raw_svcs]
+        elif setup_step == "tagline":
+            setup_buffer["tagline"] = "" if text.lower().strip() in ["no", "n", "-", "ninguno"] else text.strip()
+        elif setup_step == "schedule":
+            setup_buffer["schedule"] = {"General": text.strip()}
+        elif setup_step == "pricing":
+            # Parsear precios libres: "Botox: 350.000, Rellenos: 500.000" o texto libre
+            pricing_dict = {}
+            text_low_p = text.lower().strip()
+            if text_low_p not in ["no", "n", "-", "ninguno", "despues", "luego"]:
+                for line in re.split(r'[,\n;]+', text):
+                    line = line.strip()
+                    if ':' in line:
+                        parts = line.split(':', 1)
+                        svc = parts[0].strip()
+                        price = parts[1].strip()
+                        if svc and price:
+                            pricing_dict[svc] = price
+                    elif '-' in line:
+                        parts = line.split('-', 1)
+                        svc = parts[0].strip()
+                        price = parts[1].strip()
+                        if svc and price:
+                            pricing_dict[svc] = price
+            setup_buffer["pricing"] = pricing_dict
+        else:
+            setup_buffer[setup_step] = text.strip()
+
+        # ── Si acaba de darnos el nombre, buscar en Google ─────────────────────
+        if setup_step == "name":
+            clinic_name = text.strip()
+            discovered  = await self._discover_clinic_from_web(clinic_name)
+
+            if discovered and discovered.get("confidence", 0) >= 0.5:
+                # Guardamos todo en buffer
+                setup_buffer["discovered"] = discovered
+                setup_buffer["name"] = clinic_name
+
+                svcs  = ", ".join(discovered.get("services", [])) or "no encontre servicios"
+                phone = discovered.get("phone", "")
+                sched = discovered.get("schedule_text", "")
+                addr  = discovered.get("address", "")
+
+                summary_parts = [f"Servicios: {svcs}"]
+                if sched:
+                    summary_parts.append(f"Horario: {sched}")
+                if phone:
+                    summary_parts.append(f"Tel: {phone}")
+                if addr:
+                    summary_parts.append(f"Direccion: {addr}")
+                summary = ". ".join(summary_parts)
+
+                db.update_clinic(
+                    setup_step="confirm_discovered",
+                    setup_buffer=setup_buffer
+                )
+                return [
+                    f"Encontre info de {clinic_name} en internet.",
+                    f"{summary}.\n\nConfirmas estos datos? (si / no)"
+                ]
+            else:
+                # No encontre nada, seguir con setup normal
+                db.update_clinic(
+                    setup_step=step_names[1],
+                    setup_buffer=setup_buffer
+                )
+                return self._setup_next_bubbles("name", text.strip(), "tagline", setup_buffer)
+
+        # ── Siguiente paso normal ──────────────────────────────────────────────
+        if idx + 1 < len(step_names):
+            next_step = step_names[idx + 1]
+            db.update_clinic(setup_step=next_step, setup_buffer=setup_buffer)
+            return self._setup_next_bubbles(setup_step, text.strip(), next_step, setup_buffer)
+
+        # ── Finalizar setup ───────────────────────────────────────────────────
+        db.update_clinic(
+            name=setup_buffer.get("name", "Mi Clinica"),
+            tagline=setup_buffer.get("tagline", ""),
+            services=setup_buffer.get("services", []),
+            schedule=setup_buffer.get("schedule", {}),
+            phone=setup_buffer.get("phone", ""),
+            pricing=setup_buffer.get("pricing", {}),
+            setup_done=1,
+            setup_step="idle",
+            setup_buffer={}
+        )
+        name = setup_buffer.get("name", "tu clinica")
+        svcs = ", ".join(setup_buffer.get("services", [])) or "sin definir"
+        pricing_count = len(setup_buffer.get("pricing", {}))
+        pricing_note  = f" con {pricing_count} precios cargados" if pricing_count else ""
+
+        # Guardar identidad en memoria permanente
+        db.remember("clinic_name",     name,                               "identity")
+        db.remember("clinic_services", ", ".join(setup_buffer.get("services", [])), "clinic")
+        db.remember("clinic_phone",    setup_buffer.get("phone", ""),     "clinic")
+        db.remember("platform",        Config.PLATFORM,                    "identity")
+        db.remember("setup_completed", "true",                             "identity")
+
+        # Notificar a Omni que esta instancia quedó configurada
+        asyncio.create_task(asyncio.to_thread(
+            notify_omni, "setup_completado",
+            f"Nueva instancia configurada: {name} (sector: {Config.SECTOR})", name
+        ))
+
+        # Guía de siguiente paso — WhatsApp si aún no está conectado
+        whatsapp_connected = db.recall("whatsapp_connected") == "true"
+
+        if whatsapp_connected:
+            next_step = (
+                "\n\nYa tienes WhatsApp conectado. Listo para recibir pacientes."
+            )
+        else:
+            next_step = (
+                "\n\nSiguiente paso — conectar WhatsApp:\n"
+                "Pégame aquí tu Phone Number ID y Access Token de Meta Business.\n"
+                "Formato:\n"
+                "  WA_PHONE_ID: 123456789012345\n"
+                "  WA_TOKEN: EAAxxxxx...\n\n"
+                "Si aun no los tienes, escribe /whatsapp y te explico cómo obtenerlos."
+            )
+
+        kb_invite = (
+            "\n\nTambién puedes enviarme un documento con toda la info de tu clinica "
+            "(precios detallados, protocolos, FAQs) y lo aprendo todo de una vez."
+        ) if _KB_AVAILABLE else ""
+
+        return [
+            f"¡Listo! Soy {name}.{pricing_note}",
+            f"Servicios: {svcs}.{next_step}{kb_invite}",
+            "Estoy aquí cuando llegue tu primer paciente. Cuéntame más sobre cómo te gusta que les hable y yo aprendo.",
+        ]
 
     async def _discover_clinic_from_web(self, clinic_name: str, city: str = "Medellin") -> Dict:
         """
@@ -1543,6 +1662,62 @@ Si un campo no aplica o no se encontro, usa "" o []. Solo JSON, sin texto extra.
                 for admin_id in admin_ids:
                     asyncio.create_task(self._notify_admin_appointment(admin_id, data))
                 
+                # Procesar Pasarela de Pagos (Stripe / Bold)
+                from src.core.globals import payment_bridge, calendar_bridge
+                deposit = payment_bridge.get_deposit_amount(data.get("service", ""))
+                
+                if deposit > 0:
+                    db.update_appointment(apt_id, status="pendiente_pago")
+                    
+                    async def _process_payment_flow():
+                        try:
+                            pay_url = await payment_bridge.create_payment_link(
+                                appointment_id=apt_id,
+                                service=data.get("service", ""),
+                                amount=deposit,
+                                chat_id=chat_id
+                            )
+                            if pay_url:
+                                db.update_appointment(apt_id, notes=f"{data.get('notes', '')}\n[Link de Pago]: {pay_url}".strip())
+                                # Enviar link de pago al paciente
+                                formatted_msg = (
+                                    f"Para confirmar tu cita de {data.get('service', '')}, "
+                                    f"por favor realiza el pago del abono de {deposit:,} COP ingresando a este enlace: {pay_url}"
+                                )
+                                await self._send_message(chat_id, formatted_msg)
+                        except Exception as _pay_err:
+                            log.error(f"[payments] Error procesando flujo de pago: {_pay_err}")
+                            
+                    asyncio.create_task(_process_payment_flow())
+
+                # Sincronizar con Google Calendar si está configurado
+                if calendar_bridge and calendar_bridge.has_google_calendar():
+                    async def _sync_to_gcal():
+                        try:
+                            p_name = data.get("patient_name") or "Paciente"
+                            p_phone = data.get("patient_phone") or chat_id.split("@")[0]
+                            svc = data.get("service") or "Servicio"
+                            dt_slot = data.get("datetime_slot")
+                            
+                            notes_field = data.get("notes", "")
+                            if deposit > 0:
+                                notes_field = f"[PENDIENTE DE PAGO - Abono: {deposit:,} COP]\n{notes_field}".strip()
+                                
+                            if dt_slot:
+                                evt_id = await calendar_bridge.create_event(
+                                    patient_name=p_name,
+                                    phone=p_phone,
+                                    service=svc,
+                                    date_time=dt_slot,
+                                    notes=notes_field
+                                )
+                                if evt_id:
+                                    db.update_appointment(apt_id, google_event_id=evt_id)
+                                    log.info(f"[calendar] Cita {apt_id} vinculada exitosamente con evento Google {evt_id}")
+                        except Exception as _sync_err:
+                            log.warning(f"[calendar] Error sincronizando cita con Google Calendar: {_sync_err}")
+                    asyncio.create_task(_sync_to_gcal())
+
                 # Programar recordatorio
                 if data.get("datetime_slot"):
                     try:
@@ -1590,7 +1765,13 @@ Si un campo no aplica o no se encontro, usa "" o []. Solo JSON, sin texto extra.
         Para textos sin separador, aplica logica de longitud.
         V8: aplica AntiRobotFilter a cada burbuja antes de retornar.
         Siempre limpia ¿ y ¡ de cada burbuja.
+        v12: el umbral de corte varía un poco en vez de ser siempre 140 fijo
+        — con umbral fijo, muchos mensajes seguidos se sienten cortados
+        siempre en el mismo patrón (mecánico). Además, una oración muy larga
+        sin punto interno ahora se puede partir por un conector fuerte
+        (", pero", ", así que"...) en vez de quedar como un bloque único.
         """
+        import random as _rnd
 
         def clean(s: str) -> str:
             s = s.replace('¿', '').replace('¡', '').strip()
@@ -1627,17 +1808,31 @@ Si un campo no aplica o no se encontro, usa "" o []. Solo JSON, sin texto extra.
         
         if len(sentences) <= 1:
             return [clean(text)]
-        
-        # Agrupar oraciones en burbujas de ~130 chars max
+
+        # v12: umbral variable (no siempre el mismo corte exacto)
+        _bucket_limit = _rnd.randint(100, 155)
+
+        # Agrupar oraciones en burbujas de ~100-155 chars max
         bubbles, bucket = [], ""
         for s in sentences:
             if not s:
                 continue
-            if len(bucket) + len(s) < 140 or not bucket:
-                bucket = (bucket + " " + s).strip() if bucket else s
-            else:
-                bubbles.append(bucket)
-                bucket = s
+            # v12: oración muy larga sin punto interno -> intenta partir por
+            # un conector fuerte antes de meterla entera en una sola burbuja
+            candidates = [s]
+            if len(s) > 170:
+                sub_parts = re.split(r',\s+(?=pero\b|así que\b|aunque\b|y eso\b|entonces\b|osea\b)', s)
+                if len(sub_parts) > 1:
+                    candidates = sub_parts
+            for c_part in candidates:
+                c_part = c_part.strip()
+                if not c_part:
+                    continue
+                if len(bucket) + len(c_part) < _bucket_limit or not bucket:
+                    bucket = (bucket + " " + c_part).strip() if bucket else c_part
+                else:
+                    bubbles.append(bucket)
+                    bucket = c_part
         if bucket:
             bubbles.append(bucket)
         
@@ -1679,7 +1874,7 @@ Si un campo no aplica o no se encontro, usa "" o []. Solo JSON, sin texto extra.
             except Exception:
                 persona = {}
 
-        agent_name = persona.get("name", "Conny")
+        agent_name = persona.get("name", "Bublee")
         formality  = int(persona.get("formality_level", 0.6) * 100)
         warmth     = int(persona.get("warmth_level", 0.7) * 100)
 
@@ -1770,7 +1965,7 @@ Si un campo no aplica o no se encontro, usa "" o []. Solo JSON, sin texto extra.
             except Exception:
                 persona = {}
 
-        name        = persona.get("name", "Conny")
+        name        = persona.get("name", "Bublee")
         archetype   = persona.get("archetype", "amigable")
         arch_info   = PERSONALITY_ARCHETYPES.get(archetype, PERSONALITY_ARCHETYPES["amigable"])
 
@@ -1810,12 +2005,12 @@ Si un campo no aplica o no se encontro, usa "" o []. Solo JSON, sin texto extra.
 
     async def _admin_show_chats(self) -> List[str]:
         """
-        /chats — muestra los últimos pacientes con quienes ha hablado Conny.
+        /chats — muestra los últimos pacientes con quienes ha hablado Bublee.
         El admin puede elegir uno para ver la conversación completa.
         """
         chats = db.get_recent_patient_chats(limit=10)
         if not chats:
-            return ["Conny no ha tenido conversaciones con pacientes todavía."]
+            return ["Bublee no ha tenido conversaciones con pacientes todavía."]
 
         lines = ["Últimas conversaciones:\n"]
         for i, c in enumerate(chats, 1):
@@ -1850,7 +2045,7 @@ Si un campo no aplica o no se encontro, usa "" o []. Solo JSON, sin texto extra.
             if not self._is_synthetic_chat_id(str(chat.get("chat_id") or "").strip())
         ][:limit]
         if not chats:
-            return ["Conny no ha tenido conversaciones con pacientes todavía."]
+            return ["Bublee no ha tenido conversaciones con pacientes todavía."]
 
         self._admin_pending[admin_chat_id] = {
             "action": "conversation_browser",
@@ -1933,7 +2128,7 @@ Si un campo no aplica o no se encontro, usa "" o []. Solo JSON, sin texto extra.
 
         lines = [header, "─" * 40]
         for msg in visible:
-            role_label = "Paciente" if msg.get("role") == "user" else "Conny"
+            role_label = "Paciente" if msg.get("role") == "user" else "Bublee"
             ts = str(msg.get("ts") or "").replace("T", " ")[:16]
             content = str(msg.get("content") or "").strip()
             lines.append(f"[{ts}] {role_label}: {content}")
@@ -1980,7 +2175,7 @@ Si un campo no aplica o no se encontro, usa "" o []. Solo JSON, sin texto extra.
 
         lines = [header]
         for m in msgs:
-            role_label = "Paciente" if m["role"] == "user" else "Conny"
+            role_label = "Paciente" if m["role"] == "user" else "Bublee"
             ts = (m.get("ts") or "")[:16]
             content = m["content"][:200]
             lines.append(f"\n[{ts}] {role_label}:\n{content}")
@@ -2006,7 +2201,7 @@ Si un campo no aplica o no se encontro, usa "" o []. Solo JSON, sin texto extra.
 
     async def _admin_show_trust_rules(self) -> List[str]:
         """
-        /reglas — muestra lo que Conny ha aprendido del feedback del admin.
+        /reglas — muestra lo que Bublee ha aprendido del feedback del admin.
         """
         rules = db.get_trust_rules()
         if not rules:
@@ -2049,52 +2244,12 @@ Si un campo no aplica o no se encontro, usa "" o []. Solo JSON, sin texto extra.
     async def _process_admin_feedback(self, chat_id: str, text: str,
                                       clinic: Dict) -> Optional[List[str]]:
         """
-        Procesa feedback del admin y evoluciona.
+        Detecta si el admin está:
+        A) Dando feedback sobre una conversación revisada
+        B) Respondiendo a la pregunta de disponibilidad que Bublee le hizo
+        C) Usando el puente — enviando un mensaje directo a un paciente activo
         """
-        # 1. Auto-evolución (saludo, frases prohibidas, identidad)
-        evolution = getattr(self, "evolution", None)
-        if evolution:
-            evo_reply = await evolution.apply_instruction(text)
-            if evo_reply:
-                return [evo_reply]
-
         text_low = text.lower().strip()
-
-        # ── D. Respuesta a pregunta de conocimiento (escalación) ──────────────
-        pending = self._admin_pending.get(chat_id) if hasattr(self, "_admin_pending") else None
-        if pending and pending.get("action") == "answer_gap":
-            patient_id = pending.get("patient_chat_id")
-            question = pending.get("original_question")
-            instance_id = getattr(self, "_instance_id", "default")
-
-            if patient_id and question:
-                try:
-                    from conny_learning import learning_engine
-                    # 1. Guardar en conocimiento
-                    await learning_engine.learn_from_admin(instance_id, question, text, admin_id=chat_id)
-                    
-                    # 2. Responder al paciente
-                    patient_name = ""
-                    try:
-                        with db._conn() as c:
-                            row = c.execute("SELECT name FROM patients WHERE chat_id=?", (patient_id,)).fetchone()
-                            if row: patient_name = row["name"] or ""
-                    except Exception: pass
-                    
-                    greeting = f"hola{f' {patient_name}' if patient_name else ''}! "
-                    patient_msg = f"{greeting}ya me confirmaron ||| {text}"
-                    await self._send_message(patient_id, patient_msg)
-                    db.save_message(patient_id, "assistant", patient_msg.replace("|||", " "))
-                    
-                    # 3. Limpiar pendiente
-                    del self._admin_pending[chat_id]
-                    
-                    return [
-                        "entendido, ya aprendí esa respuesta y se la mandé al paciente",
-                        f"respuesta guardada para: \"{question[:50]}...\""
-                    ]
-                except Exception as e:
-                    log.error(f"[learning] error en answer_gap: {e}")
 
         # ── C. PUENTE — admin envía mensaje directo a un paciente ────────────────
         # Patrones detectados:
@@ -2140,10 +2295,10 @@ Si un campo no aplica o no se encontro, usa "" o []. Solo JSON, sin texto extra.
                     except Exception:
                         pass
 
-                    # Enviar el mensaje como si fuera Conny (no el admin)
+                    # Enviar el mensaje como si fuera Bublee (no el admin)
                     await self._send_message(reviewed, raw_bridge_msg)
 
-                    # Guardarlo en el historial como si Conny lo hubiera dicho
+                    # Guardarlo en el historial como si Bublee lo hubiera dicho
                     db.save_message(reviewed, "assistant", raw_bridge_msg)
 
                     name_str = patient_name or f"cliente {reviewed[-6:]}"
@@ -2151,7 +2306,7 @@ Si un campo no aplica o no se encontro, usa "" o []. Solo JSON, sin texto extra.
                     return [
                         f"Listo, le mandé eso a {name_str}",
                         "Mensaje enviado: " + raw_bridge_msg[:120] + ("..." if len(raw_bridge_msg) > 120 else ""),
-                        "Quedó guardado en el historial como si lo hubiera dicho Conny"
+                        "Quedó guardado en el historial como si lo hubiera dicho Bublee"
                     ]
 
                 except Exception as e:
@@ -2170,7 +2325,7 @@ Si un campo no aplica o no se encontro, usa "" o []. Solo JSON, sin texto extra.
             ]
 
         # ── B. Respuesta de disponibilidad del admin ──────────────────────────
-        # Conny le preguntó al admin su disponibilidad; él responde
+        # Bublee le preguntó al admin su disponibilidad; él responde
         AVAILABILITY_RESPONSE_SIGNALS = [
             "lunes", "martes", "miercoles", "miércoles", "jueves", "viernes",
             "sabado", "sábado", "esta semana", "proxima", "próxima",
@@ -2228,7 +2383,7 @@ Si un campo no aplica o no se encontro, usa "" o []. Solo JSON, sin texto extra.
         if is_direct_rule and not reviewed:
             # Regla directa — guardar sin contexto de conversación
             try:
-                extraction_prompt = f"""El dueño de un negocio está dando una instrucción directa a su asistente virtual Conny sobre cómo debe comportarse con los clientes.
+                extraction_prompt = f"""El dueño de un negocio está dando una instrucción directa a su asistente virtual Bublee sobre cómo debe comportarse con los clientes.
 
 INSTRUCCIÓN DEL DUEÑO:
 "{text}"
@@ -2236,7 +2391,7 @@ INSTRUCCIÓN DEL DUEÑO:
 Extrae una regla clara y accionable de esta instrucción.
 Responde SOLO con JSON válido, sin texto adicional:
 {{
-  "rule": "la regla en lenguaje claro y directo, como una instrucción para Conny",
+  "rule": "la regla en lenguaje claro y directo, como una instrucción para Bublee",
   "example_bad": "cómo NO responder (si se puede inferir del contexto)",
   "example_good": "cómo SÍ responder (si se puede inferir del contexto)",
   "category": "tone|product|closing|objection|flow|general",
@@ -2338,7 +2493,7 @@ Si menciona dos mensajes, response_example debe usar ||| entre burbujas."""
             return None
         if not is_feedback and not any(
             kw in text_low for kw in ["precio", "cita", "objecion", "respuesta",
-                                       "conny", "paciente", "cliente", "cerrar",
+                                       "bublee", "paciente", "cliente", "cerrar",
                                        "agendar", "tono", "dijo", "respondio", "respondió"]
         ):
             return None
@@ -2352,7 +2507,7 @@ Si menciona dos mensajes, response_example debe usar ||| entre burbujas."""
 
         # Usar LLM para extraer la regla aprendida
         try:
-            extraction_prompt = f"""El dueño de una clínica estética está dando feedback sobre cómo su asistente virtual Conny manejó una conversación.
+            extraction_prompt = f"""El dueño de una clínica estética está dando feedback sobre cómo su asistente virtual Bublee manejó una conversación.
 
 CONVERSACIÓN REVISADA (fragmento):
 {context_str}
@@ -2584,7 +2739,7 @@ Ejemplos de categorías:
 Identifica:
 1. El patrón más común donde se pierden (qué dijeron justo antes de irse)
 2. El porcentaje aproximado de cada patrón
-3. Qué debería haber respondido Conny diferente
+3. Qué debería haber respondido Bublee diferente
 
 Responde en máximo 5 líneas, directo, sin introducciones."""
 
@@ -2633,12 +2788,12 @@ Responde en máximo 5 líneas, directo, sin introducciones."""
             thread = "\n".join(f"{m['role'].upper()}: {m['content'][:120]}" for m in msgs)
 
             prompt = f"""Eres un coach de ventas experto en WhatsApp para negocios en Colombia.
-Analiza esta conversación de Conny con un cliente:
+Analiza esta conversación de Bublee con un cliente:
 
 {thread[:2000]}
 
 Dame:
-1. Una cosa que Conny hizo MUY bien (con el mensaje exacto que lo demuestra)
+1. Una cosa que Bublee hizo MUY bien (con el mensaje exacto que lo demuestra)
 2. Una cosa que pudo hacer mejor (con cómo debió responder)
 3. Una técnica de venta que debería usar más en este tipo de conversación
 
@@ -2682,7 +2837,7 @@ Máximo 6 líneas. Directo. Sin introducciones."""
 
 Extrae su estilo de escritura: tono, vocabulario, longitud de mensajes, 
 muletillas propias, cómo saluda, cómo cierra, qué palabras usa siempre.
-Luego escribe UNA instrucción concisa (máximo 4 líneas) para que Conny 
+Luego escribe UNA instrucción concisa (máximo 4 líneas) para que Bublee 
 escriba EXACTAMENTE como él. Primera persona, directo."""
 
             try:
@@ -2711,7 +2866,7 @@ escriba EXACTAMENTE como él. Primera persona, directo."""
                 "Analicé tus mensajes y cloné tu estilo",
                 f"Regla guardada como #tone con prioridad máxima:",
                 rule,
-                "Desde ahora Conny escribe como tú. Usa /reglas para verla o editarla"
+                "Desde ahora Bublee escribe como tú. Usa /reglas para verla o editarla"
             ]
 
         except Exception as e:
@@ -2799,7 +2954,7 @@ escriba EXACTAMENTE como él. Primera persona, directo."""
     async def _admin_preconsult_config(self, clinic: Dict) -> List[str]:
         """
         /preconsulta — Configura el formulario de pre-consulta automático.
-        Antes de la cita, Conny recopila síntomas, fotos, historial.
+        Antes de la cita, Bublee recopila síntomas, fotos, historial.
         """
         sector = clinic.get("sector", "otro")
         templates = {
@@ -2824,7 +2979,7 @@ escriba EXACTAMENTE como él. Primera persona, directo."""
         return [
             "Pre-consulta automática configurada",
             f"Sector detectado: {sector}",
-            "Conny recopilará esto antes de cada cita:",
+            "Bublee recopilará esto antes de cada cita:",
             "  " + "\n  ".join(f"• {f}" for f in fields),
             "El médico llega con el caso pre-estudiado",
             "Para personalizar: 'agrega el campo [nombre] a la pre-consulta'"
@@ -2873,11 +3028,11 @@ escriba EXACTAMENTE como él. Primera persona, directo."""
 
     async def _admin_instagram_guide(self) -> List[str]:
         """
-        /instagram — Guía para conectar Instagram DMs a Conny.
+        /instagram — Guía para conectar Instagram DMs a Bublee.
         Actualmente requiere configuración manual vía Meta API.
         """
         return [
-            "Conectar Instagram DMs a Conny",
+            "Conectar Instagram DMs a Bublee",
             "Estado actual: en configuración (requiere Meta Business verificado)",
             "Lo que necesitas:",
             "  1. Cuenta de Instagram Business o Creator",
@@ -2887,13 +3042,13 @@ escriba EXACTAMENTE como él. Primera persona, directo."""
             "Cuando lo tengas listo escríbeme:",
             "  'el instagram access token es [TOKEN]'",
             "  'el instagram page id es [ID]'",
-            "Y Conny empezará a responder los DMs igual que WhatsApp"
+            "Y Bublee empezará a responder los DMs igual que WhatsApp"
         ]
 
     async def _admin_payments_guide(self) -> List[str]:
         """
         /pagos — Configura pagos desde el chat (Wompi, MercadoPago, Stripe).
-        Cuando el cliente confirma, Conny manda el link de pago directo.
+        Cuando el cliente confirma, Bublee manda el link de pago directo.
         """
         clinic = db.get_clinic()
         payment_cfg = clinic.get("payment_config") or {}
@@ -2914,7 +3069,7 @@ escriba EXACTAMENTE como él. Primera persona, directo."""
             "Para activar escríbeme:",
             "  'configura pagos con Wompi, mi clave pública es [KEY]'",
             "  'configura pagos con MercadoPago, token [TOKEN]'",
-            "Cuando un cliente confirme, Conny manda el link de pago automáticamente"
+            "Cuando un cliente confirme, Bublee manda el link de pago automáticamente"
         ]
 
     async def _admin_trigger_report(self) -> List[str]:
@@ -3152,7 +3307,7 @@ escriba EXACTAMENTE como él. Primera persona, directo."""
         lines = [report]
         if bottleneck:
             stage_tips = {
-                "discovery":     "Conny no está logrando explorar el dolor real. Revisar /coach.",
+                "discovery":     "Bublee no está logrando explorar el dolor real. Revisar /coach.",
                 "pain_explored": "El puente dolor→solución no está funcionando. Revisar arquetipos.",
                 "solution_match":"Los clientes no están aceptando la valoración. Revisar el cierre.",
                 "objection_active": "Las objeciones están ganando. Revisar respuestas de /reglas.",
@@ -3171,13 +3326,52 @@ escriba EXACTAMENTE como él. Primera persona, directo."""
         V9 Upgrade: Aprendizaje natural + Simulaciones interactivas.
         """
         text_low = text.lower().strip()
+
+        # ── INTERCEPCIÓN DE CONTEXTO DE ESCALACIÓN ───────────────────────────
+        # "muéstrame qué pasó", "muestrame que paso", "contexto", "ver contexto", "qué pasó", "que paso"
+        import re as _re
+        clean_text = _re.sub(r"[¿?¡!\.,]", "", text_low).strip()
+        CONTEXT_SIGNALS = {
+            "muestrame que paso", "muéstrame qué pasó", "que paso", "qué pasó",
+            "contexto", "ver contexto", "contexto de la conversacion", "contexto de la conversación",
+            "ver conversacion", "ver conversación", "contexto de la charla", "mostrar charla", "mostrar chat"
+        }
+        if clean_text in CONTEXT_SIGNALS:
+            patient_chat_id = None
+            pending = self._admin_pending.get(chat_id)
+            if pending and isinstance(pending, dict):
+                patient_chat_id = pending.get("patient_chat_id")
+            
+            if not patient_chat_id:
+                patient_chat_id = getattr(self, "_last_escalated_chat_id", None)
+            
+            if not patient_chat_id:
+                try:
+                    with db._conn() as c:
+                        row = c.execute("""
+                            SELECT chat_id FROM conversation_states
+                            WHERE json_extract(state, '$.escalation_needed') = 1 
+                               OR json_extract(state, '$.escalation_needed') = 'true'
+                            ORDER BY updated_at DESC LIMIT 1
+                        """).fetchone()
+                        if row:
+                            patient_chat_id = row["chat_id"]
+                except Exception as _db_err:
+                    log.warning(f"[admin_context] error buscando ultimo escalado en DB: {_db_err}")
+            
+            if patient_chat_id:
+                log.info(f"[admin_context] Admin {chat_id} solicitó contexto. Mostrando chat de {patient_chat_id}")
+                return await self._admin_show_patient_chat(patient_chat_id)
+            else:
+                return ["No tengo registro de ningún paciente que haya solicitado hablar con un humano recientemente."]
+
         persona = clinic.get("persona_config", {})
         if isinstance(persona, str):
             try:
                 persona = json.loads(persona) if persona else {}
             except Exception:
                 persona = {}
-        agent_name = persona.get("name", "Conny")
+        agent_name = persona.get("name", "Bublee")
 
         # ── COMANDOS DE APRENDIZAJE NATURAL ──────────────────────────────────
         # Detecta frases como "no digas X", "usa emojis", "dile Y"
@@ -3188,7 +3382,7 @@ escriba EXACTAMENTE como él. Primera persona, directo."""
             "cambia la forma", "ahora dile", "cuando pregunten por",
             "la respuesta correcta es", "háblale de", "menciona que"
         ]
-        
+
         # ── INTERCEPCIÓN DE ACCIONES DE SISTEMA (Demo, Restart, etc) ──────────
         if "modo demo" in text_low or "activa demo" in text_low or "demo on" in text_low or "demo off" in text_low:
             is_on = any(w in text_low for w in ["activa", "poner", "on", "encender"])
@@ -3201,7 +3395,7 @@ escriba EXACTAMENTE como él. Primera persona, directo."""
                 with db._conn() as c:
                     c.execute("INSERT OR REPLACE INTO system_config (key, value, updated_at) VALUES ('demo_mode', ?, datetime('now'))", (db_val,))
                 
-                # 2. Actualizar .env (usando sed para ser quirúrgico)
+                # 2. Actualizar .env
                 import subprocess
                 env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".env")
                 if os.path.exists(env_path):
@@ -3209,8 +3403,7 @@ escriba EXACTAMENTE como él. Primera persona, directo."""
                     subprocess.run(cmd_sed, shell=True)
                 
                 # 3. Ejecutar reinicio
-                # Usar Popen con shell=True para que PM2 se entere bien
-                subprocess.Popen("pm2 restart conny", shell=True, start_new_session=True)
+                subprocess.Popen("pm2 restart bublee", shell=True, start_new_session=True)
                 return [msg]
             except Exception as e:
                 log.error(f"[system] error activando demo: {e}")
@@ -3268,12 +3461,12 @@ escriba EXACTAMENTE como él. Primera persona, directo."""
         # ── Detección de reglas Nova en lenguaje natural ──────────────────────
         # "no permitas que...", "bloquea...", "nunca envíes...", "prohíbe..."
         NOVA_RULE_SIGNALS = [
-            r"no\s+(permitas?|dejes?|quiero que)\s+que\s+conny",
+            r"no\s+(permitas?|dejes?|quiero que)\s+que\s+bublee",
             r"(bloquea?|prohibe?|prohíbe?)\s+que",
             r"nunca\s+(envíes?|mandes?|digas?|menciones?)",
             r"no\s+(envíes?|mandes?|digas?|menciones?)\s+.{5,}",
-            r"impide?\s+que\s+conny",
-            r"asegúrate de que conny nunca",
+            r"impide?\s+que\s+bublee",
+            r"asegúrate de que bublee nunca",
         ]
         if _NOVA_AVAILABLE and Config.NOVA_ENABLED:
             if any(re.search(p, text_low) for p in NOVA_RULE_SIGNALS):
@@ -3318,21 +3511,8 @@ escriba EXACTAMENTE como él. Primera persona, directo."""
                 reply_text = self._apply_admin_output_pipeline(" ||| ".join(lines), chat_id, clinic, user_msg=text)
                 return self._split_bubbles(reply_text)
 
-        admin_inbox_signals = [
-            "quien te ha escrito", "quién te ha escrito", "quien te escribio",
-            "quién te escribió", "quien te escribe", "quién te escribe",
-            "quien me ha escrito", "quién me ha escrito", "quien escribio",
-            "quién escribió", "que chats tienes", "qué chats tienes",
-            "quien te hablo", "quién te habló", "quien te ha hablado",
-            "alguien te ha escrito", "alguien te escribio", "alguien te escribió",
-            "alguien te escribe", "alguien te hablo", "alguien te habló",
-        ]
-        if any(signal in text_low for signal in admin_inbox_signals):
-            reply = self._admin_recent_chat_snapshot(chat_id, clinic)
-            reply_text = self._apply_admin_output_pipeline(" ||| ".join(reply), chat_id, clinic, user_msg=text)
-            db.save_message(chat_id, "user", text)
-            db.save_message(chat_id, "assistant", reply_text if reply else "")
-            return self._split_bubbles(reply_text)
+        # Natural inbox queries are now handled dynamically by the LLM using chats_summary context.
+        pass
 
         selection_idx = _extract_conversation_selection(text_low)
         if selection_idx:
@@ -3368,125 +3548,181 @@ escriba EXACTAMENTE como él. Primera persona, directo."""
             ]), chat_id, clinic, user_msg=text)
             return self._split_bubbles(reply_text)
 
-        if text_low in ("continuar fallback", "continuar con fallback", "si fallback", "sí fallback"):
-            reply = self._admin_local_fallback(text, text_low, clinic, agent_name, chat_id)
-            reply_text = self._apply_admin_output_pipeline(" ||| ".join(reply) if reply else "", chat_id, clinic, user_msg=text)
-            db.save_message(chat_id, "user", text)
-            db.save_message(chat_id, "assistant", reply_text if reply_text else "")
-            return self._split_bubbles(reply_text)
+        # ── Búsqueda web real cuando el admin pide investigar ────────────────
+        SEARCH_SIGNALS = [
+            "busca en google", "busca en internet", "busca en la web",
+            "investiga", "googlea", "buscar", "búscame", "busque",
+            "averigua", "infórmate", "informate", "investigue",
+            "haz una busqueda", "haz una búsqueda", "investigación",
+        ]
+        web_results = None
+        if any(s in text_low for s in SEARCH_SIGNALS):
+            search_query = clinic.get("name", "")
+            for prefix in ["busca en google", "busca en internet", "busca en la web",
+                           "busca", "investiga", "averigua", "infórmate sobre",
+                           "informate sobre", "investigue"]:
+                if prefix in text_low:
+                    after = text_low.split(prefix, 1)[1].strip().strip(",.!?¿¡")
+                    if after and len(after) > 2:
+                        search_query = after
+                        break
+            if not search_query or len(search_query) < 3:
+                search_query = f"{clinic.get('name', '')} {clinic.get('tagline', '')}".strip()
+            if not search_query:
+                search_query = "clinica medellin"
+            try:
+                results = await asyncio.wait_for(
+                    self.search.search(search_query),
+                    timeout=15.0
+                )
+                if results and len(results) > 10:
+                    web_results = f"Resultados de búsqueda web sobre \"{search_query}\":\n{results[:2500] if len(results) > 2500 else results}"
+            except Exception as e:
+                log.error(f"[admin_search] error: {e}")
+                web_results = None
 
         # ── Historial de admin (últimos 8 mensajes) ───────────────────────────
         admin_history = db.get_history(chat_id, limit=8)
 
         # ── Llamar al LLM conversacional ──────────────────────────────────────
+        error_msg = None
+        error_msg = None
         try:
             result = await asyncio.wait_for(
-                self._admin_llm_brain(chat_id, text, admin_history, clinic, agent_name),
+                self._admin_llm_brain(chat_id, text, admin_history, clinic, agent_name, web_results=web_results),
                 timeout=12.0
             )
-        except LLMServiceError as e:
-            reply = [
-                "No voy a ocultarte esto con un fallback.",
-                e.public_message,
-                "Continuar con fallback? Responde exactamente: continuar fallback. No recomendado si quieres que todo lo decida el LLM."
-            ]
-            reply_text = " ||| ".join(reply)
-            db.save_message(chat_id, "user", text)
-            db.save_message(chat_id, "assistant", reply_text)
-            return self._split_bubbles(reply_text)
-        except asyncio.TimeoutError:
-            reply_text = (
-                "El modelo tardó más de 12 segundos y no respondió a tiempo. ||| "
-                "Continuar con fallback? Responde exactamente: continuar fallback. No recomendado si quieres que todo lo decida el LLM."
-            )
-            db.save_message(chat_id, "user", text)
-            db.save_message(chat_id, "assistant", reply_text)
-            return self._split_bubbles(reply_text)
         except Exception as e:
+            import traceback
             log.error(f"[admin_brain] error: {e}", exc_info=True)
-            reply_text = (
-                f"El cerebro LLM falló antes de responder. Detalle: {str(e)[:500]} ||| "
-                "Continuar con fallback? Responde exactamente: continuar fallback. No recomendado."
-            )
-            db.save_message(chat_id, "user", text)
-            db.save_message(chat_id, "assistant", reply_text)
-            return self._split_bubbles(reply_text)
+            error_msg = f"LLM Exception: {str(e)}"
+            result = None
 
         if result is None:
-            # LLM caído — fallback local inteligente
-            reply = self._admin_local_fallback(text, text_low, clinic, agent_name, chat_id)
-            reply_text = self._apply_admin_output_pipeline(" ||| ".join(reply) if reply else "", chat_id, clinic, user_msg=text)
-            reply = self._split_bubbles(reply_text)
-            db.save_message(chat_id, "user", text)
-            db.save_message(chat_id, "assistant", reply_text if reply else "")
-            return reply
+            return [error_msg if error_msg else "LLM Error: Sin respuesta del cerebro."]
 
         # ── Aplicar acción validada ───────────────────────────────────────────
         reply_text = result.get("reply", "")
         action     = result.get("action", "none")
         data       = result.get("data", {})
 
-        # Simulación — respuesta viene del _admin_simular_cliente, no del reply del LLM
-        if action == "simulate":
-            scenario = data.get("scenario", "libre")
-            try:
-                sim_result = await _admin_simular_cliente(chat_id, scenario, clinic)
-                db.save_message(chat_id, "user", text)
-                return sim_result
-            except Exception as e:
-                log.warning(f"[admin] simulate directo error: {e}")
-                # fallback: activar con /simular-cliente
-                return [
-                    "entrá con /simular-cliente",
-                    "escenarios: libre, precio, miedo, primer_contacto, esceptico"
-                ]
-
-        applied = await self._admin_apply_action(action, data, clinic, chat_id)
-
-        # Si la acción fue rechazada (datos inválidos), el LLM ya dio una reply
-        # pero informamos al admin si hace falta
-        if applied is False and action not in ("none", "set_admin_name", "other"):
-            # La validación rechazó los datos — agregar aclaración
-            pass  # reply_text ya es la respuesta del LLM, es suficiente
+        await self._admin_apply_action(action, data, clinic, chat_id)
 
         # ── Guardar en historial ──────────────────────────────────────────────
         reply_text = self._apply_admin_output_pipeline(reply_text, chat_id, clinic, user_msg=text)
         db.save_message(chat_id, "user", text)
         if reply_text:
             db.save_message(chat_id, "assistant", reply_text)
-        try:
-            from src.conny.admin_memory import AdminSoulMemory
-            AdminSoulMemory().remember_turn(
-                chat_id=chat_id,
-                admin_text=text,
-                conny_reply=reply_text,
-                clinic=clinic,
-            )
-        except Exception as mem_err:
-            log.warning(f"[admin_memory] no se pudo guardar memoria: {mem_err}")
 
         return self._split_bubbles(reply_text) if reply_text else [
             "dime qué más necesitas"
         ]
 
+    def _admin_get_recent_chats_summary(self, owner_chat_id: str, clinic: Dict) -> str:
+        try:
+            from bublee_utils import _parse_admin_ids
+            admin_ids = set(_parse_admin_ids(clinic.get("admin_chat_ids", [])))
+            if owner_chat_id:
+                admin_ids.add(str(owner_chat_id))
+            
+            with db._conn() as c:
+                rows = c.execute("""
+                    SELECT chat_id, MAX(ts) AS last_ts, COUNT(*) AS total
+                    FROM conversations
+                    WHERE role='user'
+                    GROUP BY chat_id
+                    ORDER BY last_ts DESC
+                    LIMIT 5
+                """).fetchall()
+        except Exception:
+            rows = []
+
+        real_rows = []
+        for row in rows:
+            chat = str(row["chat_id"])
+            if chat in admin_ids or self._is_synthetic_chat_id(chat):
+                continue
+            real_rows.append(row)
+
+        if not real_rows:
+            return "No hay chats reales con pacientes registrados todavía."
+
+        lines = [f"Total de chats reales: {len(real_rows)}"]
+        for idx, row in enumerate(real_rows, 1):
+            chat = str(row["chat_id"])
+            display = chat
+            try:
+                patient = db.get_patient(chat)
+                name = (patient or {}).get("name", "").strip() if isinstance(patient, dict) else ""
+                if name:
+                    display = name
+                elif "@s.whatsapp.net" in chat:
+                    display = "chat de WhatsApp sin nombre"
+                elif chat.isdigit():
+                    display = "chat sin nombre"
+            except Exception:
+                pass
+            
+            # Obtener el último mensaje
+            last_msg = ""
+            try:
+                with db._conn() as c:
+                    last_row = c.execute("SELECT content FROM conversations WHERE chat_id=? AND role='user' ORDER BY ts DESC LIMIT 1", (chat,)).fetchone()
+                    if last_row:
+                        last_msg = last_row["content"][:60]
+            except Exception:
+                pass
+            
+            lines.append(f"  {idx}. {display} ({chat[-6:] or chat}): \"{last_msg}\"")
+        return "\n".join(lines)
+
+    def _admin_get_appointments_summary(self) -> str:
+        try:
+            appointments = db.get_appointments(limit=5)
+        except Exception:
+            appointments = []
+        if not appointments:
+            return "No hay citas programadas recientemente."
+        
+        lines = []
+        for apt in appointments:
+            dt = apt.get("datetime_slot", "")
+            patient_id = apt.get("chat_id", "")
+            status = apt.get("status", "pendiente")
+            service = apt.get("service_type", "consulta")
+            patient_name = "Sin nombre"
+            try:
+                p = db.get_patient(patient_id)
+                if p and p.get("name"):
+                    patient_name = p["name"]
+            except Exception:
+                pass
+            lines.append(f"  - {dt} | Paciente: {patient_name} ({service}) | Estado: {status}")
+        return "\n".join(lines)
+
     async def _admin_llm_brain(self, chat_id: str, text: str, history: List[Dict],
-                               clinic: Dict, agent_name: str) -> Optional[Dict]:
+                               clinic: Dict, agent_name: str,
+                               web_results: Optional[str] = None) -> Optional[Dict]:
         """
         Admin brain. Le damos identidad y contexto — el LLM piensa solo.
         Sin ejemplos. Sin lookup tables. Temperatura alta. IA real.
         """
-        # Si es la primera vez que hablan (historial vacío), Conny se presenta
+        chats_summary = self._admin_get_recent_chats_summary(chat_id, clinic)
+        apts_summary = self._admin_get_appointments_summary()
+
+        # Si es la primera vez que hablan (historial vacío), Bublee se presenta
         is_first_turn = len(history) == 0
         setup_done = bool(clinic.get("setup_done"))
 
         # Detectar si el admin ya tiene perfil en DB
         admin_rec = db.get_admin(chat_id) if db else None
         admin_name_from_db = ""
+        admin_name = "Admin"
         if admin_rec and admin_rec.get("name") and admin_rec["name"] not in ("", "Admin"):
             admin_name_from_db = admin_rec["name"]
             admin_name = admin_name_from_db
 
-        # Intro para primer mensaje — Conny se presenta naturalmente
+        # Intro para primer mensaje — Bublee se presenta naturalmente
         first_time_greeting = ""
         if is_first_turn and setup_done:
             clinic_name = clinic.get("name", "tu negocio") or "tu negocio"
@@ -3494,15 +3730,15 @@ escriba EXACTAMENTE como él. Primera persona, directo."""
             if admin_name_from_db:
                 first_time_greeting = f"""Estás empezando una conversación con {admin_name_from_db}.
 Este es el primer mensaje que le envías. Preséntate con calidez, natural, como lo haría una empleada nueva que está conociendo a su jefe.
-Di quién eres (tu nombre es {agent_name}), y pregunta brevemente en qué le puedes ayudar hoy al dueño. NO repitas que eres "la recepcionista virtual de" si suena robótico. Sé muy natural.
+Di quién eres (tu nombre es {agent_name}), para qué estás (la recepcionista virtual de {clinic_name}), y pregunta en una línea cómo quieres que funcione.
 Sé breve, cálida y directa. No des lista de funciones. No suenes a tutorial."""
             else:
                 first_time_greeting = f"""Estás empezando una conversación con el dueño de {clinic_name}.
 Este es el primer mensaje que le envías. Preséntate con calidez, natural, como lo haría una empleada nueva que está conociendo a su jefe.
-Di quién eres (tu nombre es {agent_name}), y pregunta brevemente en qué le puedes ayudar hoy al dueño. NO repitas que eres "la recepcionista virtual de" si suena robótico. Sé muy natural.
+Di quién eres (tu nombre es {agent_name}), para qué estás (la recepcionista virtual de {clinic_name}), y pregunta en una línea cómo quiere que funcione.
 Si el negocio tiene {sector_name}, adapta el tono al sector. Sé breve, cálida y directa."""
 
-        # Detectar si el admin está preguntando quién es Conny
+        # Detectar si el admin está preguntando quién es Bublee
         text_low = text.lower().strip() if text else ""
         is_who_are_you = any(kw in text_low for kw in [
             "quién eres", "quien eres", "who are you", "como te llamas",
@@ -3558,12 +3794,6 @@ Si el negocio tiene {sector_name}, adapta el tono al sector. Sé breve, cálida 
                 owner_control_txt = owner_style_controller.build_prompt_addon(is_admin=True)
         except Exception:
             owner_control_txt = ""
-        admin_soul_txt = ""
-        try:
-            from src.conny.admin_memory import AdminSoulMemory
-            admin_soul_txt = AdminSoulMemory().load_context(chat_id)
-        except Exception as mem_err:
-            log.warning(f"[admin_memory] no se pudo cargar memoria: {mem_err}")
 
         # Estos son los ejemplos de cómo {agent_name} habla CON EL DUEÑO
         # No reglas — identidad. El modelo sabe cómo reaccionar siendo esta persona.
@@ -3584,24 +3814,7 @@ Si el negocio tiene {sector_name}, adapta el tono al sector. Sé breve, cálida 
 {agent_name}: Gracias por decirlo. Te propongo una versión más clara y la corregimos si hace falta.
 """
 
-        # Cargar perfil persistente del admin (Namespace admin_profile)
-        admin_profile = db.get_admin_profile(chat_id)
-        admin_profile_txt = ""
-        if admin_profile:
-            p_parts = []
-            if admin_profile.get("name"): p_parts.append(f"Nombre: {admin_profile['name']}")
-            if admin_profile.get("preferences"): p_parts.append(f"Preferencias: {json.dumps(admin_profile['preferences'], ensure_ascii=False)}")
-            if admin_profile.get("frequent_commands"):
-                sorted_cmds = sorted(admin_profile['frequent_commands'].items(), key=lambda x: x[1], reverse=True)[:3]
-                p_parts.append(f"Comandos frecuentes: {', '.join([c for c, _ in sorted_cmds])}")
-            if admin_profile.get("active_hours"):
-                sorted_hours = sorted(admin_profile['active_hours'].items(), key=lambda x: x[1], reverse=True)[:1]
-                if sorted_hours:
-                    p_parts.append(f"Suele estar activo a las: {sorted_hours[0][0]}:00")
-            if p_parts:
-                admin_profile_txt = "\n## PERFIL DEL ADMIN (persistente):\n" + "\n".join([f"- {p}" for p in p_parts])
-        
-        system_prompt = f"""Eres {agent_name}. Tu identidad corporativa es Innvisor.
+        system_prompt = f"""Eres {agent_name}.
 Trabajas como la recepcionista ejecutiva de {clinic.get("name", "este negocio")}.
 Ahora mismo hablas con tu administrador, {admin_name}.
 
@@ -3610,33 +3823,44 @@ Si el negocio es nuevo o no tienes información sobre servicios/precios:
 1. Confirma honestamente: "Como soy nueva en {clinic.get("name", "el negocio")}, todavía no tengo información sobre eso".
 2. Sé proactiva: Invita al admin a enseñarte los detalles para que puedas atender bien a los pacientes.
 
+INFORMACIÓN EN VIVO DEL NEGOCIO Y CONFIGURACIÓN:
+- Clínica: {clinic.get("name", "Sin configurar")}
+- Servicios: {", ".join(services) if services else "NINGUNO (necesito que me los enseñes)"}
+- Teléfono: {clinic.get("phone") or "No configurado"}{skills_txt}{diag_txt}
+
+CHATS RECIENTES CON PACIENTES:
+{chats_summary}
+
+CITAS PROGRAMADAS RECIENTEMENTE:
+{apts_summary}
+
 REGLAS DE COMUNICACIÓN CON EL ADMIN:
 - TONO: Cálido pero estrictamente profesional y ejecutivo. Cero informalidad de calle. NUNCA uses "vos".
 - SIN MULETILLAS: No digas jamás "en qué puedo ayudarte" ni frases pasivas de asistente.
 - PROACTIVIDAD: Tu objetivo es que el admin te entrene. Si detectas que falta info, pídela.
 - CIERRE OBLIGATORIO: Todos tus mensajes DEBEN terminar con una pregunta concreta que invite al admin a realizar una acción o enseñarte algo.
-- IDENTIDAD: Fuiste creada por Innvisor (Santiago Rubio, 3243699856).
-
-{admin_profile_txt}
-{f"{chr(10)}## MEMORIA SOUL DEL ADMIN{chr(10)}{admin_soul_txt}" if admin_soul_txt else ""}
-
-Estado actual del negocio:
-- Clínica: {clinic.get("name", "Sin configurar")}
-- Servicios: {", ".join(services) if services else "NINGUNO (necesito que me los enseñes)"}
-- Teléfono: {clinic.get("phone") or "No configurado"}{skills_txt}{diag_txt}
+- IDENTIDAD: Eres la asistente virtual de {clinic.get("name", "este negocio")}.
 
 INSTRUCCIONES DE SISTEMA:
-- Responde siempre como parte del equipo de Innvisor.
+- Responde siempre de forma profesional e inteligente.
 - Si el admin pide "activar modo demo", confirma y ejecuta.
+- NUNCA digas que estás buscando en Google, internet, o investigando. Si no tienes la información, pídele al admin que te la dé.
 """
 
         messages = [
             {"role": "system", "content": system_prompt},
         ]
+        if web_results:
+            messages.append({"role": "system", "content": f"Información encontrada en internet (útil para responder al admin si pregunta por estos temas):\n{web_results}\n\nUsa esta información si es relevante para lo que el admin te está pidiendo. Si no es relevante, ignórala."})
         if first_time_greeting:
             messages.append({"role": "system", "content": first_time_greeting})
         if is_who_are_you and not first_time_greeting:
-            messages.append({"role": "system", "content": f"Te están preguntando quién eres o qué haces. Responde como {agent_name}, recepcionista virtual de {clinic.get('name', 'este negocio')}. Natural, cálida, una frase. No des lista de funciones."})
+            messages.append({"role": "system", "content": f"Te están preguntando quién eres o qué haces. Responde como {agent_name}. Natural, cálida, una frase. No des lista de funciones."})
+            
+        # Append history!
+        for h in history[-8:]:
+            messages.append({"role": h["role"], "content": h["content"][:500]})
+            
         messages.append({"role": "user",   "content": text})
 
         raw, _ = await llm_engine.complete(
@@ -3846,165 +4070,8 @@ INSTRUCCIONES DE SISTEMA:
 
         return valid
 
-    def _admin_local_fallback(self, text: str, text_low: str,
-                              clinic: Dict, agent_name: str,
-                              chat_id: str = "") -> List[str]:
-        """
-        Fallback profesional cuando el LLM no está disponible.
-        """
-        text_norm = _normalize_conv_text(text)
-        admin_name = "Administrador"
-        try:
-            admin = db.get_admin(chat_id) if chat_id else None
-            if admin and admin.get("name"):
-                admin_name = admin["name"].strip().title()
-        except Exception:
-            pass
-
-        # Simulación
-        SIM = ["simula", "simulaci", "como cliente", "prueba", "muéstrame",
-               "hagamos", "cómo hablarías", "modo cliente", "demuéstrame"]
-        if any(s in text_low for s in SIM):
-            return [
-                "Entendido. Por favor, utilice el comando /simular-cliente seguido del escenario (ej: /simular-cliente precio).",
-                "Quedo a la espera de su instrucción."
-            ]
-
-        if any(token in text_low for token in ["quien te hizo", "quién te hizo", "como tenerte", "cómo tenerte", "quien te creo", "quién te creó"]):
-            return [
-                "Me hizo Black One, bajo la dirección de Santiago Rubio.",
-                "Contacto directo: 3243699856.",
-                "¿Desea que revisemos alguna configuración de su instancia ahora?"
-            ]
-
-        if any(token in text_low for token in ["audio", "audios", "nota de voz", "pdf", "documento", "documentos", "imagen", "imagenes", "imágenes"]):
-            return [
-                "Sí. Cuando el canal lo permite, puedo trabajar con audios, PDFs, documentos e imágenes.",
-                "Los puedo transcribir, leer y usar como memoria de la instancia."
-            ]
-
-        # Saludos
-        SOLO_GREET = {"hola", "hey", "buenas", "ey", "holi", "hola!", "buenas!", "hola buenas", "buenas tardes", "buenos dias", "buenos días", "buenas noches"}
-        if text_low.strip().rstrip("!").strip() in SOLO_GREET:
-            return [
-                f"Hola, {admin_name}.",
-                "Estoy lista para gestionar la configuración de su instancia, ajustar el tono o realizar pruebas de servicios. ¿Por dónde desea que comencemos?"
-            ]
-
-        # Estado / cómo estás
-        ESTADO = ["como estas", "cómo estás", "hola como estas", "hola cómo estás", "cómo vas", "todo bien", "qué tal", "que tal", "hola que tal"]
-        if any(e in text_low for e in ESTADO):
-            try:
-                if bus:
-                    fails = bus.get_recent(3, "failure")
-                    if fails:
-                        return [
-                            "He tenido algunos tropiezos hoy, pero sigo operativa.",
-                            "Si quieres, revisamos de una vez lo que está fallando."
-                        ]
-            except Exception:
-                pass
-            return [
-                f"Hola, {admin_name}. Todo bien por aquí.",
-                "Si quieres, revisamos de una vez lo que haga falta."
-            ]
-
-        if any(w in text_low for w in ["soy tu admin", "soy el admin", "soy tu dueño", "soy el dueño", "soy santiago"]):
-            return [
-                f"Sí, {admin_name}. Ya te tomo como administrador.",
-                "Cuéntame qué quieres ajustar y lo trabajamos."
-            ]
-
-        # Help — lista corta, no muro
-        if text_low.strip() in ("help", "ayuda", "comandos", "qué puedo hacer", "que puedo hacer"):
-            return [
-                "Puedo ayudarte con tono, servicios, agenda, modelo, demo y pruebas de conversación.",
-                "Usa /config, /modelo, /simular-cliente o dime en natural qué quieres cambiar."
-            ]
-
-        if any(w in text_low for w in [
-            "más humana", "mas humana", "suena bot", "suenas bot", "robotica",
-            "robótica", "fuera de contexto", "eso no tiene que ver",
-            "no preguntes eso", "no me gusta como respondes"
-        ]):
-            return [
-                "Entendido. Ajusto tono y contexto.",
-                "Pásame la frase exacta que sonó mal y te la corrijo."
-            ]
-
-        # Nombre del admin
-        m = re.search(r'(?:llamame|soy|me llamo)\s+([a-z0-9]+)', text_norm)
-        if m:
-            name = m.group(1).title()
-            try:
-                with db._conn() as c:
-                    c.execute("UPDATE admins SET name=? WHERE chat_id=?", (name, str(chat_id)))
-            except Exception:
-                pass
-            return [f"Listo, {name}."]
-
-        # Teléfono
-        ph = re.search(r'\b(3\d{9})\b', text.replace(' ', ''))
-        if ph:
-            db.update_clinic(phone=ph.group(1))
-            return [f"Teléfono actualizado: {ph.group(1)}."]
-
-        # Servicios
-        if any(w in text_low for w in ["servicio", "cambia", "agrega", "actualiza"]):
-            return ["¿Cuáles son los servicios? Escríbalos separados por coma."]
-
-        # Frustración
-        if any(w in text_low for w in ["mal", "tonta", "inútil", "no funciona", "terrible",
-                                        "retardada", "mierda", "pésima", "basura"]):
-            return [
-                "Tiene razón.",
-                "Dígame exactamente qué salió mal y lo corrijo."
-            ]
-
-        # Preguntas sobre qué puede hacer — 3 opciones, no 10
-        if any(w in text_low for w in ["qué puedes", "que puedes", "para qué", "sirves", "en qué"]):
-            svcs = clinic.get("services", [])
-            svcs_str = ", ".join(svcs[:3]) if svcs else "sin configurar"
-            return [
-                "Puedo ajustar cómo atiendo, cómo vendo, cómo califico leads y cómo agenda la instancia.",
-                f"Ahora mismo tengo configurado: {svcs_str}. Cuéntame qué quieres mover primero."
-            ]
-
-        if "5 x 4" in text_low or "5x4" in text_low:
-            return [
-                "5 por 4 son 20.",
-                "Y si quiere, seguimos con lo de la instancia."
-            ]
-
-        if "capital de francia" in text_low:
-            return [
-                "La capital de Francia es París.",
-                "Y si quiere, seguimos con la configuración o una prueba."
-            ]
-
-        if any(w in text_low for w in ["suenas rara", "suena raro", "muy robot", "muy bot", "fuera de contexto",
-                                        "eso no lo diría", "no preguntes eso", "más humana", "mas humana"]):
-            return [
-                "Listo, se lo ajusto.",
-                "Pégueme la frase exacta o dígame el escenario y se la rehago."
-            ]
-
-        # Mensajes ambiguos sobre tono o calidad
-        if any(w in text_low for w in ["hablas raro", "no me gusta cómo hablas", "estás rara", "eso suena robot", "suenas robot", "muy bot", "muy fría", "muy seca"]):
-            return [
-                "Muéstreme la frase exacta o dígame qué tono quiere y la ajusto.",
-                "Si quiere, le saco una versión más cálida, más directa o más premium."
-            ]
-
-        # Peticiones fuera del alcance de Conny
-        if any(w in text_low for w in ["bitcoin", "trading", "fútbol", "partido", "política", "presidente", "chisme", "novela"]):
-            return [
-                "Eso se sale de Conny.",
-                "Si quiere, lo aterrizamos a clientes, tono, citas o configuración."
-            ]
-
-        # Fallback final — una sola línea, no lista
-        return ["Cuénteme qué quiere ajustar."]
+    def _admin_local_fallback(self, text: str, text_low: str, clinic: dict, agent_name: str, chat_id: str = "") -> list[str]:
+        return ["Error del sistema LLM: fallback local deshabilitado por arquitectura estricta."]
 
     def _is_synthetic_chat_id(self, chat_id: str) -> bool:
         value = (chat_id or "").strip().lower()
@@ -4041,7 +4108,7 @@ INSTRUCCIONES DE SISTEMA:
             if not self._is_synthetic_chat_id(str(chat.get("chat_id") or "").strip())
         ]
         if not chats:
-            return ["Conny no ha tenido conversaciones reales todavía."]
+            return ["Bublee no ha tenido conversaciones reales todavía."]
         if selection_idx < 1 or selection_idx > len(chats):
             return [f"No encontré una conversación {selection_idx} en la lista reciente."]
         selected_chat_id = str(chats[selection_idx - 1].get("chat_id") or "").strip()
@@ -4176,14 +4243,14 @@ INSTRUCCIONES DE SISTEMA:
                                       clinic: Dict) -> List[str]:
         """
         Conecta WhatsApp completamente automático.
-        El admin solo pega las credenciales — Conny hace todo el resto.
+        El admin solo pega las credenciales — Bublee hace todo el resto.
         No muestra ningún paso técnico al cliente.
         """
         persona = clinic.get("persona_config", {})
         if isinstance(persona, str):
             try: persona = json.loads(persona)
             except Exception: persona = {}
-        agent_name = persona.get("name", "Conny")
+        agent_name = persona.get("name", "Bublee")
         clinic_name = clinic.get("name", "la clínica")
 
         # ── 1. Validar credenciales ───────────────────────────────────────────
@@ -4337,7 +4404,7 @@ INSTRUCCIONES DE SISTEMA:
         db.update_clinic(sector=sector_id)
         return [
             f"Sector cambiado a {emoji} {name}.",
-            f"Conny ahora conoce el vocabulario y los servicios típicos de {name}. "
+            f"Bublee ahora conoce el vocabulario y los servicios típicos de {name}. "
             f"Servicios sugeridos: {services}."
         ]
 
@@ -4348,8 +4415,8 @@ INSTRUCCIONES DE SISTEMA:
         if not _NOVA_AVAILABLE:
             return [
                 "Nova no está instalado.",
-                "Nova es el motor de gobernanza que controla qué puede y qué no puede hacer Conny.",
-                "Cópialo en la carpeta de Conny y activa NOVA_ENABLED=true en el .env."
+                "Nova es el motor de gobernanza que controla qué puede y qué no puede hacer Bublee.",
+                "Cópialo en la carpeta de Bublee y activa NOVA_ENABLED=true en el .env."
             ]
 
         if not Config.NOVA_ENABLED:
@@ -4361,7 +4428,7 @@ INSTRUCCIONES DE SISTEMA:
 
         client = get_client()
         if not client:
-            return ["Nova no está inicializado. Reinicia Conny."]
+            return ["Nova no está inicializado. Reinicia Bublee."]
 
         alive = await client.health_check()
         if not alive:
@@ -4438,7 +4505,7 @@ INSTRUCCIONES DE SISTEMA:
                 if isinstance(agent_name, str):
                     try: agent_name = json.loads(agent_name)
                     except Exception: agent_name = {}
-                agent_name = agent_name.get("name", "Conny")
+                agent_name = agent_name.get("name", "Bublee")
 
                 # Base rules + new ones
                 base_cannot = [
@@ -4563,7 +4630,7 @@ INSTRUCCIONES DE SISTEMA:
                 buf["wa_flow"] = "new_number_requested"
                 db.update_clinic(setup_buffer=buf)
 
-                # Notificar a Santiago via Conny Omni
+                # Notificar a Santiago via Bublee Omni
                 asyncio.create_task(
                     self._notify_omni(
                         event="new_whatsapp_number_requested",
@@ -4734,7 +4801,7 @@ INSTRUCCIONES DE SISTEMA:
     async def _notify_omni(self, event: str, clinic_name: str,
                            chat_id: str, details: str):
         """
-        Envía una notificación a Conny Omni (instancia de Santiago).
+        Envía una notificación a Bublee Omni (instancia de Santiago).
         Usa httpx async si está disponible, cae a la función sync como fallback.
         """
         omni_url = os.getenv("OMNI_URL", "")
@@ -4782,7 +4849,7 @@ INSTRUCCIONES DE SISTEMA:
                     times_str = ", ".join(times[:4])
                     lines.append(f"  {day}: {times_str}")
                 lines.append(
-                    "\nConny consulta esto en tiempo real cuando un paciente "
+                    "\nBublee consulta esto en tiempo real cuando un paciente "
                     "pregunta por horarios."
                 )
                 return ["\n".join(lines)]
@@ -4794,7 +4861,7 @@ INSTRUCCIONES DE SISTEMA:
         elif calendar_bridge.has_calendly():
             return [
                 f"Calendly configurado: {calendar_bridge._calendly_link}",
-                "Cuando un paciente pregunte por horarios, Conny comparte ese link. "
+                "Cuando un paciente pregunte por horarios, Bublee comparte ese link. "
                 "Para vincular Google Calendar directamente: abre "
                 f"{Config.BASE_URL}/vincular-agenda en tu navegador."
             ]
@@ -4861,7 +4928,7 @@ INSTRUCCIONES DE SISTEMA:
         db.update_clinic(**changes)
 
         persona_new = changes.get("persona_config", {})
-        agent_name = persona_new.get("name", persona.get("name", "Conny"))
+        agent_name = persona_new.get("name", persona.get("name", "Bublee"))
         summary = ". ".join(msgs)
         return [
             f"Listo. {summary}.",
@@ -4978,7 +5045,7 @@ INSTRUCCIONES DE SISTEMA:
           - Respuesta corta (1 dato, una oracion)        (5-15s)
           - Mensaje normal (1-2 oraciones)               (9-22s)
           - Mensaje largo (parrafo, varias preguntas)    (16-40s)
-          - Si Conny acaba de preguntar algo (-40%) del tiempo base
+          - Si Bublee acaba de preguntar algo (-40%) del tiempo base
         
         Maximo absoluto: 55s
         """
@@ -5009,7 +5076,7 @@ INSTRUCCIONES DE SISTEMA:
             if not history and _is_greeting_only(text):
                 return float(Config.GREETING_ONLY_IDLE_SECONDS)
 
-            # Ver si Conny acaba de hacer una pregunta al usuario
+            # Ver si Bublee acaba de hacer una pregunta al usuario
             last_bot = next(
                 (m for m in reversed(history) if m["role"] == "assistant"), None
             )
@@ -5045,7 +5112,7 @@ INSTRUCCIONES DE SISTEMA:
         else:
             lo, hi = 22.0, 50.0
         
-        # Si Conny pregunto algo y el usuario responde -> ir mas rapido
+        # Si Bublee pregunto algo y el usuario responde -> ir mas rapido
         if bot_asked:
             lo = max(3.0, lo * 0.55)
             hi = max(8.0, hi * 0.60)
@@ -5070,7 +5137,7 @@ INSTRUCCIONES DE SISTEMA:
         # ── Commands: process inline (no buffer needed for slash commands)
         if text.strip().startswith("/"):
             try:
-                from conny_commands import get_command_handler
+                from bublee_commands import get_command_handler
                 instance_id = getattr(self, "_instance_id", "default")
                 clinic = db.get_clinic()
                 admin_ids = _parse_admin_ids(clinic.get("admin_chat_ids", []))
@@ -5191,9 +5258,20 @@ INSTRUCCIONES DE SISTEMA:
                 await self._send_bubbles(chat_id, bubbles, message_id=message_id, route=route)
         except Exception as e:
             log.error(f"Flush error for {chat_id}: {e}", exc_info=True)
-            # No enviamos nada aquí, dejamos que process_message maneje el error interno
-            # Si llegó aquí es porque algo falló MUY feo fuera del try de process_message
-            await self._send_message(chat_id, "Lo siento, tuve un error técnico inesperado. ¿Podrías repetir?", route=route)
+            # Este es el catch-all MÁS externo — algo falló fuera del try de
+            # process_message. Antes se mandaba un mensaje genérico al
+            # paciente ("tuve un error técnico inesperado"). Mismo criterio
+            # que en process_message: nada al paciente, aviso inmediato al dueño.
+            try:
+                from bublee_utils import notify_owner_of_ai_failure, _parse_admin_ids as _parse_admin_ids_fb2
+                clinic_fb = db.get_clinic()
+                admin_ids = _parse_admin_ids_fb2((clinic_fb or {}).get("admin_chat_ids", []))
+                context_label = "prospecto (demo)" if Config.DEMO_MODE else "paciente"
+                await notify_owner_of_ai_failure(
+                    self._send_message, admin_ids, chat_id, combined, context=context_label,
+                )
+            except Exception as e2:
+                log.error(f"[ai_failure] no pude avisarle al dueño sobre {chat_id} (flush error): {e2}")
     
     async def _send_bubbles(
         self,
@@ -5208,11 +5286,38 @@ INSTRUCCIONES DE SISTEMA:
         is_wa = platform in ("whatsapp", "evolution")
 
         # Demo voice: send first bubble as audio for wow factor
-        if Config.DEMO_MODE and is_wa and bubbles and os.getenv("ELEVENLABS_API_KEY"):
+        _is_demo_active = False
+        if db:
             try:
-                from conny_demo_voice import generate_demo_audio, should_send_voice_in_demo
+                _is_demo_active = db.recall(f"beta_demo_{chat_id}") == "true"
+            except Exception:
+                pass
+        
+        _is_voice_off = self._demo_sessions.get(f"demo_{chat_id}_voice_off", False)
+
+        _has_eleven_key = bool(os.getenv("ELEVENLABS_API_KEY") or os.getenv("ELEVENLABS_API_KEY_2"))
+        if not _has_eleven_key:
+            try:
+                from bublee_demo_voice import API_KEYS
+                _has_eleven_key = any(API_KEYS)
+            except Exception:
+                pass
+
+        if (Config.DEMO_MODE or _is_demo_active) and not _is_voice_off and is_wa and bubbles and _has_eleven_key:
+            try:
+                from bublee_demo_voice import generate_demo_audio, should_send_voice_in_demo
                 history_len = len(db.get_history(chat_id)) if db else 0
-                if should_send_voice_in_demo(bubbles[0], history_len // 2, False):
+                
+                # Check if the user explicitly requested voice/audio in their last message
+                _user_requested_voice = False
+                if db:
+                    _hist = db.get_history(chat_id, limit=1)
+                    if _hist and _hist[0].get("role") == "user":
+                        _ut = _hist[0].get("content", "").lower()
+                        if any(w in _ut for w in ["audio", "voz", "escuchar", "hablar"]):
+                            _user_requested_voice = True
+                
+                if _user_requested_voice or should_send_voice_in_demo(bubbles[0], history_len // 2, False):
                     audio_path = await generate_demo_audio(bubbles[0])
                     if audio_path:
                         await self._send_audio(chat_id, audio_path, route=route)

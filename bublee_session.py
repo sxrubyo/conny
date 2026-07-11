@@ -1,0 +1,516 @@
+"""
+Módulo de gestión de sesiones demo para Bublee Ultra.
+
+Contiene la lógica de sesiones demo incluyendo:
+- Almacenamiento de estado de sesión (_demo_sessions)
+- Generación de claves de sesión (bname_key, bctx_key, etc.)
+- Métodos de gestión (get/set/clear)
+- Limpieza de sesiones expiradas
+- Detección de idioma del owner
+
+Este módulo fue extraído de bublee.py para reducir su tamaño y mejorar mantenibilidad.
+"""
+from __future__ import annotations
+
+import time
+from typing import Any, Dict, List, Optional, Tuple
+
+try:
+    from bublee_config import Config
+except ImportError:
+    class Config:
+        DEMO_SESSION_TTL = 1800
+        DEMO_MODE = False
+        DEMO_BUSINESS_NAME = "tu negocio"
+        DEMO_SECTOR = "estetica"
+
+
+
+class DatabaseBackedDict:
+    """
+    Un diccionario persistente respaldado por SQLite para compartir el estado
+    de sesiones demo entre múltiples procesos (PM2 cluster) de manera segura.
+    """
+    def __init__(self, db_path: str):
+        import os
+        import sqlite3
+        self.db_path = db_path
+        # Asegurar que el directorio de la base de datos existe
+        os.makedirs(os.path.dirname(os.path.abspath(self.db_path)), exist_ok=True)
+        # Crear la tabla de sesiones demo si no existe
+        with sqlite3.connect(self.db_path, timeout=30.0) as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS demo_sessions (
+                    key TEXT PRIMARY KEY,
+                    value TEXT
+                )
+            """)
+            conn.commit()
+
+    def _conn(self):
+        import sqlite3
+        conn = sqlite3.connect(self.db_path, timeout=30.0)
+        conn.row_factory = sqlite3.Row
+        return conn
+
+    def __getitem__(self, key: str) -> Any:
+        import json
+        with self._conn() as conn:
+            row = conn.execute("SELECT value FROM demo_sessions WHERE key = ?", (key,)).fetchone()
+            if row is None:
+                raise KeyError(key)
+            try:
+                return json.loads(row["value"])
+            except Exception:
+                raise KeyError(key)
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        import json
+        with self._conn() as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO demo_sessions (key, value) VALUES (?, ?)",
+                (key, json.dumps(value, ensure_ascii=False))
+            )
+            conn.commit()
+
+    def __delitem__(self, key: str) -> None:
+        with self._conn() as conn:
+            row = conn.execute("SELECT 1 FROM demo_sessions WHERE key = ?", (key,)).fetchone()
+            if row is None:
+                raise KeyError(key)
+            conn.execute("DELETE FROM demo_sessions WHERE key = ?", (key,))
+            conn.commit()
+
+    def __contains__(self, key: str) -> bool:
+        with self._conn() as conn:
+            row = conn.execute("SELECT 1 FROM demo_sessions WHERE key = ?", (key,)).fetchone()
+            return row is not None
+
+    def get(self, key: str, default: Any = None) -> Any:
+        try:
+            return self[key]
+        except KeyError:
+            return default
+
+    def pop(self, key: str, default: Any = None) -> Any:
+        try:
+            val = self[key]
+            del self[key]
+            return val
+        except KeyError:
+            return default
+
+    def setdefault(self, key: str, default: Any = None) -> Any:
+        try:
+            return self[key]
+        except KeyError:
+            self[key] = default
+            return default
+
+    def items(self) -> List[Tuple[str, Any]]:
+        import json
+        with self._conn() as conn:
+            rows = conn.execute("SELECT key, value FROM demo_sessions").fetchall()
+            res = []
+            for r in rows:
+                try:
+                    res.append((r["key"], json.loads(r["value"])))
+                except Exception:
+                    pass
+            return res
+
+    def keys(self) -> List[str]:
+        with self._conn() as conn:
+            rows = conn.execute("SELECT key FROM demo_sessions").fetchall()
+            return [r["key"] for r in rows]
+
+    def values(self) -> List[Any]:
+        import json
+        with self._conn() as conn:
+            rows = conn.execute("SELECT value FROM demo_sessions").fetchall()
+            res = []
+            for r in rows:
+                try:
+                    res.append(json.loads(r["value"]))
+                except Exception:
+                    pass
+            return res
+
+    def __iter__(self):
+        return iter(self.keys())
+
+    def __len__(self) -> int:
+        with self._conn() as conn:
+            row = conn.execute("SELECT count(*) as cnt FROM demo_sessions").fetchone()
+            return row["cnt"]
+
+    def clear(self) -> None:
+        with self._conn() as conn:
+            conn.execute("DELETE FROM demo_sessions")
+            conn.commit()
+
+
+class SessionManager:
+    """
+    Gestor de sesiones demo para Bublee Ultra.
+    
+    Maneja el estado de sesiones demo de usuarios, incluyendo:
+    - Nombre del negocio (bname_key)
+    - Contexto/descripción del negocio (bctx_key)
+    - Estado de búsqueda web (bfound_key, burl_key)
+    - Tracking de tricks/demo commands (btrick_key)
+    - Persona/archetype (bpersona_key)
+    - Tono detectado (btone_key)
+    - Modelo LLM preferido (bmodel_key)
+    - Idioma del owner (blang_key)
+    - Modo aprendizaje (blearn_key)
+    - Modo simulación (bsim_key)
+    """
+    
+    def __init__(self, sessions_dict: Dict[str, float] = None, emoji_chats_off: set = None):
+        self._demo_sessions: Dict[str, float] = sessions_dict if sessions_dict is not None else {}
+        self._emoji_chats_off: set = emoji_chats_off if emoji_chats_off is not None else set()
+    
+    def _get_ttl(self, chat_id: str = None) -> int:
+        ttl = Config.DEMO_SESSION_TTL
+        if chat_id:
+            sk = f"demo_{chat_id}"
+            if self._demo_sessions.get(sk + "_ttl"):
+                try:
+                    return int(self._demo_sessions[sk + "_ttl"])
+                except Exception:
+                    pass
+        try:
+            from src.core.globals import db
+            if db:
+                clinic = db.get_clinic()
+                if clinic and clinic.get("demo_session_ttl"):
+                    return int(clinic.get("demo_session_ttl"))
+                db_ttl = db.recall("demo_session_ttl")
+                if db_ttl:
+                    return int(db_ttl)
+        except Exception:
+            pass
+        return ttl
+
+    def is_demo_mode_active(self) -> bool:
+        """Verifica si hay sesiones demo activas."""
+        now = time.time()
+        return any(
+            k.endswith("_ts") and (now - v) < self._get_ttl(k.replace("_ts", "").replace("demo_", ""))
+            for k, v in self._demo_sessions.items()
+        )
+    
+    def get_demo_session(self, chat_id: str) -> Dict[str, any]:
+        """
+        Obtiene todos los valores de sesión para un chat_id.
+        
+        Args:
+            chat_id: Identificador del chat
+            
+        Returns:
+            Dict con todas las claves de sesión del demo
+        """
+        sk = f"demo_{chat_id}"
+        keys = [
+            f"{sk}_name", f"{sk}_ctx", f"{sk}_found", f"{sk}_url",
+            f"{sk}_trick", f"{sk}_persona", f"{sk}_tone", f"{sk}_model",
+            f"{sk}_owner_lang", f"{sk}_learn", f"{sk}_sim_mode"
+        ]
+        return {k.replace(sk + "_", ""): self._demo_sessions.get(k) for k in keys}
+    
+    def set_demo_session(self, chat_id: str, key: str, value: any) -> None:
+        """
+        Establece un valor en la sesión demo.
+        
+        Args:
+            chat_id: Identificador del chat
+            key: Clave (sin prefijo demo_{chat_id}_)
+            value: Valor a almacenar
+        """
+        sk = f"demo_{chat_id}"
+        self._demo_sessions[f"{sk}_{key}"] = value
+        if key == "ts":
+            self._touch_session(chat_id)
+    
+    def clear_demo_session(self, chat_id: str) -> None:
+        """
+        Limpia todos los datos de sesión para un chat_id.
+        
+        Args:
+            chat_id: Identificador del chat
+        """
+        sk = f"demo_{chat_id}"
+        keys_to_delete = [k for k in list(self._demo_sessions) if k.startswith(sk + "_")]
+        for k in keys_to_delete:
+            del self._demo_sessions[k]
+    
+    def _touch_session(self, chat_id: str) -> None:
+        """Actualiza el timestamp de la sesión."""
+        sk = f"demo_{chat_id}"
+        self._demo_sessions[f"{sk}_ts"] = time.time()
+    
+    def cleanup_expired_sessions(self) -> int:
+        """
+        Limpia sesiones expiradas basándose en TTL.
+        
+        Returns:
+            Número de sesiones limpiadas
+        """
+        now = time.time()
+        ttl = Config.DEMO_SESSION_TTL
+        
+        expired_keys = []
+        for k, v in self._demo_sessions.items():
+            if k.endswith("_ts") and (now - v) > ttl * 2:
+                expired_keys.append(k)
+        
+        for k in expired_keys:
+            chat_id = k.replace("_ts", "").replace("demo_", "")
+            self.clear_demo_session(chat_id)
+        
+        return len(expired_keys)
+    
+    def generate_session_keys(self, chat_id: str) -> Dict[str, str]:
+        """
+        Genera todas las claves de sesión para un chat_id.
+        
+        Args:
+            chat_id: Identificador del chat
+            
+        Returns:
+            Dict con todas las claves de sesión generadas
+        """
+        sk = f"demo_{chat_id}"
+        return {
+            "bname_key": sk + "_name",
+            "bctx_key": sk + "_ctx",
+            "bfound_key": sk + "_found",
+            "burl_key": sk + "_url",
+            "btrick_key": sk + "_trick",
+            "bpersona_key": sk + "_persona",
+            "btone_key": sk + "_tone",
+            "bmodel_key": sk + "_model",
+            "blang_key": sk + "_owner_lang",
+            "blearn_key": sk + "_learn",
+            "bsim_key": sk + "_sim_mode",
+            "sk": sk,
+        }
+    
+    def get_session_value(self, chat_id: str, key: str, default: any = None) -> any:
+        """Obtiene un valor específico de la sesión."""
+        sk = f"demo_{chat_id}"
+        return self._demo_sessions.get(f"{sk}_{key}", default)
+    
+    def set_session_value(self, chat_id: str, key: str, value: any) -> None:
+        """Establece un valor específico en la sesión."""
+        sk = f"demo_{chat_id}"
+        self._demo_sessions[f"{sk}_{key}"] = value
+        self._touch_session(chat_id)
+
+    def set_timestamp(self, chat_id: str) -> None:
+        """Actualiza el timestamp de la sesión sin setear un valor de clave."""
+        self._touch_session(chat_id)
+
+    def touch_and_cleanup(self, chat_id: str) -> Tuple[bool, List[str]]:
+        """
+        Toca el timestamp y limpia sesiones expiradas.
+        Retorna (is_new, keys_to_delete) donde keys_to_delete son las claves
+        que deben borrarse si is_new=True.
+        """
+        now = time.time()
+        ttl = self._get_ttl(chat_id)
+        sk = f"demo_{chat_id}"
+        last_seen = self._demo_sessions.get(sk + "_ts", 0)
+        is_new = (now - last_seen) > ttl
+        self._demo_sessions[sk + "_ts"] = now
+
+        # Limpiar sesiones expiradas in-place sin reasignar el diccionario
+        expired_keys = [
+            k for k, v in list(self._demo_sessions.items())
+            if k.endswith("_ts") and (now - v) >= ttl * 2
+        ]
+        for ek in expired_keys:
+            expired_chat_id = ek.replace("_ts", "").replace("demo_", "")
+            sk_expired = f"demo_{expired_chat_id}"
+            keys_to_del = [k for k in list(self._demo_sessions) if k.startswith(sk_expired)]
+            for kd in keys_to_del:
+                self._demo_sessions.pop(kd, None)
+
+            # Borrar la caché de sesión y la base de datos para la sesión expirada
+            try:
+                from bublee_memory import get_memory
+                instance_id = "default"
+                from src.core.globals import db
+                if db:
+                    remembered_slug = (db.recall("instance_slug") or "").strip()
+                    if remembered_slug:
+                        instance_id = remembered_slug.lower()
+                mem = get_memory(instance_id)
+                mem.delete_session_cache(expired_chat_id)
+            except Exception:
+                pass
+            try:
+                from src.core.globals import db
+                if db:
+                    with db._conn() as c:
+                        c.execute("DELETE FROM conversations WHERE chat_id=?", (expired_chat_id,))
+            except Exception:
+                pass
+
+        if is_new:
+            keys_to_delete = [k for k in list(self._demo_sessions)
+                              if k.startswith(sk + "_") and not k.endswith("_ts")]
+            # Borrar la caché de sesión y la base de datos para este chat_id al iniciar una nueva sesión
+            try:
+                from bublee_memory import get_memory
+                instance_id = "default"
+                from src.core.globals import db
+                if db:
+                    remembered_slug = (db.recall("instance_slug") or "").strip()
+                    if remembered_slug:
+                        instance_id = remembered_slug.lower()
+                mem = get_memory(instance_id)
+                mem.delete_session_cache(chat_id)
+            except Exception:
+                pass
+            try:
+                from src.core.globals import db
+                if db:
+                    with db._conn() as c:
+                        c.execute("DELETE FROM conversations WHERE chat_id=?", (chat_id,))
+            except Exception:
+                pass
+        else:
+            keys_to_delete = []
+        return is_new, keys_to_delete
+    
+    def is_session_new(self, chat_id: str) -> bool:
+        """Determina si la sesión es nueva (expiró el TTL)."""
+        sk = f"demo_{chat_id}"
+        now = time.time()
+        last_seen = self._demo_sessions.get(sk + "_ts", 0)
+        return (now - last_seen) > Config.DEMO_SESSION_TTL
+    
+    def reset_session(self, chat_id: str) -> None:
+        """Resetea completamente la sesión (para expiración)."""
+        sk = f"demo_{chat_id}"
+        keys_del = [k for k in list(self._demo_sessions) 
+                    if k.startswith(sk + "_") and not k.endswith("_ts")]
+        for k in keys_del:
+            del self._demo_sessions[k]
+        self._touch_session(chat_id)
+
+
+def _detect_demo_owner_language(raw_text: str, current_lang: str = "es") -> str:
+    """
+    Detecta el idioma del owner en modo demo basándose en señales explícitas.
+    
+    Args:
+        raw_text: Mensaje original del usuario
+        current_lang: Idioma actual detectado
+        
+    Returns:
+        Código de idioma ('es', 'en', 'pt')
+    """
+    try:
+        from bublee_helpers import _normalize_conv_text
+    except ImportError:
+        def _normalize_conv_text(s):
+            return s.lower().strip() if s else ""
+    
+    normalized = _normalize_conv_text(raw_text or "")
+    if not normalized:
+        return current_lang or "es"
+    
+    explicit_en = (
+        "just english sorry", "sorry just english", "english sorry",
+        "english only", "speak english", "speak in english", 
+        "i dont speak spanish", "i don t speak spanish",
+        "i dont talk spanish", "i don t talk spanish",
+        "no spanish", "only english", "what is this", "sorry what is this",
+        "i dont understand", "i don t understand",
+        "what did you say", "what did u say",
+        "thats not my business", "that s not my business",
+        "thats not us", "that s not us",
+        "wrong business", "wrong company",
+    )
+    explicit_pt = (
+        "só portugues", "so portugues", "falo portugues",
+        "nao falo espanhol", "não falo espanhol",
+    )
+    
+    if any(token in normalized for token in explicit_en):
+        return "en"
+    if any(token in normalized for token in explicit_pt):
+        return "pt"
+    
+    try:
+        from multilingual import MultilingualHandler
+        detected = MultilingualHandler().detect(raw_text)
+    except Exception:
+        detected = "es"
+    
+    if current_lang in {"en", "pt"} and detected == "es" and len(normalized.split()) <= 6:
+        return current_lang
+    
+    return detected if detected in {"es", "en", "pt"} else (current_lang or "es")
+
+
+def _owner_confusion_or_language_signal(raw_text: str) -> bool:
+    """
+    Detecta señales de confusión del owner o cambio de idioma.
+    
+    Args:
+        raw_text: Mensaje del usuario
+        
+    Returns:
+        True si detecta señal de confusión/language switch
+    """
+    try:
+        from bublee_helpers import _normalize_conv_text
+    except ImportError:
+        def _normalize_conv_text(s):
+            return s.lower().strip() if s else ""
+    
+    normalized = _normalize_conv_text(raw_text or "")
+    if not normalized:
+        return False
+    
+    signals = (
+        "just english sorry", "sorry just english", "english sorry",
+        "english only", "speak english", "speak in english", "only english",
+        "i dont speak spanish", "i don t speak spanish",
+        "i dont talk spanish", "i don t talk spanish",
+        "what is this", "sorry what is this",
+        "i dont understand", "i don t understand",
+        "what did you say", "what did u say",
+        "thats not my business", "that s not my business",
+        "that is not my business", "not my business",
+        "thats not us", "that s not us", "that is not us", 
+        "wrong business", "wrong company", "wrong one", "not the right one",
+        "no hablo español", "no hablo espanol", 
+        "solo ingles", "solo inglés",
+    )
+    return any(signal in normalized for signal in signals)
+
+
+def _lang_text(es_text: str, en_text: str, pt_text: Optional[str] = None, 
+               owner_lang: str = "es") -> str:
+    """
+    Retorna texto según el idioma del owner.
+    
+    Args:
+        es_text: Texto en español
+        en_text: Texto en inglés
+        pt_text: Texto en portugués (opcional)
+        owner_lang: Idioma del owner
+        
+    Returns:
+        Texto en el idioma apropiado
+    """
+    if owner_lang == "en":
+        return en_text
+    if owner_lang == "pt" and pt_text is not None:
+        return pt_text
+    return es_text

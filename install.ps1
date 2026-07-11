@@ -1,4 +1,4 @@
-Write-Host "✦ Conny AI - Python Native Installer (Windows)" -ForegroundColor Magenta
+Write-Host "✦ Bublee AI - Python Native Installer (Windows)" -ForegroundColor Magenta
 Write-Host "─────────────────────────────────────────" -ForegroundColor DarkGray
 
 # 1. Check Python robustly
@@ -18,14 +18,14 @@ if (-Not $PythonCmd) {
     exit 1
 }
 
-$InstallDir = "$HOME\.conny-app"
+$InstallDir = "$HOME\.bublee-app"
 if (Test-Path $InstallDir) {
     Write-Host "Limpiando instalación anterior..." -ForegroundColor DarkGray
     Remove-Item -Recurse -Force $InstallDir
 }
 
 Write-Host "1. Clonando repositorio desde GitHub..." -ForegroundColor Cyan
-git clone -b refactor-v10 https://github.com/sxrubyo/conny.git $InstallDir | Out-Null
+git clone -b refactor-v10 https://github.com/sxrubyo/bublee.git $InstallDir | Out-Null
 
 Set-Location $InstallDir
 
@@ -45,13 +45,13 @@ if (Test-Path ".\.venv\Scripts\pip.exe") {
     exit 1
 }
 
-Write-Host "4. Creando atajo global 'conny'..." -ForegroundColor Cyan
+Write-Host "4. Creando atajo global 'bublee'..." -ForegroundColor Cyan
 $ProfilePath = if (Test-Path $PROFILE) { $PROFILE } else { New-Item -ItemType File -Path $PROFILE -Force }
-$AliasCmd = "function conny { & `"$InstallDir\.venv\Scripts\python.exe`" `"$InstallDir\conny_cli.py`" `$args }"
+$AliasCmd = "function bublee { & `"$InstallDir\.venv\Scripts\python.exe`" `"$InstallDir\bublee_cli.py`" `$args }"
 Add-Content -Path $ProfilePath -Value $AliasCmd
 
 Write-Host ""
 Write-Host "✔ ¡Instalación pura en Python completada exitosamente!" -ForegroundColor Green
 Write-Host "Reinicia esta consola de PowerShell y ejecuta: " -NoNewline
-Write-Host "conny init" -ForegroundColor Magenta
+Write-Host "bublee init" -ForegroundColor Magenta
 Write-Host ""

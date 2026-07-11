@@ -1,0 +1,2 @@
+ #!/bin/bash
+exec node /home/ubuntu/bublee/npm/bublee.js "$@" 

@@ -1,8 +1,8 @@
-"""Tests for conny_uncertainty.py"""
+"""Tests for bublee_uncertainty.py"""
 import sys
 sys.path.insert(0, ".")
 
-from conny_uncertainty import UncertaintyDetector
+from bublee_uncertainty import UncertaintyDetector
 
 
 def test_confidence_returns_float():

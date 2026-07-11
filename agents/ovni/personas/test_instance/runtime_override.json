@@ -1,0 +1,13 @@
+{
+  "tone": "formal",
+  "verbosity": "concise",
+  "greeting_style": "Buenos dias",
+  "sign_off": "Saludos cordiales",
+  "forbidden_topics": [
+    "precios"
+  ],
+  "escalation_phrases": [
+    "no se"
+  ],
+  "updated_at": "2026-05-20T19:23:39.132708"
+}

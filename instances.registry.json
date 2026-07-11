@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "updated_at": "2026-06-24",
+  "caddy_files": [
+    "/etc/caddy/Caddyfile",
+    "/home/ubuntu/Caddyfile"
+  ],
+  "instances": {
+    "base": {
+      "role": "admin-base",
+      "process_name": "bublee",
+      "env": "/home/ubuntu/bublee/.env",
+      "role_file": "/home/ubuntu/bublee/ROLE.md",
+      "expected_port": "8001",
+      "expected_token_id": "",
+      "requires_https_base_url": false,
+      "webhook_prefix": "bublee_"
+    },
+    "production": {
+      "role": "production-client-admin",
+      "process_name": "bublee-clinica-de-las-americas",
+      "env": "/home/ubuntu/bublee/instances/clinica-de-las-americas/.env",
+      "role_file": "/home/ubuntu/bublee/instances/clinica-de-las-americas/ROLE.md",
+      "expected_port": "8003",
+      "expected_token_id": "8779529912",
+      "requires_https_base_url": true,
+      "webhook_prefix": "bublee_production_"
+    },
+    "melissa-x": {
+      "role": "demo-quarantine",
+      "process_name": "bublee-melissa-x",
+      "env": "/home/ubuntu/bublee/instances/melissa-x/.env",
+      "role_file": "/home/ubuntu/bublee/instances/melissa-x/ROLE.md",
+      "expected_port": "8006",
+      "expected_token_id": "",
+      "requires_https_base_url": false,
+      "webhook_prefix": "bublee_melissa-x_",
+      "base_url_forbidden": ["conny"]
+    },
+    "ovni": {
+      "role": "control-ovni",
+      "process_name": "bublee-ovni",
+      "env": "/home/ubuntu/bublee/instances/ovni/.env",
+      "role_file": "/home/ubuntu/bublee/instances/ovni/ROLE.md",
+      "expected_port": "8008",
+      "expected_token_id": "8749260201",
+      "requires_https_base_url": true,
+      "webhook_prefix": "bublee_ovni_",
+      "base_url_forbidden": ["conny"]
+    }
+  }
+}

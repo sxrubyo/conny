@@ -1,0 +1,9 @@
+{
+  "event": "message.received",
+  "isGroup": false,
+  "fromMe": false,
+  "remoteJid": "573001234567@s.whatsapp.net",
+  "messageId": "msg_simulated_123",
+  "text": "Hola, necesito agendar una cita",
+  "from": "573001234567"
+}

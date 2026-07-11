@@ -1,11 +1,11 @@
-# CONNY → CONNY — Refactorización Total
+# BUBLEE → BUBLEE — Refactorización Total
 # Monolito 1.3MB → Arquitectura modular limpia
 # Stack: Claude Opus 4.6 + Ruflo + Caveman
 
 ## ARQUITECTURA TARGET
 
 ```
-src/conny/
+src/bublee/
 ├── core/        ← config, session, router, init
 ├── brain/       ← engine, memory, learning, uncertainty
 ├── channels/    ← telegram, voice, cli, web
@@ -21,9 +21,9 @@ src/conny/
 1. Conservar funcionalidad > perfección
 2. Nunca borrar, siempre mover a legacy/
 3. Un módulo = una responsabilidad
-4. Sin prefijo conny_ dentro del paquete
+4. Sin prefijo bublee_ dentro del paquete
 5. Commits por fase
-6. grep/rg para analizar — NUNCA leer conny.py entero
+6. grep/rg para analizar — NUNCA leer bublee.py entero
 
 ## ESTADO
 

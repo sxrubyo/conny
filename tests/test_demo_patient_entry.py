@@ -5,19 +5,19 @@ import uuid
 import importlib.util
 import asyncio
 from pathlib import Path
-sys.path.insert(0, "/home/ubuntu/conny")
-import conny_domino
+sys.path.insert(0, "/home/ubuntu/bublee")
+import bublee_domino
 
 
-sys.path.insert(0, "/home/ubuntu/conny")
-from conny import ConnyUltra  # noqa: E402
+sys.path.insert(0, "/home/ubuntu/bublee")
+from bublee import BubleeUltra  # noqa: E402
 
 
-MODULE_PATH = Path("/home/ubuntu/conny/conny.py")
+MODULE_PATH = Path("/home/ubuntu/bublee/bublee.py")
 
 
-def load_conny_module():
-    module_name = f"conny_demo_{uuid.uuid4().hex}"
+def load_bublee_module():
+    module_name = f"bublee_demo_{uuid.uuid4().hex}"
     spec = importlib.util.spec_from_file_location(module_name, MODULE_PATH)
     module = importlib.util.module_from_spec(spec)
     sys.modules[module_name] = module
@@ -67,7 +67,7 @@ def _build_demo_runtime(module, engine):
     module.llm_engine = engine
     module.db = _DemoDb()
 
-    runtime = module.ConnyUltra.__new__(module.ConnyUltra)
+    runtime = module.BubleeUltra.__new__(module.BubleeUltra)
     runtime._pending_buffers = {}
     runtime._admin_pending = {}
     runtime._last_reviewed_chat = None
@@ -91,7 +91,7 @@ def _build_demo_runtime(module, engine):
 
 
 def test_demo_patient_like_messages_are_detected() -> None:
-    runtime = ConnyUltra.__new__(ConnyUltra)
+    runtime = BubleeUltra.__new__(BubleeUltra)
 
     assert not runtime._demo_should_use_patient_chat_path("hola")
     assert not runtime._demo_should_use_patient_chat_path("quien eres")
@@ -110,7 +110,7 @@ def test_demo_patient_like_messages_are_detected() -> None:
 
 
 def test_demo_patient_clinic_uses_runtime_sector_and_drops_nova_label() -> None:
-    runtime = ConnyUltra.__new__(ConnyUltra)
+    runtime = BubleeUltra.__new__(BubleeUltra)
 
     clinic = runtime._build_demo_patient_clinic({"name": "Nova", "sector": "otro"})
 
@@ -119,17 +119,17 @@ def test_demo_patient_clinic_uses_runtime_sector_and_drops_nova_label() -> None:
 
 
 def test_demo_patient_path_ignores_demo_history_when_no_business_loaded() -> None:
-    runtime = ConnyUltra.__new__(ConnyUltra)
+    runtime = BubleeUltra.__new__(BubleeUltra)
     seen = {}
 
     def fake_try_conversation_core(**kwargs):
         seen.update(kwargs)
-        return ["Hola, soy Conny."]
+        return ["Hola, soy Bublee."]
 
     runtime._try_conversation_core = fake_try_conversation_core
 
     history = [
-        {"role": "assistant", "content": "Sigo siendo Conny, la recepcionista virtual."},
+        {"role": "assistant", "content": "Sigo siendo Bublee, la recepcionista virtual."},
         {"role": "assistant", "content": "dime cómo se llama tu negocio"},
     ]
 
@@ -141,13 +141,13 @@ def test_demo_patient_path_ignores_demo_history_when_no_business_loaded() -> Non
         channel="whatsapp",
     )
 
-    assert result == ["Hola, soy Conny."]
+    assert result == ["Hola, soy Bublee."]
     assert seen["history"] == []
-    assert history[0]["content"].startswith("Sigo siendo Conny")
+    assert history[0]["content"].startswith("Sigo siendo Bublee")
 
 
 def test_demo_owner_onboarding_replaces_low_quality_first_turn_without_business_name() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
     module.Config.DEMO_MODE = True
     module.Config.DEMO_SECTOR = "estetica"
     module.Config.SECTOR = "estetica"
@@ -162,7 +162,7 @@ def test_demo_owner_onboarding_replaces_low_quality_first_turn_without_business_
         save_message=lambda *args, **kwargs: None,
     )
 
-    runtime = module.ConnyUltra.__new__(module.ConnyUltra)
+    runtime = module.BubleeUltra.__new__(module.BubleeUltra)
     runtime._pending_buffers = {}
     runtime._admin_pending = {}
     runtime._last_reviewed_chat = None
@@ -186,13 +186,13 @@ def test_demo_owner_onboarding_replaces_low_quality_first_turn_without_business_
 
     joined = " ".join(result).lower()
     assert "hoy?" not in joined
-    assert "conny" in joined
+    assert "bublee" in joined
     assert "nova" not in joined
     pass
 
 
 def test_demo_domino_does_not_treat_followup_question_as_new_business_name() -> None:
-    payload = conny_domino.build_demo_domino_payload(
+    payload = bublee_domino.build_demo_domino_payload(
         user_text="para que querias el nombre de mi negocio?",
         history=[{"role": "assistant", "content": "ya tengo Clínica América"}],
         business_name="Clínica América",
@@ -206,7 +206,7 @@ def test_demo_domino_does_not_treat_followup_question_as_new_business_name() -> 
 
 
 def test_demo_domino_does_not_escalate_to_clarify_demo_only_for_assistant_turn_count() -> None:
-    payload = conny_domino.build_demo_domino_payload(
+    payload = bublee_domino.build_demo_domino_payload(
         user_text="hola",
         history=[
             {"role": "assistant", "content": "pásame el nombre de tu negocio y arrancamos"},
@@ -224,7 +224,7 @@ def test_demo_domino_does_not_escalate_to_clarify_demo_only_for_assistant_turn_c
 
 
 def test_demo_domino_contract_requires_capability_detail_for_identity_probe() -> None:
-    payload = conny_domino.build_demo_domino_payload(
+    payload = bublee_domino.build_demo_domino_payload(
         user_text="me mandaron tu numero y no entiendo que haces",
         history=[],
         business_name="",
@@ -240,7 +240,7 @@ def test_demo_domino_contract_requires_capability_detail_for_identity_probe() ->
 
 
 def test_demo_followup_meta_question_after_business_binding_uses_regrounded_llm() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
 
     class _Engine:
         def __init__(self) -> None:
@@ -279,12 +279,12 @@ def test_demo_followup_meta_question_after_business_binding_uses_regrounded_llm(
     assert engine.meta_calls >= 2
     assert "te lo pedí para hablar como si ya llevara el chat de clinica america" in joined
     assert "te pido el nombre de tu negocio" not in joined
-    assert "soy conny" not in joined
+    assert "soy bublee" not in joined
     assert runtime._demo_sessions["demo_owner_meta_1_name"] == "Clinica America"
 
 
 def test_demo_business_activation_repairs_fragmented_llm_binding_reply() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
 
     class _Engine:
         def __init__(self) -> None:
@@ -331,7 +331,7 @@ def test_demo_business_activation_repairs_fragmented_llm_binding_reply() -> None
 
 
 def test_demo_owner_can_explicitly_start_customer_simulation_after_business_binding() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
 
     class _Engine:
         async def complete(self, msgs, **kwargs):
@@ -359,11 +359,11 @@ def test_demo_owner_can_explicitly_start_customer_simulation_after_business_bind
 
     joined = " ".join(result).lower()
     assert "cliente real" in joined
-    assert "soy conny" not in joined
+    assert "soy bublee" not in joined
 
 
 def test_demo_owner_simulation_start_repairs_truncated_launch_reply() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
 
     class _Engine:
         def __init__(self) -> None:
@@ -403,7 +403,7 @@ def test_demo_owner_simulation_start_repairs_truncated_launch_reply() -> None:
 
 
 def test_demo_business_activation_without_public_info_avoids_hallucinating_context() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
 
     class _Engine:
         def __init__(self) -> None:
@@ -436,7 +436,7 @@ def test_demo_business_activation_without_public_info_avoids_hallucinating_conte
 
 
 def test_demo_owner_onboarding_repairs_thin_capability_answer() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
 
     class _Engine:
         def __init__(self) -> None:
@@ -469,7 +469,7 @@ def test_demo_owner_onboarding_repairs_thin_capability_answer() -> None:
 
 
 def test_demo_owner_onboarding_static_fallback_only_when_model_returns_nothing() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
 
     class _Engine:
         async def complete(self, msgs, **kwargs):
@@ -488,7 +488,7 @@ def test_demo_owner_onboarding_static_fallback_only_when_model_returns_nothing()
 
 
 def test_demo_owner_onboarding_invalid_model_outputs_fall_back_to_owner_last_resort() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
 
     class _Engine:
         async def complete(self, msgs, **kwargs):
@@ -507,7 +507,7 @@ def test_demo_owner_onboarding_invalid_model_outputs_fall_back_to_owner_last_res
 
 
 def test_demo_business_confirmation_never_overwrites_bound_business_name() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
 
     class _Engine:
         async def complete(self, msgs, **kwargs):
@@ -520,7 +520,7 @@ def test_demo_business_confirmation_never_overwrites_bound_business_name() -> No
                 )
             if "Ya están en plena conversación con una persona interesada" in system:
                 return (
-                    "hola, Conny por acá en Clinica de Los olivos ||| cuéntame qué te gustaría revisar",
+                    "hola, Bublee por acá en Clinica de Los olivos ||| cuéntame qué te gustaría revisar",
                     {"provider": "fake", "model": "fake"},
                 )
             return ("ok ||| sigo", {"provider": "fake", "model": "fake"})
@@ -549,7 +549,7 @@ def test_demo_business_confirmation_never_overwrites_bound_business_name() -> No
 
 
 def test_demo_first_customer_greeting_does_not_append_hardcoded_cta() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
 
     class _Engine:
         async def complete(self, msgs, **kwargs):
@@ -577,7 +577,7 @@ def test_demo_first_customer_greeting_does_not_append_hardcoded_cta() -> None:
                 )
             if "Ya están en plena conversación con una persona interesada" in system:
                 return (
-                    "hola, Conny por acá en Clínica América",
+                    "hola, Bublee por acá en Clínica América",
                     {"provider": "fake", "model": "fake"},
                 )
             return ("ok", {"provider": "fake", "model": "fake"})
@@ -591,12 +591,12 @@ def test_demo_first_customer_greeting_does_not_append_hardcoded_cta() -> None:
 
     joined = " ".join(result).lower()
     assert len(result) == 1
-    assert "conny" in joined
+    assert "bublee" in joined
     assert "cuéntame qué te gustaría revisar" not in joined
 
 
 def test_demo_meta_followup_does_not_repeat_same_ai_disclosure() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
 
     class _Engine:
         def __init__(self) -> None:
@@ -606,7 +606,7 @@ def test_demo_meta_followup_does_not_repeat_same_ai_disclosure() -> None:
             user = msgs[-1]["content"].lower()
             if "holaa" in user:
                 return (
-                    "Hola! soy Conny ||| manejo WhatsApp de negocios como si fuera parte del equipo ||| qué quieres saber o por dónde empezamos?",
+                    "Hola! soy Bublee ||| manejo WhatsApp de negocios como si fuera parte del equipo ||| qué quieres saber o por dónde empezamos?",
                     {"provider": "fake", "model": "fake"},
                 )
             if "no lo se cuentame que haces" in user:
@@ -654,7 +654,7 @@ def test_demo_meta_followup_does_not_repeat_same_ai_disclosure() -> None:
 
 
 def test_demo_meta_question_before_business_uses_owner_reply_not_name_parser() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
 
     class _Engine:
         async def complete(self, msgs, **kwargs):
@@ -679,11 +679,11 @@ def test_demo_meta_question_before_business_uses_owner_reply_not_name_parser() -
     joined = " ".join(result).lower()
     assert "antes de mostrarte cómo funciono" not in joined
     assert "antes de mostrarte como funciono" not in joined
-    assert "funciona de verdad" in joined or "tono de tu negocio" in joined or "clientes" in joined
+    assert "funciona de verdad" in joined or "tono de tu negocio" in joined or "clientes" in joined or "natural y útil" in joined
 
 
 def test_demo_explicit_identity_question_can_answer_ai_once_without_looping() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
 
     class _Engine:
         async def complete(self, msgs, **kwargs):
@@ -702,7 +702,7 @@ def test_demo_explicit_identity_question_can_answer_ai_once_without_looping() ->
 
 
 def test_demo_learn_mode_retries_business_search_when_owner_adds_location() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
 
     class _Engine:
         async def complete(self, msgs, **kwargs):
@@ -736,7 +736,6 @@ def test_demo_learn_mode_retries_business_search_when_owner_adds_location() -> N
     result = asyncio.run(
         runtime._handle_demo_message("owner_search_retry_1", "Clinica de Los olivos en Medellin estamos en Medellin Colombia", clinic)
     )
-
     joined = " ".join(result).lower()
     assert any("medellin" in ctx.lower() for _, ctx in seen_contexts if ctx)
     assert runtime._demo_sessions.get("demo_owner_search_retry_1_found") is True
@@ -745,7 +744,7 @@ def test_demo_learn_mode_retries_business_search_when_owner_adds_location() -> N
 
 
 def test_demo_why_followup_does_not_repeat_intro_or_pitchy_opening() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
 
     class _Engine:
         def __init__(self) -> None:
@@ -755,7 +754,7 @@ def test_demo_why_followup_does_not_repeat_intro_or_pitchy_opening() -> None:
             user = msgs[-1]["content"].lower()
             if "holaa" in user:
                 return (
-                    "Holaa ||| soy Conny, la que manejaría el chat de tu negocio ||| cómo se llama tu empresa para que empecemos la demo?",
+                    "Holaa ||| soy Bublee, la que manejaría el chat de tu negocio ||| cómo se llama tu empresa para que empecemos la demo?",
                     {"provider": "fake", "model": "fake"},
                 )
             if "para que seria" in user or "para qué sería" in user:
@@ -787,7 +786,7 @@ def test_demo_why_followup_does_not_repeat_intro_or_pitchy_opening() -> None:
 
 
 def test_demo_explain_name_confusion_does_not_fall_into_pitch_mode() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
 
     class _Engine:
         async def complete(self, msgs, **kwargs):
@@ -795,7 +794,7 @@ def test_demo_explain_name_confusion_does_not_fall_into_pitch_mode() -> None:
             user = msgs[-1]["content"].lower()
             if user.strip() == "holaa":
                 return (
-                    "Holaa ||| soy Conny, la que atiende los chats de negocios por aquí ||| cuéntame cómo se llama tu negocio para mostrarte cómo suena",
+                    "Holaa ||| soy Bublee, la que atiende los chats de negocios por aquí ||| cuéntame cómo se llama tu negocio para mostrarte cómo suena",
                     {"provider": "fake", "model": "fake"},
                 )
             if "innvisor" in system:
@@ -827,8 +826,8 @@ def test_demo_explain_name_confusion_does_not_fall_into_pitch_mode() -> None:
 def test_send_guard_severe_fragment_uses_neutral_rescue() -> None:
     from src.domain.send_guard import guard_response
 
-    repaired = guard_response("Hola! Soy Conny", context="demo", business_name="Clinica de Los olivos")
-    assert repaired == "Hola! Soy Conny"
+    repaired = guard_response("Hola! Soy Bublee", context="demo", business_name="Clinica de Los olivos")
+    assert repaired == "Hola! Soy Bublee"
 
 
 def test_send_guard_keeps_short_direct_memory_answer_intact() -> None:
@@ -839,13 +838,13 @@ def test_send_guard_keeps_short_direct_memory_answer_intact() -> None:
 
 
 def test_demo_business_bind_fragment_rescue_uses_bound_business_not_generic_closing() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
 
     class _Engine:
         async def complete(self, msgs, **kwargs):
             user = msgs[-1]["content"]
             if user.startswith("negocio: "):
-                return ("Hola! Soy Conny", {"provider": "fake", "model": "fake"})
+                return ("Hola! Soy Bublee", {"provider": "fake", "model": "fake"})
             return ("ok ||| sigo", {"provider": "fake", "model": "fake"})
 
     runtime, _db = _build_demo_runtime(module, _Engine())
@@ -864,13 +863,13 @@ def test_demo_business_bind_fragment_rescue_uses_bound_business_not_generic_clos
     )
 
     joined = " ".join(result).lower()
-    assert "hola! soy conny" in joined
+    assert "hola! soy bublee" in joined
     pass
     pass
 
 
 def test_demo_owner_name_is_captured_and_used_in_explain_name_reply() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
 
     class _Engine:
         def __init__(self) -> None:
@@ -880,7 +879,7 @@ def test_demo_owner_name_is_captured_and_used_in_explain_name_reply() -> None:
             user = msgs[-1]["content"].lower()
             if "hola" in user:
                 return (
-                    "hola, Conny por acá ||| cuéntame cómo se llama tu negocio para mostrarte cómo sonaría",
+                    "hola, Bublee por acá ||| cuéntame cómo se llama tu negocio para mostrarte cómo sonaría",
                     {"provider": "fake", "model": "fake"},
                 )
             if "para que seria" in user or "para qué sería" in user:
@@ -915,7 +914,7 @@ def test_demo_owner_name_is_captured_and_used_in_explain_name_reply() -> None:
 
 
 def test_demo_business_name_extraction_trims_location_clause_from_mixed_phrase() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
 
     class _Engine:
         async def complete(self, msgs, **kwargs):
@@ -956,7 +955,7 @@ def test_demo_business_name_extraction_trims_location_clause_from_mixed_phrase()
 
 
 def test_demo_business_name_extraction_survives_leading_filler_phrase() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
 
     class _Engine:
         async def complete(self, msgs, **kwargs):
@@ -1004,14 +1003,14 @@ def test_demo_business_name_extraction_survives_leading_filler_phrase() -> None:
 
 
 def test_demo_owner_english_probe_does_not_bind_language_phrase_as_business() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
 
     class _Engine:
         async def complete(self, msgs, **kwargs):
             user = msgs[-1]["content"].lower()
             if "just english sorry" in user:
                 return (
-                    "Hi, I’m Conny ||| I can handle client chats, questions and appointment flow for a business ||| send me the business name and I’ll build the demo around it",
+                    "Hi, I’m Bublee ||| I can handle client chats, questions and appointment flow for a business ||| send me the business name and I’ll build the demo around it",
                     {"provider": "fake", "model": "fake"},
                 )
             if "what did u say" in user or "don't understand" in user:
@@ -1043,7 +1042,7 @@ def test_demo_owner_english_probe_does_not_bind_language_phrase_as_business() ->
 
 
 def test_demo_owner_english_language_boundary_does_not_become_business_name() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
 
     class _Engine:
         async def complete(self, msgs, **kwargs):
@@ -1054,7 +1053,7 @@ def test_demo_owner_english_language_boundary_does_not_become_business_name() ->
                     {"provider": "fake", "model": "fake"},
                 )
             return (
-                "Hi, I’m Conny ||| tell me the business name and I’ll set the demo up properly",
+                "Hi, I’m Bublee ||| tell me the business name and I’ll set the demo up properly",
                 {"provider": "fake", "model": "fake"},
             )
 
@@ -1073,7 +1072,7 @@ def test_demo_owner_english_language_boundary_does_not_become_business_name() ->
 
 
 def test_demo_owner_english_wrong_match_triggers_correction_not_rebind() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
 
     class _Engine:
         async def complete(self, msgs, **kwargs):
@@ -1111,7 +1110,7 @@ def test_demo_owner_english_wrong_match_triggers_correction_not_rebind() -> None
 
 @pytest.mark.xfail(reason="Requires GROQ_API_KEY in test env or proper mock")
 def test_transcribe_audio_uses_groq_when_gemini_is_exhausted() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
     module.Config.TELEGRAM_TOKEN = "tg-test"
     module.Config.GEMINI_API_KEY = "k1"
     module.Config.GEMINI_API_KEY_2 = "k2"
@@ -1157,14 +1156,14 @@ def test_transcribe_audio_uses_groq_when_gemini_is_exhausted() -> None:
             raise AssertionError(f"POST inesperado: {url}")
 
     module.httpx.AsyncClient = _FakeAsyncClient
-    runtime = module.ConnyUltra.__new__(module.ConnyUltra)
+    runtime = module.BubleeUltra.__new__(module.BubleeUltra)
 
     text = asyncio.run(runtime.transcribe_audio("voice-1", platform="telegram"))
     assert "quiero información de botox" in text
 
 
 def test_demo_simulation_mode_bypasses_core_for_same_chat_customer_turns() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
 
     class _Engine:
         async def complete(self, msgs, **kwargs):
@@ -1201,7 +1200,7 @@ def test_demo_simulation_mode_bypasses_core_for_same_chat_customer_turns() -> No
 
 
 def test_demo_customer_audio_question_repairs_incomplete_answer() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
 
     class _Engine:
         def __init__(self) -> None:
@@ -1245,7 +1244,7 @@ def test_demo_customer_audio_question_repairs_incomplete_answer() -> None:
 
 
 def test_demo_simulation_last_resort_keeps_continuity_when_models_fully_fail() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
 
     class _Engine:
         def __init__(self) -> None:
@@ -1284,13 +1283,13 @@ def test_demo_simulation_last_resort_keeps_continuity_when_models_fully_fail() -
     result = asyncio.run(runtime._handle_demo_message("owner_sim_fail_1", "si quiero cita como seguimos?", clinic))
 
     joined = " ".join(result).lower()
-    assert "hola, soy conny" not in joined
+    assert "hola, soy bublee" not in joined
     assert "cuéntame un poco más y te voy guiando" not in joined
     assert any(token in joined for token in ("agendar", "horario", "siguiente paso", "nombre"))
 
 
 def test_demo_owner_why_name_without_business_falls_back_to_real_explanation() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
 
     class _Engine:
         async def complete(self, msgs, **kwargs):
@@ -1310,7 +1309,7 @@ def test_demo_owner_why_name_without_business_falls_back_to_real_explanation() -
 
 
 def test_demo_customer_simulation_rejects_hoy_fragment_and_repairs_greeting() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
 
     class _Engine:
         def __init__(self) -> None:
@@ -1333,11 +1332,11 @@ def test_demo_customer_simulation_rejects_hoy_fragment_and_repairs_greeting() ->
                 self.customer_calls += 1
                 if self.customer_calls == 1:
                     return (
-                        "Hola, buenas tardes. Soy Conny de Clínica América. hoy?",
+                        "Hola, buenas tardes. Soy Bublee de Clínica América. hoy?",
                         {"provider": "fake", "model": "fake"},
                     )
                 return (
-                    "hola, Conny por acá en Clínica América ||| cuéntame qué te gustaría revisar",
+                    "hola, Bublee por acá en Clínica América ||| cuéntame qué te gustaría revisar",
                     {"provider": "fake", "model": "fake"},
                 )
             return ("ok ||| sigo", {"provider": "fake", "model": "fake"})
@@ -1353,12 +1352,12 @@ def test_demo_customer_simulation_rejects_hoy_fragment_and_repairs_greeting() ->
     joined = " ".join(result).lower()
     assert engine.customer_calls >= 2
     assert "hoy?" not in joined
-    assert "conny" in joined
+    assert "bublee" in joined
     assert "revisar" in joined
 
 
 def test_demo_learn_mode_accepts_pdf_offer_without_claiming_it_already_understands() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
 
     class _Engine:
         async def complete(self, msgs, **kwargs):
@@ -1383,7 +1382,7 @@ def test_demo_learn_mode_accepts_pdf_offer_without_claiming_it_already_understan
 
 
 def test_demo_doc_offer_after_found_business_stays_in_owner_mode() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
 
     class _Engine:
         async def complete(self, msgs, **kwargs):
@@ -1416,7 +1415,7 @@ def test_demo_doc_offer_after_found_business_stays_in_owner_mode() -> None:
 
 
 def test_demo_business_switch_rebinds_without_manual_reset() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
 
     class _Engine:
         async def complete(self, msgs, **kwargs):
@@ -1451,12 +1450,12 @@ def test_demo_business_switch_rebinds_without_manual_reset() -> None:
 
 
 def test_demo_owner_onboarding_greeting_keeps_hola_prefix() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
 
     class _Engine:
         async def complete(self, msgs, **kwargs):
             return (
-                "soy Conny, la asesora virtual que llevaría tu chat ||| pásame el nombre de tu negocio y arranco",
+                "soy Bublee, la asesora virtual que llevaría tu chat ||| pásame el nombre de tu negocio y arranco",
                 {"provider": "fake", "model": "fake"},
             )
 
@@ -1465,11 +1464,11 @@ def test_demo_owner_onboarding_greeting_keeps_hola_prefix() -> None:
 
     result = asyncio.run(runtime._handle_demo_message("owner_greet_1", "Hola buenas", clinic))
 
-    assert result[0].lower().startswith("hola, soy conny")
+    assert result[0].lower().startswith("hola, soy bublee")
 
 
 def test_demo_correction_retries_search_before_manual_learning() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
 
     class _Engine:
         async def complete(self, msgs, **kwargs):
@@ -1504,7 +1503,7 @@ def test_demo_correction_retries_search_before_manual_learning() -> None:
 
 
 def test_demo_owner_can_reject_business_name_after_no_public_match() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
 
     class _Engine:
         async def complete(self, msgs, **kwargs):

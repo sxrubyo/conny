@@ -1,4 +1,4 @@
-"""Tests for conny_learning.py"""
+"""Tests for bublee_learning.py"""
 import sys
 import asyncio
 import tempfile
@@ -11,7 +11,7 @@ def _run(coro):
 
 
 def test_learn_from_admin():
-    from conny_learning import RealTimeLearningEngine
+    from bublee_learning import RealTimeLearningEngine
     tmpdir = tempfile.mkdtemp()
     engine = RealTimeLearningEngine(base_dir=tmpdir)
     engine._teachings_dir = __import__("pathlib").Path(tmpdir) / "teachings"
@@ -27,7 +27,7 @@ def test_learn_from_admin():
 
 
 def test_build_teachings_prompt():
-    from conny_learning import RealTimeLearningEngine
+    from bublee_learning import RealTimeLearningEngine
     engine = RealTimeLearningEngine()
     teachings = [
         {"question": "cuanto vale", "answer": "80.000 COP"},
@@ -39,7 +39,7 @@ def test_build_teachings_prompt():
 
 
 def test_learn_from_turn_positive():
-    from conny_learning import RealTimeLearningEngine
+    from bublee_learning import RealTimeLearningEngine
     tmpdir = tempfile.mkdtemp()
     engine = RealTimeLearningEngine(base_dir=tmpdir)
     _run(engine.learn_from_turn(
@@ -55,7 +55,7 @@ def test_learn_from_turn_positive():
 
 
 def test_learn_from_turn_negative():
-    from conny_learning import RealTimeLearningEngine
+    from bublee_learning import RealTimeLearningEngine
     tmpdir = tempfile.mkdtemp()
     engine = RealTimeLearningEngine(base_dir=tmpdir)
     _run(engine.learn_from_turn(

@@ -6,12 +6,12 @@ import uuid
 from pathlib import Path
 
 
-MODULE_PATH = Path("/home/ubuntu/conny/conny.py")
+MODULE_PATH = Path("/home/ubuntu/bublee/bublee.py")
 sys.path.insert(0, str(MODULE_PATH.parent))
 
 
-def load_conny_module():
-    module_name = f"conny_activation_{uuid.uuid4().hex}"
+def load_bublee_module():
+    module_name = f"bublee_activation_{uuid.uuid4().hex}"
     spec = importlib.util.spec_from_file_location(module_name, MODULE_PATH)
     module = importlib.util.module_from_spec(spec)
     sys.modules[module_name] = module
@@ -21,7 +21,7 @@ def load_conny_module():
 
 
 def test_new_instance_unknown_chat_requires_activation_token() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
     module.Config.DEMO_MODE = False
     module.auth_engine = None
 
@@ -36,20 +36,20 @@ def test_new_instance_unknown_chat_requires_activation_token() -> None:
             raise AssertionError("no debe llegar a fallback/error")
 
     module.db = FakeDB()
-    conny = module.ConnyUltra.__new__(module.ConnyUltra)
-    conny._chat_routes = {}
-    conny._remember_route = lambda chat_id, route=None: None
-    conny._handle_admin_message = lambda *args, **kwargs: (_ for _ in ()).throw(
+    bublee = module.BubleeUltra.__new__(module.BubleeUltra)
+    bublee._chat_routes = {}
+    bublee._remember_route = lambda chat_id, route=None: None
+    bublee._handle_admin_message = lambda *args, **kwargs: (_ for _ in ()).throw(
         AssertionError("un no-admin no debe entrar al setup")
     )
 
-    result = asyncio.run(conny.process_message("client-1", "Hey"))
+    result = asyncio.run(bublee.process_message("client-1", "Hey"))
 
     assert result == ["Ingresa tu Token de Activación para comenzar."]
 
 
 def test_admin_pro_token_activation_creates_admin_role_and_consumes_token(monkeypatch) -> None:
-    from conny_utils import generate_admin_activation_token
+    from bublee_utils import generate_admin_activation_token
     from src.core.admin_engines import AuthEngine
 
     token = generate_admin_activation_token("Terminal Ops")
@@ -87,26 +87,26 @@ def test_admin_pro_token_activation_creates_admin_role_and_consumes_token(monkey
             self.clinic.update(kwargs)
 
     fake_db = FakeDB()
-    fake_conny = types.SimpleNamespace(db=fake_db)
-    monkeypatch.setitem(sys.modules, "conny", fake_conny)
+    fake_bublee = types.SimpleNamespace(db=fake_db)
+    monkeypatch.setitem(sys.modules, "bublee", fake_bublee)
 
     auth = AuthEngine()
 
     assert auth.is_auth_message("admin-chat", token) is True
-    assert asyncio.run(auth.process("admin-chat", token)) == ["Código Conny Pro válido. Cómo te llamas?"]
+    assert asyncio.run(auth.process("admin-chat", token)) == ["Código Bublee Pro válido. Cómo te llamas?"]
     assert asyncio.run(auth.process("admin-chat", "Santiago")) == ["Hola Santiago. Tu email?"]
     assert asyncio.run(auth.process("admin-chat", "santiago@example.com")) == ["Elige una contraseña segura"]
     assert asyncio.run(auth.process("admin-chat", "super-secret")) == ["Confirmas? (si/no)"]
     final = asyncio.run(auth.process("admin-chat", "si"))
 
-    assert "Conny Pro Admin quedó activado" in final[0]
+    assert "Bublee Pro Admin quedó activado" in final[0]
     assert fake_db.admins[0]["role"] == "admin_pro"
     assert fake_db.consumed == [(token, "admin-chat")]
     assert fake_db.clinic["admin_chat_ids"] == ["admin-chat"]
 
 
 def test_activation_helpers_accept_admin_pro_tokens() -> None:
-    from conny_utils import (
+    from bublee_utils import (
         generate_admin_activation_token,
         is_activation_token,
         is_admin_activation_token,

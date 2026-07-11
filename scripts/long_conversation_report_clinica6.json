@@ -1,8 +1,8 @@
 {
   "summary": {
     "endpoint": "http://127.0.0.1:8003/test",
-    "chat_prefix": "conny-qc-clinica6",
-    "scenario_file": "/home/ubuntu/conny/scripts/persona_scenarios.yaml",
+    "chat_prefix": "bublee-qc-clinica6",
+    "scenario_file": "/home/ubuntu/bublee/scripts/persona_scenarios.yaml",
     "started_at": 1775109715.5564747,
     "duration_s": 43.884,
     "scenarios_total": 10,
@@ -80,9 +80,9 @@
       "scenario_title": "Saludo inicial",
       "turn_index": 1,
       "user_text": "Hola, buenas",
-      "response_text": "Hola, soy Conny, del equipo de Clinica de las americas.\nLe ayudo con información, valoración y disponibilidad.",
+      "response_text": "Hola, soy Bublee, del equipo de Clinica de las americas.\nLe ayudo con información, valoración y disponibilidad.",
       "response_bubbles": [
-        "Hola, soy Conny, del equipo de Clinica de las americas.\nLe ayudo con información, valoración y disponibilidad."
+        "Hola, soy Bublee, del equipo de Clinica de las americas.\nLe ayudo con información, valoración y disponibilidad."
       ],
       "latency_ms": 23.0,
       "normalized_repetition": 0.0,
@@ -91,7 +91,7 @@
       "bubble_count": 1,
       "status": "ok",
       "error": "",
-      "normalized_response": "hola soy conny del equipo de clinica de las americas le ayudo con informacion valoracion y disponibilidad"
+      "normalized_response": "hola soy bublee del equipo de clinica de las americas le ayudo con informacion valoracion y disponibilidad"
     },
     {
       "scenario_id": "saludo",
@@ -170,9 +170,9 @@
       "scenario_title": "Curiosidad e identidad",
       "turn_index": 1,
       "user_text": "Hola, quién eres",
-      "response_text": "Soy Conny, la recepcionista virtual. Mi trabajo es atender este canal de forma continua y bien llevada.\nPuedo ayudarte con información de tratamientos, valoración, disponibilidad.\nSi quieres probarme en serio, escríbeme el nombre de tu negocio y te muestro cómo trabajaría contigo.",
+      "response_text": "Soy Bublee, la recepcionista virtual. Mi trabajo es atender este canal de forma continua y bien llevada.\nPuedo ayudarte con información de tratamientos, valoración, disponibilidad.\nSi quieres probarme en serio, escríbeme el nombre de tu negocio y te muestro cómo trabajaría contigo.",
       "response_bubbles": [
-        "Soy Conny, la recepcionista virtual. Mi trabajo es atender este canal de forma continua y bien llevada.\nPuedo ayudarte con información de tratamientos, valoración, disponibilidad.\nSi quieres probarme en serio, escríbeme el nombre de tu negocio y te muestro cómo trabajaría contigo."
+        "Soy Bublee, la recepcionista virtual. Mi trabajo es atender este canal de forma continua y bien llevada.\nPuedo ayudarte con información de tratamientos, valoración, disponibilidad.\nSi quieres probarme en serio, escríbeme el nombre de tu negocio y te muestro cómo trabajaría contigo."
       ],
       "latency_ms": 6.0,
       "normalized_repetition": 0.0,
@@ -181,16 +181,16 @@
       "bubble_count": 1,
       "status": "ok",
       "error": "",
-      "normalized_response": "soy conny la recepcionista virtual mi trabajo es atender este canal de forma continua y bien llevada puedo ayudarte con informacion de tratamientos valoracion disponibilidad si quieres probarme en serio escribeme el nombre de tu negocio y te muestro como trabajaria contigo"
+      "normalized_response": "soy bublee la recepcionista virtual mi trabajo es atender este canal de forma continua y bien llevada puedo ayudarte con informacion de tratamientos valoracion disponibilidad si quieres probarme en serio escribeme el nombre de tu negocio y te muestro como trabajaria contigo"
     },
     {
       "scenario_id": "curiosidad",
       "scenario_title": "Curiosidad e identidad",
       "turn_index": 2,
       "user_text": "Eres una IA o una persona",
-      "response_text": "Soy Conny, la recepcionista virtual de Clinica de las americas.\nTrabajo este canal de forma continua para orientar, responder y ayudarte a avanzar sin que todo dependa de una persona pegada al chat.",
+      "response_text": "Soy Bublee, la recepcionista virtual de Clinica de las americas.\nTrabajo este canal de forma continua para orientar, responder y ayudarte a avanzar sin que todo dependa de una persona pegada al chat.",
       "response_bubbles": [
-        "Soy Conny, la recepcionista virtual de Clinica de las americas.\nTrabajo este canal de forma continua para orientar, responder y ayudarte a avanzar sin que todo dependa de una persona pegada al chat."
+        "Soy Bublee, la recepcionista virtual de Clinica de las americas.\nTrabajo este canal de forma continua para orientar, responder y ayudarte a avanzar sin que todo dependa de una persona pegada al chat."
       ],
       "latency_ms": 6.0,
       "normalized_repetition": 0.3481953290870488,
@@ -199,7 +199,7 @@
       "bubble_count": 1,
       "status": "ok",
       "error": "",
-      "normalized_response": "soy conny la recepcionista virtual de clinica de las americas trabajo este canal de forma continua para orientar responder y ayudarte a avanzar sin que todo dependa de una persona pegada al chat"
+      "normalized_response": "soy bublee la recepcionista virtual de clinica de las americas trabajo este canal de forma continua para orientar responder y ayudarte a avanzar sin que todo dependa de una persona pegada al chat"
     },
     {
       "scenario_id": "curiosidad",
@@ -260,9 +260,9 @@
       "scenario_title": "Identidad profesional",
       "turn_index": 1,
       "user_text": "Quiero saber exactamente qué haces",
-      "response_text": "Soy Conny. Funciono como recepcionista virtual y estoy disponible por aquí todo el día.\nPuedo ayudarte con información de tratamientos, valoración, disponibilidad.\nSi quieres probarme en serio, escríbeme el nombre de tu negocio y te muestro cómo trabajaría contigo.",
+      "response_text": "Soy Bublee. Funciono como recepcionista virtual y estoy disponible por aquí todo el día.\nPuedo ayudarte con información de tratamientos, valoración, disponibilidad.\nSi quieres probarme en serio, escríbeme el nombre de tu negocio y te muestro cómo trabajaría contigo.",
       "response_bubbles": [
-        "Soy Conny. Funciono como recepcionista virtual y estoy disponible por aquí todo el día.\nPuedo ayudarte con información de tratamientos, valoración, disponibilidad.\nSi quieres probarme en serio, escríbeme el nombre de tu negocio y te muestro cómo trabajaría contigo."
+        "Soy Bublee. Funciono como recepcionista virtual y estoy disponible por aquí todo el día.\nPuedo ayudarte con información de tratamientos, valoración, disponibilidad.\nSi quieres probarme en serio, escríbeme el nombre de tu negocio y te muestro cómo trabajaría contigo."
       ],
       "latency_ms": 7.0,
       "normalized_repetition": 0.0,
@@ -271,7 +271,7 @@
       "bubble_count": 1,
       "status": "ok",
       "error": "",
-      "normalized_response": "soy conny funciono como recepcionista virtual y estoy disponible por aqui todo el dia puedo ayudarte con informacion de tratamientos valoracion disponibilidad si quieres probarme en serio escribeme el nombre de tu negocio y te muestro como trabajaria contigo"
+      "normalized_response": "soy bublee funciono como recepcionista virtual y estoy disponible por aqui todo el dia puedo ayudarte con informacion de tratamientos valoracion disponibilidad si quieres probarme en serio escribeme el nombre de tu negocio y te muestro como trabajaria contigo"
     },
     {
       "scenario_id": "identidad",
@@ -350,9 +350,9 @@
       "scenario_title": "Pricing ambiguo",
       "turn_index": 1,
       "user_text": "Cuánto vale",
-      "response_text": "Hola, soy Conny, del equipo de Clinica de las americas.\nCuéntame qué estás buscando y te ubico rápido.",
+      "response_text": "Hola, soy Bublee, del equipo de Clinica de las americas.\nCuéntame qué estás buscando y te ubico rápido.",
       "response_bubbles": [
-        "Hola, soy Conny, del equipo de Clinica de las americas.\nCuéntame qué estás buscando y te ubico rápido."
+        "Hola, soy Bublee, del equipo de Clinica de las americas.\nCuéntame qué estás buscando y te ubico rápido."
       ],
       "latency_ms": 7.0,
       "normalized_repetition": 0.0,
@@ -361,7 +361,7 @@
       "bubble_count": 1,
       "status": "ok",
       "error": "",
-      "normalized_response": "hola soy conny del equipo de clinica de las americas cuentame que estas buscando y te ubico rapido"
+      "normalized_response": "hola soy bublee del equipo de clinica de las americas cuentame que estas buscando y te ubico rapido"
     },
     {
       "scenario_id": "pricing_ambiguo",

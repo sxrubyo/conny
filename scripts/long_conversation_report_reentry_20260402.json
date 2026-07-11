@@ -1,8 +1,8 @@
 {
   "summary": {
     "endpoint": "http://127.0.0.1:8003/test",
-    "chat_prefix": "conny-qc-reentry-20260402",
-    "scenario_file": "/home/ubuntu/conny/scripts/persona_scenarios.yaml",
+    "chat_prefix": "bublee-qc-reentry-20260402",
+    "scenario_file": "/home/ubuntu/bublee/scripts/persona_scenarios.yaml",
     "started_at": 1775163721.7833357,
     "duration_s": 22.147,
     "scenarios_total": 12,

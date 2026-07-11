@@ -6,10 +6,10 @@ from pathlib import Path
 import pytest
 
 
-ROOT = Path("/home/ubuntu/conny")
+ROOT = Path("/home/ubuntu/bublee")
 sys.path.insert(0, str(ROOT))
 
-from conny_nuke_robot_phrases import apply_patch, strip_robot_phrases
+from bublee_nuke_robot_phrases import apply_patch, strip_robot_phrases
 from src.domain.send_guard import guard_response, is_cut_response
 
 

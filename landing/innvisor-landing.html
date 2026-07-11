@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>INNVISOR | The Operating System for the Agentic Era</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      /* Palette */
+      --bg-void: #07080C;
+      --bg-surface: #0D0F17;
+      --bg-elevated: #141620;
+      --border-subtle: #1E2030;
+      --border-active: #2D3050;
+      --accent-plasma: #4F8EF7;
+      --accent-guard: #00E5B4;
+      --accent-danger: #FF4757;
+      --accent-gold: #F4A623;
+      --text-primary: #F0F2FF;
+      --text-secondary: #7B82A3;
+      --text-muted: #3D4166;
+      --gradient-hero: linear-gradient(135deg, #4F8EF7 0%, #00E5B4 100%);
+      --gradient-dark: linear-gradient(180deg, #07080C 0%, #0D0F17 100%);
+
+      /* Typography */
+      --font-display: 'Syne', sans-serif;
+      --font-body: 'DM Sans', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+
+      /* Scale */
+      --text-hero: clamp(48px, 6vw, 96px);
+      --text-h1: clamp(36px, 4vw, 64px);
+      --text-h2: clamp(24px, 3vw, 40px);
+      --text-body: 16px;
+      --text-body-lg: 18px;
+      --text-mono: 13px;
+
+      /* Layout */
+      --max-width: 1200px;
+      --spacing-section: clamp(80px, 10vw, 160px);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      background-color: var(--bg-void);
+      color: var(--text-primary);
+      font-family: var(--font-body);
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      overflow-x: hidden;
+    }
+
+    /* Noise & Grid Infrastructure */
+    .noise {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 9999;
+      opacity: 0.15;
+      background: url('data:image/svg+xml;utf8,%3Csvg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"%3E%3Cfilter id="noiseFilter"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch"/%3E%3C/filter%3E%3Crect width="100%25" height="100%25" filter="url(%23noiseFilter)"/%3E%3C/svg%3E');
+    }
+
+    .grid-bg {
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      pointer-events: none;
+      z-index: -1;
+      background-image: 
+        linear-gradient(var(--border-subtle) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border-subtle) 1px, transparent 1px);
+      background-size: 40px 40px;
+      opacity: 0.15;
+      mask-image: radial-gradient(circle at center, black 40%, transparent 80%);
+      -webkit-mask-image: radial-gradient(circle at center, black 40%, transparent 80%);
+    }
+
+    .container {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* Typography Utilities */
+    h1, h2, h3, .display {
+      font-family: var(--font-display);
+      line-height: 1.05;
+      letter-spacing: -0.02em;
+    }
+
+    .mono {
+      font-family: var(--font-mono);
+      font-size: var(--text-mono);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+
+    .text-gradient {
+      background: var(--gradient-hero);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .text-plasma { color: var(--accent-plasma); }
+    .text-guard { color: var(--accent-guard); }
+    .text-gold { color: var(--accent-gold); }
+
+    /* Navigation */
+    nav {
+      position: fixed;
+      top: 0; left: 0; width: 100%;
+      z-index: 1000;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(30, 32, 48, 0.5);
+      transition: all 0.3s ease;
+    }
+
+    nav .container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      height: 80px;
+    }
+
+    .logo {
+      font-family: var(--font-display);
+      font-size: 24px;
+      font-weight: 800;
+      text-decoration: none;
+      color: var(--text-primary);
+      letter-spacing: -0.04em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .logo::before {
+      content: '';
+      display: block;
+      width: 12px; height: 12px;
+      background: var(--accent-plasma);
+      box-shadow: 0 0 10px var(--accent-plasma);
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 32px;
+      align-items: center;
+    }
+
+    .nav-links a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover { color: var(--text-primary); }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 24px;
+      border-radius: 100px;
+      font-family: var(--font-body);
+      font-weight: 500;
+      font-size: 14px;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      border: 1px solid transparent;
+    }
+
+    .btn-primary {
+      background: var(--gradient-hero);
+      color: var(--bg-void);
+      font-weight: 700;
+      box-shadow: 0 0 20px rgba(79, 142, 247, 0.2);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(79, 142, 247, 0.4);
+    }
+
+    .btn-outline {
+      background: rgba(20, 22, 32, 0.5);
+      border-color: var(--border-active);
+      color: var(--text-primary);
+      backdrop-filter: blur(4px);
+    }
+
+    .btn-outline:hover {
+      background: var(--bg-elevated);
+      border-color: var(--accent-plasma);
+      transform: translateY(-2px);
+    }
+
+    /* Hero Section */
+    .hero {
+      padding: 200px 0 100px;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      position: relative;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 64px;
+      align-items: center;
+    }
+
+    .hero-content h1 {
+      font-size: var(--text-hero);
+      margin-bottom: 24px;
+      position: relative;
+    }
+
+    .hero-content p {
+      font-size: var(--text-body-lg);
+      color: var(--text-secondary);
+      max-width: 540px;
+      margin-bottom: 40px;
+    }
+
+    .hero-ctas {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+
+    /* Hero Terminal Visual */
+    .terminal {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5), 0 0 0 1px var(--border-active);
+      position: relative;
+    }
+
+    .terminal-header {
+      background: var(--bg-elevated);
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .dot {
+      width: 10px; height: 10px; border-radius: 50%;
+    }
+    .dot.red { background: #FF4757; }
+    .dot.yellow { background: #F4A623; }
+    .dot.green { background: #00E5B4; }
+
+    .terminal-title {
+      margin-left: auto;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .terminal-body {
+      padding: 24px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--text-secondary);
+      height: 320px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .t-line {
+      display: flex;
+      gap: 16px;
+      opacity: 0;
+      animation: revealLine 0.1s forwards;
+    }
+
+    .t-time { color: var(--text-muted); }
+    .t-action { color: var(--text-primary); }
+    .t-intercept { color: var(--accent-plasma); }
+    .t-status { color: var(--accent-guard); display: flex; align-items: center; gap: 6px;}
+    
+    .status-pulse {
+      width: 6px; height: 6px;
+      background: var(--accent-guard);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    /* Metrics Strip */
+    .metrics-strip {
+      border-top: 1px solid var(--border-subtle);
+      border-bottom: 1px solid var(--border-subtle);
+      background: var(--gradient-dark);
+      padding: 40px 0;
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 32px;
+    }
+
+    .metric-item {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      border-left: 1px solid var(--border-active);
+      padding-left: 24px;
+    }
+
+    .metric-value {
+      font-family: var(--font-display);
+      font-size: 48px;
+      font-weight: 800;
+      color: var(--text-primary);
+      line-height: 1;
+    }
+
+    .metric-label {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* Architecture Layers */
+    .section {
+      padding: var(--spacing-section) 0;
+    }
+
+    .section-header {
+      margin-bottom: 80px;
+      max-width: 600px;
+    }
+
+    .section-header h2 {
+      font-size: var(--text-h1);
+      margin-bottom: 16px;
+    }
+
+    .architecture-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 24px;
+      position: relative;
+    }
+
+    .arch-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 48px;
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      gap: 64px;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.4s ease;
+    }
+
+    .arch-card:hover {
+      border-color: var(--border-active);
+      background: var(--bg-elevated);
+    }
+
+    .arch-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; width: 4px; height: 100%;
+    }
+
+    .arch-card.app::before { background: var(--accent-gold); }
+    .arch-card.infra::before { background: var(--accent-guard); }
+    .arch-card.platform::before { background: var(--accent-plasma); }
+
+    .arch-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .arch-layer {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-muted);
+      letter-spacing: 0.1em;
+    }
+
+    .arch-title {
+      font-family: var(--font-display);
+      font-size: 32px;
+      font-weight: 800;
+      color: var(--text-primary);
+    }
+
+    .arch-desc {
+      color: var(--text-secondary);
+      font-size: var(--text-body-lg);
+    }
+
+    .arch-stats {
+      display: flex;
+      gap: 24px;
+      margin-top: auto;
+    }
+
+    .stat {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    
+    .stat-val { font-family: var(--font-mono); color: var(--text-primary); font-weight: 700; font-size: 16px;}
+    .stat-lbl { font-family: var(--font-mono); color: var(--text-secondary); font-size: 11px; }
+
+    /* CTA Bottom */
+    .cta-bottom {
+      border-top: 1px solid var(--border-subtle);
+      padding: 120px 0;
+      text-align: center;
+      background: radial-gradient(circle at top center, rgba(79,142,247,0.05) 0%, transparent 70%);
+    }
+
+    .cta-bottom h2 {
+      font-size: var(--text-h1);
+      margin-bottom: 24px;
+    }
+
+    .cta-bottom p {
+      color: var(--text-secondary);
+      font-size: var(--text-body-lg);
+      margin-bottom: 40px;
+      max-width: 500px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--border-subtle);
+      padding: 48px 0;
+      background: var(--bg-void);
+    }
+
+    .footer-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .footer-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .footer-meta {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Animations */
+    @keyframes pulse {
+      0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(0, 229, 180, 0.7); }
+      70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(0, 229, 180, 0); }
+      100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(0, 229, 180, 0); }
+    }
+
+    @keyframes revealLine {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .reveal-up {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .reveal-up.active {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Responsive */
+    @media (max-width: 992px) {
+      .hero-grid { grid-template-columns: 1fr; }
+      .metrics-grid { grid-template-columns: 1fr 1fr; gap: 48px; }
+      .arch-card { grid-template-columns: 1fr; gap: 24px; padding: 32px; }
+      .arch-card::before { width: 100%; height: 4px; }
+      .nav-links { display: none; }
+    }
+
+    @media (max-width: 576px) {
+      .metrics-grid { grid-template-columns: 1fr; }
+      .hero { padding: 140px 0 60px; }
+      .footer-content { flex-direction: column; gap: 24px; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  
+  <div class="noise"></div>
+  <div class="grid-bg"></div>
+
+  <nav id="navbar">
+    <div class="container">
+      <a href="#" class="logo">INNVISOR</a>
+      <div class="nav-links">
+        <a href="#bublee">Bublee</a>
+        <a href="#nova">Nova OS</a>
+        <a href="#studio">Studio</a>
+        <a href="#login" class="mono" style="margin-left: 24px;">System_Login</a>
+      </div>
+      <a href="#access" class="btn btn-primary">Get Access</a>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <div class="container hero-grid">
+      <div class="hero-content reveal-up">
+        <div class="mono" style="color: var(--accent-plasma); margin-bottom: 24px;">LATAM Born. Global Domination.</div>
+        <h1>THE OS <br>AGENTS<br><span class="text-gradient">RUN ON.</span></h1>
+        <p>We are the Atlassian of AI Agents. Not model builders, but the infrastructure stack that makes agents safe, sellable, and scalable. We run the rails that make AI make real money.</p>
+        <div class="hero-ctas">
+          <a href="#deploy" class="btn btn-primary">Deploy Fleet</a>
+          <a href="#docs" class="btn btn-outline">Read Docs</a>
+        </div>
+      </div>
+      
+      <div class="hero-visual reveal-up" style="transition-delay: 0.2s;">
+        <div class="terminal">
+          <div class="terminal-header">
+            <div class="dot red"></div>
+            <div class="dot yellow"></div>
+            <div class="dot green"></div>
+            <div class="terminal-title">nova-guard-proxy --tail</div>
+          </div>
+          <div class="terminal-body" id="term-output">
+            <!-- Injected by JS -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <section class="metrics-strip">
+    <div class="container">
+      <div class="metrics-grid">
+        <div class="metric-item reveal-up">
+          <div class="metric-label">Nova Interception</div>
+          <div class="metric-value">≤<span class="counter" data-target="5">0</span>ms</div>
+        </div>
+        <div class="metric-item reveal-up" style="transition-delay: 0.1s;">
+          <div class="metric-label">Total Latency</div>
+          <div class="metric-value">≤<span class="counter" data-target="50">0</span>ms</div>
+        </div>
+        <div class="metric-item reveal-up" style="transition-delay: 0.2s;">
+          <div class="metric-label">Net Margins</div>
+          <div class="metric-value"><span class="counter" data-target="95">0</span>%</div>
+        </div>
+        <div class="metric-item reveal-up" style="transition-delay: 0.3s;">
+          <div class="metric-label">Isolation</div>
+          <div class="metric-value text-guard">Zero-Trust</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="architecture">
+    <div class="container">
+      <div class="section-header reveal-up">
+        <div class="mono" style="margin-bottom: 16px;">System Architecture</div>
+        <h2>Trojan Horse Strategy</h2>
+        <p class="text-secondary" style="font-size: var(--text-body-lg);">Nova lives inside Bublee. Every application deployment silently installs enterprise-grade infrastructure. Three layers. One immutable standard.</p>
+      </div>
+
+      <div class="architecture-grid">
+        
+        <!-- Layer 1 -->
+        <div class="arch-card app reveal-up" id="bublee">
+          <div class="arch-meta">
+            <div class="arch-layer">01 // APPLICATION LAYER</div>
+            <h3 class="arch-title">BUBLEE v9.7.6</h3>
+            <div class="arch-stats">
+              <div class="stat"><span class="stat-val text-gold">85-95%</span><span class="stat-lbl">NET MARGINS</span></div>
+              <div class="stat"><span class="stat-val">Hub-Spoke</span><span class="stat-lbl">TOPOLOGY</span></div>
+            </div>
+          </div>
+          <div class="arch-desc">
+            <p style="margin-bottom: 16px;">The immediate cash generator. A multi-tenant AI receptionist engine engineered specifically for agencies. It doesn't just chat; it closes, books, and scales across thousands of WhatsApp and Telegram numbers instantly.</p>
+            <p>Bublee is the surface area. The hook that agencies buy to print margin in the physical world.</p>
+          </div>
+        </div>
+
+        <!-- Layer 2 -->
+        <div class="arch-card infra reveal-up" style="transition-delay: 0.1s;" id="nova">
+          <div class="arch-meta">
+            <div class="arch-layer">02 // INFRASTRUCTURE LAYER</div>
+            <h3 class="arch-title">NOVA OS</h3>
+            <div class="arch-stats">
+              <div class="stat"><span class="stat-val text-guard">&lt;5ms</span><span class="stat-lbl">INTERCEPT</span></div>
+              <div class="stat"><span class="stat-val">Immutable</span><span class="stat-lbl">AUDIT</span></div>
+            </div>
+          </div>
+          <div class="arch-desc">
+            <p style="margin-bottom: 16px;">The moat. A real-time agentic sidecar proxy that intercepts every single LLM output before it hits the network. Approve, Block, or Escalate in under 5 milliseconds.</p>
+            <p>Nova Guard guarantees safety. It turns unpredictable stochastic models into deterministic, enterprise-safe software. You don't trust the model; you trust Nova.</p>
+          </div>
+        </div>
+
+        <!-- Layer 3 -->
+        <div class="arch-card platform reveal-up" style="transition-delay: 0.2s;" id="studio">
+          <div class="arch-meta">
+            <div class="arch-layer">03 // PLATFORM LAYER</div>
+            <h3 class="arch-title">STUDIO</h3>
+            <div class="arch-stats">
+              <div class="stat"><span class="stat-val text-plasma">No-Code</span><span class="stat-lbl">ORCHESTRATOR</span></div>
+              <div class="stat"><span class="stat-val">Infinite</span><span class="stat-lbl">SCALE</span></div>
+            </div>
+          </div>
+          <div class="arch-desc">
+            <p style="margin-bottom: 16px;">The control room. Manage fleets of thousands of agents across multiple tenants from a single pane of glass. Deploy updates, tweak system prompts, and view Nova intercept logs without writing a line of code.</p>
+            <p>Studio abstracts the complexity of agent operations, allowing operators to run massive empires with zero engineering overhead.</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <section class="cta-bottom reveal-up">
+    <div class="container">
+      <h2>Build Your Empire.</h2>
+      <p>Infrastructure-grade confidence. Stop building toys and start building systems that generate real revenue securely.</p>
+      <a href="#start" class="btn btn-primary" style="font-size: 16px; padding: 16px 40px;">Initialize Fleet</a>
+    </div>
+  </section>
+
+  <footer>
+    <div class="container">
+      <div class="footer-content">
+        <div class="footer-brand">
+          <div class="logo" style="font-size: 18px;">INNVISOR</div>
+        </div>
+        <div class="footer-meta">
+          SYS_TIME: <span id="sys-time"></span> // MEDELLÍN, COLOMBIA
+        </div>
+        <div class="nav-links">
+          <a href="#">Security</a>
+          <a href="#">API Docs</a>
+          <a href="#">Status</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // System Time
+    const sysTime = document.getElementById('sys-time');
+    setInterval(() => {
+      sysTime.innerText = new Date().toISOString().replace('T', ' ').slice(0, 19);
+    }, 1000);
+
+    // Scroll Reveal
+    const revealElements = document.querySelectorAll('.reveal-up');
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('active');
+          
+          // Trigger counters if they exist in this section
+          const counters = entry.target.querySelectorAll('.counter');
+          counters.forEach(counter => {
+            if(!counter.classList.contains('counted')) {
+              counter.classList.add('counted');
+              const target = +counter.getAttribute('data-target');
+              let count = 0;
+              const updateCount = () => {
+                const inc = target / 30;
+                if (count < target) {
+                  count += inc;
+                  counter.innerText = Math.ceil(count);
+                  requestAnimationFrame(updateCount);
+                } else {
+                  counter.innerText = target;
+                }
+              };
+              updateCount();
+            }
+          });
+        }
+      });
+    }, { threshold: 0.1 });
+
+    revealElements.forEach(el => observer.observe(el));
+
+    // Sticky Nav logic
+    const nav = document.getElementById('navbar');
+    window.addEventListener('scroll', () => {
+      if (window.scrollY > 50) {
+        nav.style.background = 'rgba(7, 8, 12, 0.85)';
+        nav.style.boxShadow = '0 4px 30px rgba(0,0,0,0.5)';
+      } else {
+        nav.style.background = 'transparent';
+        nav.style.boxShadow = 'none';
+      }
+    });
+
+    // Mock Terminal Sequence
+    const termOutput = document.getElementById('term-output');
+    const lines = [
+      { t: "BUBLEE_ENGINE", c: "t-action", txt: "Inbound_Message('Hola, precio?')" },
+      { t: "LLM_GENERATION", c: "t-action", txt: "Drafting_Response..." },
+      { t: "NOVA_PROXY", c: "t-intercept", txt: "INTERCEPTING payload..." },
+      { t: "NOVA_GUARD", c: "t-status", txt: "<div class='status-pulse'></div> APPROVED (1.2ms)" },
+      { t: "BUBLEE_ENGINE", c: "t-action", txt: "Dispatching_WhatsApp_API" },
+      { t: "SYS", c: "t-muted", txt: "--- Awaiting Next Tick ---" },
+    ];
+
+    let lineIndex = 0;
+    
+    function printTermLine() {
+      if (lineIndex >= lines.length) {
+        // Reset to loop
+        setTimeout(() => {
+          termOutput.innerHTML = '';
+          lineIndex = 0;
+          printTermLine();
+        }, 3000);
+        return;
+      }
+
+      const l = lines[lineIndex];
+      const time = new Date().toISOString().split('T')[1].slice(0,8);
+      
+      const row = document.createElement('div');
+      row.className = 't-line';
+      row.innerHTML = `
+        <span class="t-time">[${time}]</span>
+        <span class="${l.c}">[${l.t}] ${l.txt}</span>
+      `;
+      
+      termOutput.appendChild(row);
+      lineIndex++;
+      
+      // Random delay between lines to feel real
+      setTimeout(printTermLine, Math.random() * 800 + 200);
+    }
+
+    setTimeout(printTermLine, 1000);
+
+  </script>
+</body>
+</html>

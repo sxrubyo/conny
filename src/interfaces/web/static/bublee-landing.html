@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bublee AI | One Agent. Infinite Clients.</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="/favicon.ico">
+    
+    <!-- Apple System Fonts Stack -->
+    <!-- Premium Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@900&family=Playfair+Display:ital,wght@1,400&display=swap" rel="stylesheet">
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        /* DESIGN SYSTEM - Premium Dark SaaS / Fluid Aesthetic */
+        :root {
+            --bg-base: #05050A; /* Deep dark background */
+            --nav-bg: rgba(5, 5, 10, 0.5);
+            
+            --text-primary: #FFFFFF;
+            --text-secondary: #94A3B8;
+            --text-muted: #64748B;
+            
+            --accent-violet: #7C3AED;
+            --accent-magenta: #C026D3;
+            --accent-amber: #F59E0B;
+            --accent-blue: #3B82F6;
+            
+            --font-head: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            --font-body: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-primary);
+            font-family: var(--font-body);
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* --- STATIC BACKGROUND IMAGE --- */
+        .bg-image {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-image: url('/brand-assets/Bkbublee.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            z-index: -2;
+        }
+        
+        .bg-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+            /* Optional: a subtle dark gradient overlay to ensure text readability */
+            background: linear-gradient(to right, rgba(5,5,10,0.8) 0%, rgba(5,5,10,0.3) 100%);
+            pointer-events: none;
+        }
+
+        /* --- NAVBAR --- */
+        nav {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 100;
+            backdrop-filter: blur(32px) saturate(120%);
+            -webkit-backdrop-filter: blur(32px) saturate(120%);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(5, 5, 10, 0.65); /* Sleek, dark glass */
+            padding: 0 4vw;
+            height: 100px; /* Más ancho (alto) */
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        
+        .text-accent-infinite {
+            color: #E040FB; /* bright magenta-pink */
+            font-family: 'Playfair Display', serif;
+            font-style: italic;
+            font-weight: 400; /* Delicate weight */
+            background: none;
+            -webkit-background-clip: unset;
+            -webkit-text-fill-color: unset;
+            background-clip: unset;
+            padding-right: 8px;
+        }
+
+                .nav-logo {
+            display: flex;
+            align-items: center;
+            font-family: var(--font-head);
+            font-weight: 800;
+            font-size: 22px;
+            letter-spacing: -0.02em;
+            color: white;
+            text-decoration: none;
+            gap: 12px;
+        }
+
+        .logo-mark {
+            height: 80px;
+            object-fit: contain;
+            
+        }
+
+        .violet-dot {
+            width: 10px;
+            height: 10px;
+            background-color: var(--accent-violet);
+            border-radius: 50%;
+            margin-right: 8px;
+            box-shadow: 0 0 12px var(--accent-violet);
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 40px;
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-weight: 600;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover {
+            color: white;
+        }
+
+        .btn-nav-cta {
+            background-color: var(--accent-amber);
+            color: #000;
+            font-weight: 600;
+            font-size: 14px;
+            padding: 10px 24px;
+            border-radius: 100px;
+            text-decoration: none;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 14px rgba(245, 158, 11, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-nav-cta:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(245, 158, 11, 0.5);
+        }
+
+        .btn-nav-white {
+            background-color: #FFFFFF;
+            color: #05050A;
+            font-weight: 600;
+            font-size: 14px;
+            padding: 10px 24px;
+            border-radius: 100px;
+            text-decoration: none;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 14px rgba(255, 255, 255, 0.15);
+        }
+
+        .btn-nav-white:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 255, 255, 0.25);
+            background-color: #F8FAFC;
+        }
+
+        /* --- HERO SECTION --- */
+        .hero {
+            position: relative;
+            z-index: 10;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            padding: 0 6vw;
+            padding-top: 80px;
+            
+        }
+
+        .hero-content {
+            margin-top: 60px;
+            max-width: 800px;
+        }
+
+        .eyebrow-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 8px 16px;
+            border-radius: 100px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 40px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+
+                .hero h1 {
+            font-family: 'Inter', sans-serif;
+            font-size: clamp(48px, 7vw, 96px);
+            line-height: 1.05;
+            letter-spacing: 0;
+            font-weight: 900;
+            margin-bottom: 24px;
+            color: white;
+            text-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .hero-subline {
+            font-size: clamp(18px, 2vw, 24px);
+            line-height: 1.6;
+            color: var(--text-secondary);
+            margin-bottom: 40px;
+            max-width: 650px;
+            font-weight: 400;
+        }
+
+        .hero-ctas {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px 36px;
+            border-radius: 100px;
+            font-weight: 600;
+            font-size: 16px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            gap: 10px;
+        }
+
+        .btn-primary {
+            background: #FFFFFF;
+            color: #05050A;
+            box-shadow: 0 4px 20px rgba(255,255,255,0.15);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(255,255,255,0.3);
+        }
+
+        .btn-ghost {
+            background: transparent;
+            color: white;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .btn-ghost:hover {
+            background: rgba(255,255,255,0.05);
+            border-color: rgba(255,255,255,0.4);
+        }
+
+        /* --- RESPONSIVE --- */
+        @media (max-width: 900px) {
+            .nav-links { display: none; }
+        }
+        
+        @media (max-width: 600px) {
+            nav { height: 80px; padding: 0 20px; }
+            .nav-logo { font-size: 18px; }
+            .logo-mark { height: 60px; }
+            
+            .nav-right .btn-nav-white { display: none; }
+            .nav-right .btn-nav-cta { padding: 8px 16px; font-size: 13px; }
+            
+            .hero { padding-top: 80px; padding-left: 20px; padding-right: 20px; }
+            .hero-content { margin-top: 0 !important; }
+            
+            .hero h1 { font-size: 42px !important; line-height: 1.1; margin-bottom: 24px; }
+            .hero-subline { font-size: 16px !important; margin-bottom: 32px; }
+            
+            .hero-ctas { flex-direction: column; align-items: stretch; width: 100%; }
+            .btn { width: 100%; padding: 14px 20px; font-size: 15px; }
+            
+            /* SDK Mobile Tweaks */
+            #sdk { padding: 80px 20px !important; }
+            #sdk h2 { font-size: 32px !important; margin-bottom: 16px !important; }
+            #sdk h3 { font-size: 20px !important; margin-bottom: 24px !important; }
+            #sdk p { font-size: 16px !important; margin-bottom: 24px !important; }
+        }
+
+        /* Entrance Animations */
+        .fade-up {
+            animation: fadeUp 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        
+        @keyframes fadeUp {
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .d-1 { animation-delay: 0.1s; }
+        .d-2 { animation-delay: 0.3s; }
+        .d-3 { animation-delay: 0.5s; }
+        .d-4 { animation-delay: 0.7s; }
+
+        .mouse-glow {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(124, 58, 237, 0.05) 0%, rgba(0,0,0,0) 60%);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 5;
+            mix-blend-mode: screen;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+        body:hover .mouse-glow {
+            opacity: 1;
+        }
+        .mouse-glow {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(124, 58, 237, 0.05) 0%, rgba(0,0,0,0) 60%);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 5;
+            mix-blend-mode: screen;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+        body:hover .mouse-glow {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- BACKGROUND IMAGE -->
+    <div class="bg-image"></div>
+    <div class="bg-overlay"></div>
+
+    <!-- NAVBAR -->
+    <nav>
+        <a href="#" class="nav-logo">
+            <img src="/Bublee.png" alt="Bublee" class="logo-mark" onerror="this.style.display='none'" style="height: 80px; object-fit: contain;">
+        </a>
+        <div class="nav-links">
+            <a href="#">Features</a>
+            <a href="#">How it works</a>
+            <a href="#">Pricing</a>
+            <a href="#">GitHub</a>
+        </div>
+        <div class="nav-right" style="display: flex; gap: 16px; align-items: center;">
+            <a href="/sign-in" class="btn-nav-white">Sign in</a>
+            <a href="/dev-portal/login" class="btn-nav-cta">API Access &rarr;</a>
+        </div>
+    </nav>
+
+    <!-- HERO SECTION -->
+    <section class="hero">
+        <div class="hero-content">
+            <div class="eyebrow-badge fade-up d-1">
+                ✦ Next-Gen AI Receptionist Platform
+            </div>
+            
+            <h1 class="fade-up d-2">
+                One Agent.<br>
+                <span class="text-accent-infinite">Infinite</span> Clients.
+            </h1>
+            
+            <p class="hero-subline fade-up d-3">
+                Deploy unlimited AI receptionists for your agency.<br>
+                85% margins. Zero vendor lock-in.
+            </p>
+            
+            <div class="hero-ctas fade-up d-4">
+                <a href="/sign-in" class="btn btn-primary">
+                    Get Started Free &rarr;
+                </a>
+                <a href="/dev-portal/login" class="btn btn-ghost">
+                    API Access
+                </a>
+            </div>
+        </div>
+    </section>
+    <!-- SDK SECTION -->
+    <section id="sdk" style="position:relative; z-index: 10; min-height: 100vh; display: flex; align-items: center; padding: 120px 6vw; background-color: rgba(5, 5, 10, 0.88); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);">
+        <div class="sdk-content" style="max-width: 800px; width: 100%; text-align: left;">
+            <h2 style="font-family: var(--font-head); font-size: clamp(40px, 6vw, 72px); margin-bottom: 16px; text-shadow: 0 4px 20px rgba(0,0,0,0.5); letter-spacing: -0.03em; line-height: 1.05; font-weight: 800; color: white;">
+                Introducing Bublee SDK
+            </h2>
+            <h3 style="font-size: clamp(24px, 3vw, 32px); color: var(--text-secondary); margin-bottom: 40px; font-weight: 500; letter-spacing: -0.01em; font-family: var(--font-head);">
+                Build AI agents that actually ship.
+            </h3>
+            <p style="font-size: 20px; color: rgba(255,255,255,0.9); margin-bottom: 32px; line-height: 1.6; font-weight: 400;">
+                Bublee SDK is a modern framework for building, orchestrating, and deploying AI-powered applications with minimal code.
+            </p>
+            <p style="font-size: 18px; color: var(--text-secondary); margin-bottom: 40px; line-height: 1.7; font-weight: 400;">
+                Create intelligent agents, connect tools, manage memory, execute workflows, and scale from prototype to production — all through a clean developer-first experience.
+            </p>
+            <p style="font-size: 14px; color: var(--text-muted); line-height: 1.6; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;">
+                Designed for founders, developers, and teams building the next generation of AI products.
+            </p>
+        </div>
+    </section>
+
+
+    <!-- FLUID CANVAS SCRIPT -->
+    <script>
+        lucide.createIcons();
+        // Mouse Glow Effect
+        const glow = document.createElement('div');
+        glow.className = 'mouse-glow';
+        document.body.appendChild(glow);
+
+        window.addEventListener('mousemove', (e) => {
+            gsap.to(glow, {
+                x: e.clientX,
+                y: e.clientY,
+                duration: 0.6,
+                ease: "power2.out"
+            });
+        });
+
+        
+    </script>
+</body>
+</html>

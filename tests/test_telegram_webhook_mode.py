@@ -4,11 +4,11 @@ import uuid
 from pathlib import Path
 
 
-MODULE_PATH = Path("/home/ubuntu/conny/conny.py")
+MODULE_PATH = Path("/home/ubuntu/bublee/bublee.py")
 
 
-def load_conny_module():
-    module_name = f"conny_telegram_{uuid.uuid4().hex}"
+def load_bublee_module():
+    module_name = f"bublee_telegram_{uuid.uuid4().hex}"
     spec = importlib.util.spec_from_file_location(module_name, MODULE_PATH)
     module = importlib.util.module_from_spec(spec)
     sys.modules[module_name] = module
@@ -18,7 +18,7 @@ def load_conny_module():
 
 
 def test_telegram_webhook_mode_prefers_direct_for_mixed_whatsapp_instance() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
     module.Config.BASE_URL = "https://example.com"
     module.Config.TELEGRAM_TOKEN = "token"
     module.Config.PLATFORM = "whatsapp"
@@ -29,7 +29,7 @@ def test_telegram_webhook_mode_prefers_direct_for_mixed_whatsapp_instance() -> N
 
 
 def test_telegram_webhook_mode_uses_shared_when_router_enabled() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
     module.Config.BASE_URL = "https://example.com"
     module.Config.TELEGRAM_TOKEN = "token"
     module.Config.PLATFORM = "whatsapp"
@@ -40,7 +40,7 @@ def test_telegram_webhook_mode_uses_shared_when_router_enabled() -> None:
 
 
 def test_telegram_webhook_mode_disables_without_token_or_base_url() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
     module.Config.BASE_URL = ""
     module.Config.TELEGRAM_TOKEN = ""
     module.Config.PLATFORM = "telegram"
@@ -51,6 +51,6 @@ def test_telegram_webhook_mode_disables_without_token_or_base_url() -> None:
 
 
 def test_telegram_status_route_exists() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
     paths = {route.path for route in module.app.routes}
     assert "/telegram/status" in paths

@@ -1,0 +1,37 @@
+# Secrets
+.env
+*.env
+*.key
+*.pem
+*_token.json
+*_oauth.json
+spotify_token*
+google_oauth*
+ai_history.json
+nova_state.json
+telegram_daemon.pid
+
+# Runtime
+__pycache__/
+*.pyc
+*.pyo
+logs/
+*.log
+data/
+screenshots/
+backups/
+
+# Python
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# Node
+node_modules/
+.npm/
+
+# OS
+.DS_Store
+Thumbs.db

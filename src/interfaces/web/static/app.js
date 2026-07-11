@@ -1,11 +1,11 @@
 // State Management
-let masterKey = localStorage.getItem('conny_master_key') || '';
+let masterKey = localStorage.getItem('bublee_master_key') || '';
 let selectedChatId = null;
 let chatPollingInterval = null;
 let activeTab = 'chats';
 
 // Synchronously restore avatar from localStorage to prevent default Notionist image flash
-const savedAvatar = localStorage.getItem('conny_avatar_url');
+const savedAvatar = localStorage.getItem('bublee_avatar_url');
 if (savedAvatar) {
     document.addEventListener('DOMContentLoaded', () => {
         const lgImg = document.getElementById('account-large-image');
@@ -24,7 +24,7 @@ const dashboardLayout = document.getElementById('dashboard-layout');
 
 // Theme Management
 const themeToggle = document.getElementById('theme-toggle');
-const currentTheme = localStorage.getItem('conny_theme');
+const currentTheme = localStorage.getItem('bublee_theme');
 if (currentTheme === 'dark') {
     document.body.classList.add('dark-theme');
     if (themeToggle) themeToggle.checked = true;
@@ -36,10 +36,10 @@ if (themeToggle) {
     themeToggle.addEventListener('change', (e) => {
         if (e.target.checked) {
             document.body.classList.add('dark-theme');
-            localStorage.setItem('conny_theme', 'dark');
+            localStorage.setItem('bublee_theme', 'dark');
         } else {
             document.body.classList.remove('dark-theme');
-            localStorage.setItem('conny_theme', 'light');
+            localStorage.setItem('bublee_theme', 'light');
         }
     });
 }
@@ -215,7 +215,22 @@ async function checkAuthAndSetup() {
 }
 
 
+
 function showScreen(screen) {
+    if (screen === 'login') {
+        if (window.location.search.includes('google_login=true')) {
+            // let it proceed to show the google onboarding view
+        } else {
+            if (window.location.pathname.startsWith('/dev-portal')) {
+                window.location.href = '/dev-portal/login';
+                return;
+            } else {
+                window.location.href = '/sign-in';
+                return;
+            }
+        }
+    }
+
     loginLayout.classList.remove('active');
     dashboardLayout.classList.remove('active');
 
@@ -226,7 +241,7 @@ function showScreen(screen) {
         history.pushState({}, '', '/chats');
         dashboardLayout.classList.add('active');
         
-        const isDev = localStorage.getItem('conny_dev_mode') === 'true';
+        const isDev = localStorage.getItem('bublee_dev_mode') === 'true';
         const clientNav = document.getElementById('client-sidebar-nav');
         const devNav = document.getElementById('dev-sidebar-nav');
         
@@ -253,11 +268,11 @@ function showScreen(screen) {
 
 function handleLogout() {
     masterKey = '';
-    localStorage.removeItem('conny_master_key');
-    localStorage.removeItem('conny_dev_mode');
+    localStorage.removeItem('bublee_master_key');
+    localStorage.removeItem('bublee_dev_mode');
     
     // Quitar badge de desarrollador si existe
-    const devBadge = document.getElementById('conny-dev-badge');
+    const devBadge = document.getElementById('bublee-dev-badge');
     if (devBadge) devBadge.remove();
     
     selectedChatId = null;
@@ -336,8 +351,8 @@ if (devLoginFormNew) {
             const data = await res.json();
             if (data.master_key) {
                 masterKey = data.master_key;
-                localStorage.setItem('conny_master_key', masterKey);
-                localStorage.setItem('conny_dev_mode', 'true');
+                localStorage.setItem('bublee_master_key', masterKey);
+                localStorage.setItem('bublee_dev_mode', 'true');
                 
                 const config = await apiCall('/config');
                 showDevBadge();
@@ -348,8 +363,8 @@ if (devLoginFormNew) {
             }
         } catch (err) {
             masterKey = '';
-            localStorage.removeItem('conny_master_key');
-            localStorage.removeItem('conny_dev_mode');
+            localStorage.removeItem('bublee_master_key');
+            localStorage.removeItem('bublee_dev_mode');
             devLoginError.innerText = err.message || 'Error de conexión con el servidor.';
         }
     });
@@ -405,15 +420,15 @@ if (devRegisterForm) {
 }
 
 function showDevBadge() {
-    const isDev = localStorage.getItem('conny_dev_mode') === 'true';
-    const existing = document.getElementById('conny-dev-badge');
+    const isDev = localStorage.getItem('bublee_dev_mode') === 'true';
+    const existing = document.getElementById('bublee-dev-badge');
     if (existing) existing.remove();
 
     if (isDev) {
         const brandHeader = document.querySelector('.brand-header-crop');
         if (brandHeader) {
             const badge = document.createElement('div');
-            badge.id = 'conny-dev-badge';
+            badge.id = 'bublee-dev-badge';
             badge.innerText = 'DEV';
             badge.style.cssText = `
                 font-size: 10px;
@@ -479,7 +494,7 @@ if (tokenDirectForm) {
         masterKey = password;
         try {
             const config = await apiCall('/config');
-            localStorage.setItem('conny_master_key', password);
+            localStorage.setItem('bublee_master_key', password);
             if (!config.name) {
                 showScreen('onboarding');
             } else {
@@ -488,7 +503,7 @@ if (tokenDirectForm) {
             }
         } catch (fallbackErr) {
             masterKey = '';
-            localStorage.removeItem('conny_master_key');
+            localStorage.removeItem('bublee_master_key');
             loginError.innerText = 'Llave Maestra o Token de Acceso inválido.';
         }
     });
@@ -529,7 +544,7 @@ if (emailCheckForm) {
         const password = loginPasswordInput ? loginPasswordInput.value.trim() : '';
         if (!email || !password) return;
 
-        // Soporte para activación manual directa (ACTV-) y Conny Pro Admin (ADMN-)
+        // Soporte para activación manual directa (ACTV-) y Bublee Pro Admin (ADMN-)
         if (password.startsWith('ACTV-') || password.startsWith('ADMN-')) {
             try {
                 const res = await fetch('/api/activate', {
@@ -544,7 +559,7 @@ if (emailCheckForm) {
                 const data = await res.json();
                 if (data.master_key) {
                     masterKey = data.master_key;
-                    localStorage.setItem('conny_master_key', masterKey);
+                    localStorage.setItem('bublee_master_key', masterKey);
                     
                     const config = await apiCall('/config');
                     if (!config.name) {
@@ -558,7 +573,7 @@ if (emailCheckForm) {
                 }
             } catch (err) {
                 masterKey = '';
-                localStorage.removeItem('conny_master_key');
+                localStorage.removeItem('bublee_master_key');
                 loginError.innerText = err.message || 'Token de activación inválido o expirado.';
             }
             return;
@@ -577,7 +592,7 @@ if (emailCheckForm) {
                 masterKey = password;
                 try {
                     const config = await apiCall('/config');
-                    localStorage.setItem('conny_master_key', password);
+                    localStorage.setItem('bublee_master_key', password);
                     if (!config.name) {
                         showScreen('onboarding');
                     } else {
@@ -587,7 +602,7 @@ if (emailCheckForm) {
                     return;
                 } catch (fallbackErr) {
                     masterKey = '';
-                    localStorage.removeItem('conny_master_key');
+                    localStorage.removeItem('bublee_master_key');
                     const errData = await res.json().catch(() => ({}));
                     throw new Error(errData.detail || 'Credenciales incorrectas');
                 }
@@ -596,7 +611,7 @@ if (emailCheckForm) {
             const data = await res.json();
             if (data.master_key) {
                 masterKey = data.master_key;
-                localStorage.setItem('conny_master_key', masterKey);
+                localStorage.setItem('bublee_master_key', masterKey);
                 
                 const config = await apiCall('/config');
                 if (!config.name) {
@@ -637,7 +652,7 @@ if (loginForm) {
                 const data = await res.json();
                 if (data.master_key) {
                     masterKey = data.master_key;
-                    localStorage.setItem('conny_master_key', masterKey);
+                    localStorage.setItem('bublee_master_key', masterKey);
                     
                     const config = await apiCall('/config');
                     if (!config.name) {
@@ -651,7 +666,7 @@ if (loginForm) {
                 }
             } catch (err) {
                 masterKey = '';
-                localStorage.removeItem('conny_master_key');
+                localStorage.removeItem('bublee_master_key');
                 loginError.innerText = err.message || 'Token de activación inválido o expirado.';
             }
             return;
@@ -670,7 +685,7 @@ if (loginForm) {
                 masterKey = password;
                 try {
                     const config = await apiCall('/config');
-                    localStorage.setItem('conny_master_key', password);
+                    localStorage.setItem('bublee_master_key', password);
                     if (!config.name) {
                         showScreen('onboarding');
                     } else {
@@ -680,7 +695,7 @@ if (loginForm) {
                     return;
                 } catch (fallbackErr) {
                     masterKey = '';
-                    localStorage.removeItem('conny_master_key');
+                    localStorage.removeItem('bublee_master_key');
                     const errData = await res.json().catch(() => ({}));
                     throw new Error(errData.detail || 'Credenciales incorrectas o Llave Maestra inválida.');
                 }
@@ -689,7 +704,7 @@ if (loginForm) {
             const data = await res.json();
             if (data.master_key) {
                 masterKey = data.master_key;
-                localStorage.setItem('conny_master_key', masterKey);
+                localStorage.setItem('bublee_master_key', masterKey);
                 
                 const config = await apiCall('/config');
                 if (!config.name) {
@@ -703,7 +718,7 @@ if (loginForm) {
             }
         } catch (err) {
             masterKey = '';
-            localStorage.removeItem('conny_master_key');
+            localStorage.removeItem('bublee_master_key');
             loginError.innerText = err.message || 'Error al iniciar sesión.';
         }
     });
@@ -746,7 +761,7 @@ if (signupForm) {
             if (data.master_key) {
                 // Almacenar temporalmente pero mostrar pantalla de éxito
                 masterKey = data.master_key;
-                localStorage.setItem('conny_master_key', masterKey);
+                localStorage.setItem('bublee_master_key', masterKey);
                 
                 if (successAccessTokenInput) {
                     successAccessTokenInput.value = masterKey;
@@ -859,7 +874,7 @@ if (googleOnboardingForm) {
         masterKey = token;
         try {
             const config = await apiCall('/config');
-            localStorage.setItem('conny_master_key', token);
+            localStorage.setItem('bublee_master_key', token);
             
             let personaConfig = {};
             if (config.persona_config) {
@@ -894,7 +909,7 @@ if (googleOnboardingForm) {
             initDashboard(Object.assign({}, config, patchData));
         } catch (err) {
             masterKey = '';
-            localStorage.removeItem('conny_master_key');
+            localStorage.removeItem('bublee_master_key');
             onboardingError.innerText = 'Token de autorización inválido o error al guardar. Verifica con Kiinnvisor AI.';
         }
     });
@@ -1063,7 +1078,7 @@ function renderChatsList(patients) {
                     <span class="item-time">${timeStr}</span>
                 </div>
                 <div class="item-body">
-                    <span class="item-msg-snippet">${p.last_message ? (p.last_message_role === 'assistant' ? 'Conny: ' : '') + p.last_message : p.chat_id}</span>
+                    <span class="item-msg-snippet">${p.last_message ? (p.last_message_role === 'assistant' ? 'Bublee: ' : '') + p.last_message : p.chat_id}</span>
                     <span class="badge-unread" style="display: ${p.visits > 0 ? 'inline' : 'none'}">${p.visits}</span>
                 </div>
             </div>
@@ -1142,7 +1157,7 @@ function renderMessages(messages) {
     messagesScroller.innerHTML = '';
     messages.forEach(msg => {
         const div = document.createElement('div');
-        // Role mapping: Conny (sent by assistant/system) is sent. User is received.
+        // Role mapping: Bublee (sent by assistant/system) is sent. User is received.
         const isSent = msg.role === 'assistant' || msg.role === 'system';
         div.className = `message ${isSent ? 'sent' : 'received'}`;
 
@@ -1297,7 +1312,7 @@ async function loadAccountInfo(config = null) {
 }
 
 // ── Admin Chat/Playground ──
-let connyTypingElement = null;
+let bubleeTypingElement = null;
 const adminChatPlaceholder = document.getElementById('admin-chat-placeholder');
 
 // Personality calibrator sidebar elements
@@ -1635,14 +1650,14 @@ function showAdminTyping(show) {
     if (!adminChatMessages) return;
     
     if (show) {
-        if (connyTypingElement) return; // Already showing
+        if (bubleeTypingElement) return; // Already showing
         
-        connyTypingElement = document.createElement('div');
-        connyTypingElement.className = 'gpt-message gpt-ai conny-typing-bubble';
-        connyTypingElement.id = 'conny-typing-indicator';
-        connyTypingElement.innerHTML = `
+        bubleeTypingElement = document.createElement('div');
+        bubleeTypingElement.className = 'gpt-message gpt-ai bublee-typing-bubble';
+        bubleeTypingElement.id = 'bublee-typing-indicator';
+        bubleeTypingElement.innerHTML = `
             <div class="gpt-avatar">
-                <img src="/isotype" class="conny-avatar-img" alt="Conny">
+                <img src="/isotype" class="bublee-avatar-img" alt="Bublee">
             </div>
             <div class="typing-indicator-box">
                 <div class="typing-arrows">
@@ -1652,15 +1667,15 @@ function showAdminTyping(show) {
                 </div>
             </div>
         `;
-        adminChatMessages.appendChild(connyTypingElement);
+        adminChatMessages.appendChild(bubleeTypingElement);
         adminChatMessages.scrollTo({
             top: adminChatMessages.scrollHeight,
             behavior: 'smooth'
         });
     } else {
-        if (connyTypingElement) {
-            connyTypingElement.remove();
-            connyTypingElement = null;
+        if (bubleeTypingElement) {
+            bubleeTypingElement.remove();
+            bubleeTypingElement = null;
         }
     }
 }
@@ -1689,9 +1704,9 @@ if (adminChatForm) adminChatForm.addEventListener('submit', async (e) => {
         
         const bubbles = res.bubbles || [];
         if (bubbles.length > 0) {
-            bubbles.forEach(b => appendAdminBubble('conny', b));
+            bubbles.forEach(b => appendAdminBubble('bublee', b));
         } else {
-            appendAdminBubble('conny', res.response || '(sin respuesta)');
+            appendAdminBubble('bublee', res.response || '(sin respuesta)');
         }
     } catch (err) {
         showAdminTyping(false);
@@ -1704,7 +1719,7 @@ function appendAdminBubble(sender, content) {
     
     const div = document.createElement('div');
     if (sender === 'user') {
-        const userAvatar = localStorage.getItem('conny_avatar_url') || '/static/avatars/avatar_01.svg';
+        const userAvatar = localStorage.getItem('bublee_avatar_url') || '/static/avatars/avatar_01.svg';
         div.className = 'gpt-message gpt-user';
         div.innerHTML = `
             <div class="gpt-content">
@@ -1714,7 +1729,7 @@ function appendAdminBubble(sender, content) {
                 <img src="${userAvatar}" class="user-avatar-img" alt="Tú">
             </div>
         `;
-    } else if (sender === 'conny') {
+    } else if (sender === 'bublee') {
         div.className = 'gpt-message gpt-ai';
         let formattedContent = escapeHtml(content);
         formattedContent = formattedContent.replace(/\n/g, '<br>');
@@ -1723,7 +1738,7 @@ function appendAdminBubble(sender, content) {
         
         div.innerHTML = `
             <div class="gpt-avatar">
-                <img src="/isotype" class="conny-avatar-img" alt="Conny">
+                <img src="/isotype" class="bublee-avatar-img" alt="Bublee">
             </div>
             <div class="gpt-content">
                 <div class="gpt-text">${formattedContent}</div>
@@ -1815,9 +1830,9 @@ const fileInput = document.getElementById('avatar-file-input');
 
 function updateAvatarImages(url) {
     if (url) {
-        localStorage.setItem('conny_avatar_url', url);
+        localStorage.setItem('bublee_avatar_url', url);
     } else {
-        localStorage.removeItem('conny_avatar_url');
+        localStorage.removeItem('bublee_avatar_url');
     }
     const lgImg = document.getElementById('account-large-image');
     const sbImg = document.getElementById('sidebar-avatar-img');
@@ -1961,11 +1976,11 @@ async function loadDevInstances() {
         
         if (devLogsInstanceSelect) {
             const currentLogs = devLogsInstanceSelect.value;
-            devLogsInstanceSelect.innerHTML = '<option value="conny">Instancia Base (conny.log)</option>';
+            devLogsInstanceSelect.innerHTML = '<option value="bublee">Instancia Base (bublee.log)</option>';
             data.instances.forEach(inst => {
                 const opt = document.createElement('option');
                 opt.value = inst.name;
-                opt.text = `${inst.name} (${inst.name}-conny.log)`;
+                opt.text = `${inst.name} (${inst.name}-bublee.log)`;
                 devLogsInstanceSelect.appendChild(opt);
             });
             if (currentLogs && Array.from(devLogsInstanceSelect.options).some(o => o.value === currentLogs)) {
@@ -2154,10 +2169,10 @@ if (devNewInstanceForm) {
 }
 
 async function fetchDevLogs() {
-    if (localStorage.getItem('conny_dev_mode') !== 'true') return;
+    if (localStorage.getItem('bublee_dev_mode') !== 'true') return;
     if (activeTab !== 'dev-console') return;
     
-    const name = devLogsInstanceSelect ? devLogsInstanceSelect.value : 'conny';
+    const name = devLogsInstanceSelect ? devLogsInstanceSelect.value : 'bublee';
     try {
         const res = await fetch(`/api/dev/instances/${name}/logs`, {
             headers: { 'X-Master-Key': masterKey }
@@ -2495,7 +2510,7 @@ if (adminChatForm) {
             // Append locally to user playground view
             const div = document.createElement('div');
             div.className = 'gpt-message gpt-user';
-            const userAvatar = localStorage.getItem('conny_avatar_url') || '/static/avatars/avatar_01.svg';
+            const userAvatar = localStorage.getItem('bublee_avatar_url') || '/static/avatars/avatar_01.svg';
             let attachmentHtml = createAttachmentMarkup(queuedFiles);
             let textDiv = text ? `<div class="gpt-text">${escapeHtml(text)}</div>` : '';
 
@@ -2516,7 +2531,7 @@ if (adminChatForm) {
 
             adminChatInput.value = '';
 
-            // Query Conny for dynamic test responses
+            // Query Bublee for dynamic test responses
             showAdminTyping(true);
             try {
                 const queryText = text || `[Envió ${queuedFiles.length} archivos: ` + queuedFiles.map(f => f.name).join(', ') + ']';
@@ -2528,9 +2543,9 @@ if (adminChatForm) {
                 showAdminTyping(false);
                 const bubbles = res.bubbles || [];
                 if (bubbles.length > 0) {
-                    bubbles.forEach(b => appendAdminBubble('conny', b));
+                    bubbles.forEach(b => appendAdminBubble('bublee', b));
                 } else {
-                    appendAdminBubble('conny', res.response || '(sin respuesta)');
+                    appendAdminBubble('bublee', res.response || '(sin respuesta)');
                 }
             } catch (err) {
                 showAdminTyping(false);
@@ -3167,8 +3182,8 @@ if (devLoginFormNew) {
             
             if (data.master_key) {
                 masterKey = data.master_key;
-                localStorage.setItem('conny_master_key', masterKey);
-                localStorage.setItem('conny_dev_mode', 'true');
+                localStorage.setItem('bublee_master_key', masterKey);
+                localStorage.setItem('bublee_dev_mode', 'true');
                 devLoginModal.style.display = 'none';
                 showDevBadge();
                 showScreen('dashboard');

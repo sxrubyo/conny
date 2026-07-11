@@ -1,9 +1,9 @@
-"""Tests for conny_nova_proxy.py"""
+"""Tests for bublee_nova_proxy.py"""
 import sys
 import asyncio
 sys.path.insert(0, ".")
 
-from conny_nova_proxy import NovaLLMProxy
+from bublee_nova_proxy import NovaLLMProxy
 
 
 def _run(coro):

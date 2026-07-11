@@ -1,19 +1,19 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════════════════════════════
-# start.sh — Conny v5.0 Ultra — inicio completo en un comando
+# start.sh — Bublee v5.0 Ultra — inicio completo en un comando
 # ═══════════════════════════════════════════════════════════════════════════════
 
 set -e
-CONNY_DIR="/home/ubuntu/conny"
-VENV="$CONNY_DIR/.venv"
-ENV_FILE="$CONNY_DIR/.env"
+BUBLEE_DIR="/home/ubuntu/bublee"
+VENV="$BUBLEE_DIR/.venv"
+ENV_FILE="$BUBLEE_DIR/.env"
 
 echo ""
-echo "  Conny v5.0 Ultra — arranque"
+echo "  Bublee v5.0 Ultra — arranque"
 echo "══════════════════════════════════"
 
 # ── 1. Directorio ─────────────────────────────────────────────────────────────
-cd "$CONNY_DIR"
+cd "$BUBLEE_DIR"
 
 # ── 2. Python virtual env (si no existe) ──────────────────────────────────────
 if [ ! -d "$VENV" ]; then
@@ -83,8 +83,8 @@ done
 # ── 5. Verificar archivos requeridos ──────────────────────────────────────────
 echo ""
 echo "  Archivos:"
-for f in conny.py search.py knowledge_base.py; do
-  if [ -f "$CONNY_DIR/$f" ]; then
+for f in bublee.py search.py knowledge_base.py; do
+  if [ -f "$BUBLEE_DIR/$f" ]; then
     echo "  [OK] $f"
   else
     echo "  [!!] $f — NO ENCONTRADO"
@@ -94,14 +94,14 @@ done
 # ── 6. PM2 ────────────────────────────────────────────────────────────────────
 echo ""
 echo "  Iniciando con PM2..."
-pm2 delete conny 2>/dev/null || true
-pm2 start conny.py \
-  --name conny \
+pm2 delete bublee 2>/dev/null || true
+pm2 start bublee.py \
+  --name bublee \
   --interpreter "$VENV/bin/python3" \
   --restart-delay=3000 \
   --max-restarts=10 \
-  --log "$CONNY_DIR/logs/conny.log" \
-  --error "$CONNY_DIR/logs/error.log"
+  --log "$BUBLEE_DIR/logs/bublee.log" \
+  --error "$BUBLEE_DIR/logs/error.log"
 pm2 save
 
 # ── 7. Health check ───────────────────────────────────────────────────────────
@@ -117,7 +117,7 @@ if [ "$HTTP_STATUS" = "200" ]; then
   echo "  [OK] Health check OK (puerto $PORT)"
 else
   echo "  [!!] Health check fallo (HTTP $HTTP_STATUS)"
-  echo "  Revisa los logs: pm2 logs conny"
+  echo "  Revisa los logs: pm2 logs bublee"
 fi
 
 # ── 8. Webhook ────────────────────────────────────────────────────────────────
@@ -129,18 +129,18 @@ else
 fi
 
 # ── 9. Crear directorio de logs si no existe ──────────────────────────────────
-mkdir -p "$CONNY_DIR/logs"
+mkdir -p "$BUBLEE_DIR/logs"
 
 # ── Resumen ───────────────────────────────────────────────────────────────────
 echo ""
 echo "══════════════════════════════════"
-echo "  Conny online en puerto $PORT"
+echo "  Bublee online en puerto $PORT"
 echo ""
 echo "  Comandos utiles:"
-echo "    pm2 logs conny          ver logs en vivo"
-echo "    pm2 restart conny       reiniciar"
-echo "    pm2 stop conny          detener"
-echo "    tail -f logs/conny.log  logs completos"
+echo "    pm2 logs bublee          ver logs en vivo"
+echo "    pm2 restart bublee       reiniciar"
+echo "    pm2 stop bublee          detener"
+echo "    tail -f logs/bublee.log  logs completos"
 echo ""
 echo "  Abre Telegram y escribe al bot para empezar."
 echo "══════════════════════════════════"

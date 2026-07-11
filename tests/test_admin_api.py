@@ -1,4 +1,4 @@
-"""Tests for conny_admin_api.py"""
+"""Tests for bublee_admin_api.py"""
 import sys
 import os
 sys.path.insert(0, ".")

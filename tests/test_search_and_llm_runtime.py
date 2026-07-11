@@ -7,12 +7,12 @@ import uuid
 from pathlib import Path
 
 
-MODULE_PATH = Path("/home/ubuntu/conny/conny.py")
+MODULE_PATH = Path("/home/ubuntu/bublee/bublee.py")
 sys.path.insert(0, str(MODULE_PATH.parent))
 
 
-def load_conny_module():
-    module_name = f"conny_runtime_{uuid.uuid4().hex}"
+def load_bublee_module():
+    module_name = f"bublee_runtime_{uuid.uuid4().hex}"
     spec = importlib.util.spec_from_file_location(module_name, MODULE_PATH)
     module = importlib.util.module_from_spec(spec)
     sys.modules[module_name] = module
@@ -22,7 +22,7 @@ def load_conny_module():
 
 
 def test_search_business_link_parses_serpapi_local_results_dict() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
 
     payload = {
         "local_results": {
@@ -81,7 +81,7 @@ def test_search_business_link_parses_serpapi_local_results_dict() -> None:
 
 
 def test_search_business_link_rejects_weak_clinic_match_and_falls_back_to_maps() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
 
     payload = {
         "organic_results": [
@@ -139,7 +139,7 @@ def test_search_business_link_rejects_weak_clinic_match_and_falls_back_to_maps()
 
 
 def test_search_business_link_uses_rotated_serp_keys_without_legacy_attr() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
 
     payload = {
         "local_results": {
@@ -197,7 +197,7 @@ def test_search_business_link_uses_rotated_serp_keys_without_legacy_attr() -> No
 
 
 def test_llm_engine_prioritizes_recent_healthy_provider() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
 
     class _Provider:
         def __init__(self, name):
@@ -214,7 +214,7 @@ def test_llm_engine_prioritizes_recent_healthy_provider() -> None:
 
 
 def test_llm_engine_blocks_403_immediately() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
 
     class _Error(Exception):
         def __init__(self):
@@ -234,7 +234,7 @@ def test_llm_engine_blocks_403_immediately() -> None:
 
 
 def test_llm_engine_blocks_402_immediately() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
 
     class _Error(Exception):
         def __init__(self):
@@ -258,6 +258,6 @@ def test_config_collects_series_keys_from_environment(monkeypatch) -> None:
     monkeypatch.setenv("TEST_CHAIN_KEY_2", "key2")
     monkeypatch.setenv("TEST_CHAIN_KEYS", "key3,key4")
 
-    module = load_conny_module()
+    module = load_bublee_module()
 
     assert module._collect_env_series("TEST_CHAIN_KEY") == ["key1", "key2", "key3", "key4"]

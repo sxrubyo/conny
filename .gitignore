@@ -121,3 +121,16 @@ test_browser.js
 test_browser.py
 test_llm_prod.py
 fix_init.py
+
+# ── Directorios legacy / experimentales ──────────────────────────
+ai/
+config/
+new/
+nova/
+legacy/
+
+# ── Brand assets de clientes ─────────────────────────────────────
+brand-assets/
+
+# ── Archivos de clave adicionales ─────────────────────────────────
+*.ppk

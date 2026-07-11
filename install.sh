@@ -1,5 +1,5 @@
 #!/bin/bash
-# Conny AI - The AI Receptionist Engine
+# Bublee AI - The AI Receptionist Engine
 # Ultimate GitHub Installer Script
 set -e
 
@@ -10,7 +10,7 @@ C_WARN="\033[38;5;214m"
 BOLD="\033[1m"
 RESET="\033[0m"
 
-echo -e "\n  ${C_PRIMARY}${BOLD}✦ Conny AI Installer${RESET}"
+echo -e "\n  ${C_PRIMARY}${BOLD}✦ Bublee AI Installer${RESET}"
 echo -e "  ${C_MUTED}Production-ready AI receptionist runtime for WhatsApp and Telegram.${RESET}"
 echo -e "  ${C_MUTED}────────────────────────────────────────────────────────${RESET}"
 
@@ -72,7 +72,7 @@ if ! command -v chafa &> /dev/null; then
     elif command -v brew &> /dev/null; then
         run_with_activity "Installing optional True-Color renderer with Homebrew" brew install chafa || true
     else
-        echo -e "  ${C_WARN}!${RESET} Optional renderer not available. Conny will use the classic logo."
+        echo -e "  ${C_WARN}!${RESET} Optional renderer not available. Bublee will use the classic logo."
     fi
 else
     echo -e "\n  ${BOLD}1. Terminal visuals ready${RESET}"
@@ -101,34 +101,34 @@ if [ -n "$PYTHON_BIN" ]; then
 else
     echo -e "\n  ${BOLD}2. Runtime compatibility${RESET}"
     echo -e "  ${C_WARN}!${RESET} Python 3.9+ was not detected locally."
-    echo -e "  ${C_MUTED}Conny will try to provision its isolated runtime on first launch.${RESET}"
+    echo -e "  ${C_MUTED}Bublee will try to provision its isolated runtime on first launch.${RESET}"
 fi
 
 # 3. Install NPM Package
 if ! command -v npm &> /dev/null; then
-    echo -e "\n  \033[31mError: Node.js and npm are required before installing Conny.\033[0m"
+    echo -e "\n  \033[31mError: Node.js and npm are required before installing Bublee.\033[0m"
     exit 1
 fi
 
 echo -e "\n  ${BOLD}3. Removing previous global builds${RESET}"
-run_with_activity "Cleaning old Conny packages" npm uninstall -g conny-ai @innvisor/conny-ai @blackboss/conny || true
+run_with_activity "Cleaning old Bublee packages" npm uninstall -g bublee-ai @innvisor/bublee-ai @blackboss/bublee || true
 
-echo -e "\n  ${BOLD}4. Installing Conny from GitHub${RESET}"
-echo -e "  ${C_MUTED}Source: ${CONNY_INSTALL_PACKAGE:-github:sxrubyo/conny#main}${RESET}"
-run_with_activity "Downloading and linking Conny CLI" npm install -g "${CONNY_INSTALL_PACKAGE:-github:sxrubyo/conny#main}"
+echo -e "\n  ${BOLD}4. Installing Bublee from GitHub${RESET}"
+echo -e "  ${C_MUTED}Source: ${BUBLEE_INSTALL_PACKAGE:-github:sxrubyo/bublee#main}${RESET}"
+run_with_activity "Downloading and linking Bublee CLI" npm install -g "${BUBLEE_INSTALL_PACKAGE:-github:sxrubyo/bublee#main}"
 
 echo -e "\n  ${BOLD}5. Verifying the command line experience${RESET}"
-if command -v conny >/dev/null 2>&1; then
-    if ! conny --version; then
-        echo -e "\n  \033[31mError: Conny was installed, but the CLI could not start.\033[0m"
+if command -v bublee >/dev/null 2>&1; then
+    if ! bublee --version; then
+        echo -e "\n  \033[31mError: Bublee was installed, but the CLI could not start.\033[0m"
         exit 1
     fi
-    run_with_activity "Preparing Python runtime and required CLI packages" conny --bootstrap-check
+    run_with_activity "Preparing Python runtime and required CLI packages" bublee --bootstrap-check
 else
-    echo -e "\n  \033[31mError: npm finished, but the 'conny' command is not available in PATH.\033[0m"
+    echo -e "\n  \033[31mError: npm finished, but the 'bublee' command is not available in PATH.\033[0m"
     exit 1
 fi
 
-echo -e "\n  ${C_SUCCESS}${BOLD}✓ Conny is installed and ready.${RESET}"
-echo -e "  Start your first guided setup with ${C_PRIMARY}conny init${RESET}."
-echo -e "  For system repair and diagnostics, run ${C_PRIMARY}conny doctor --fix${RESET}.\n"
+echo -e "\n  ${C_SUCCESS}${BOLD}✓ Bublee is installed and ready.${RESET}"
+echo -e "  Start your first guided setup with ${C_PRIMARY}bublee init${RESET}."
+echo -e "  For system repair and diagnostics, run ${C_PRIMARY}bublee doctor --fix${RESET}.\n"

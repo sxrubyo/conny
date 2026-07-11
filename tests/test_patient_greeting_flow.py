@@ -7,12 +7,12 @@ import uuid
 from pathlib import Path
 
 
-MODULE_PATH = Path("/home/ubuntu/conny/conny.py")
+MODULE_PATH = Path("/home/ubuntu/bublee/bublee.py")
 sys.path.insert(0, str(MODULE_PATH.parent))
 
 
-def load_conny_module():
-    module_name = f"conny_base_{uuid.uuid4().hex}"
+def load_bublee_module():
+    module_name = f"bublee_base_{uuid.uuid4().hex}"
     spec = importlib.util.spec_from_file_location(module_name, MODULE_PATH)
     module = importlib.util.module_from_spec(spec)
     sys.modules[module_name] = module
@@ -21,23 +21,23 @@ def load_conny_module():
     return module
 
 
-@pytest.mark.xfail(reason='Identity transitioned from Conny to Conny')
+@pytest.mark.xfail(reason='Identity transitioned from Bublee to Bublee')
 def test_process_message_first_turn_short_greeting_uses_llm() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
     module.Config.DEMO_MODE = False
-    conny = module.ConnyUltra.__new__(module.ConnyUltra)
-    conny._pending_buffers = {}
-    conny._admin_pending = {}
-    conny._last_reviewed_chat = None
-    conny._availability_pending_patient = None
-    conny._demo_sessions = {}
-    conny._emoji_chats = set()
-    conny._chat_routes = {}
-    conny._orchestrator = None
-    conny._remember_route = lambda chat_id, route=None: None
-    conny._resolve_route = lambda chat_id, route=None: {"platform": "whatsapp"}
-    conny._try_conversation_core = lambda **kwargs: None
-    conny.search = types.SimpleNamespace(detect_procedure=lambda text: None)
+    bublee = module.BubleeUltra.__new__(module.BubleeUltra)
+    bublee._pending_buffers = {}
+    bublee._admin_pending = {}
+    bublee._last_reviewed_chat = None
+    bublee._availability_pending_patient = None
+    bublee._demo_sessions = {}
+    bublee._emoji_chats = set()
+    bublee._chat_routes = {}
+    bublee._orchestrator = None
+    bublee._remember_route = lambda chat_id, route=None: None
+    bublee._resolve_route = lambda chat_id, route=None: {"platform": "whatsapp"}
+    bublee._try_conversation_core = lambda **kwargs: None
+    bublee.search = types.SimpleNamespace(detect_procedure=lambda text: None)
     module.auth_engine = None
     module.trainer_gateway = None
     module.nova_rule_sync = None
@@ -83,9 +83,9 @@ def test_process_message_first_turn_short_greeting_uses_llm() -> None:
         def _normalize_first_patient_turn(self, response, **kwargs):
             return response or "fallback"
 
-    conny.analyzer = FakeAnalyzer()
-    conny.reasoning = FakeReasoning()
-    conny.generator = FakeGenerator()
+    bublee.analyzer = FakeAnalyzer()
+    bublee.reasoning = FakeReasoning()
+    bublee.generator = FakeGenerator()
     module.db = types.SimpleNamespace(
         get_clinic=lambda: {
             "name": "Clinica de las americas",
@@ -104,27 +104,27 @@ def test_process_message_first_turn_short_greeting_uses_llm() -> None:
         record_metric=lambda *args, **kwargs: None,
     )
 
-    bubbles = asyncio.run(conny.process_message("7000001004", "hola"))
+    bubbles = asyncio.run(bublee.process_message("7000001004", "hola"))
 
-    assert conny.generator.generate_calls == 1
+    assert bublee.generator.generate_calls == 1
     assert bubbles == ["hola, aquí estoy. dime qué necesitas"]
 
 
 def test_process_message_demo_mode_still_allows_auth_flow() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
     module.Config.DEMO_MODE = True
-    conny = module.ConnyUltra.__new__(module.ConnyUltra)
-    conny._pending_buffers = {}
-    conny._admin_pending = {}
-    conny._last_reviewed_chat = None
-    conny._availability_pending_patient = None
-    conny._demo_sessions = {}
-    conny._emoji_chats = set()
-    conny._chat_routes = {}
-    conny._orchestrator = None
-    conny._remember_route = lambda chat_id, route=None: None
-    conny._resolve_route = lambda chat_id, route=None: {"platform": "whatsapp"}
-    conny._handle_demo_message = lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("demo no debería interceptar auth"))
+    bublee = module.BubleeUltra.__new__(module.BubleeUltra)
+    bublee._pending_buffers = {}
+    bublee._admin_pending = {}
+    bublee._last_reviewed_chat = None
+    bublee._availability_pending_patient = None
+    bublee._demo_sessions = {}
+    bublee._emoji_chats = set()
+    bublee._chat_routes = {}
+    bublee._orchestrator = None
+    bublee._remember_route = lambda chat_id, route=None: None
+    bublee._resolve_route = lambda chat_id, route=None: {"platform": "whatsapp"}
+    bublee._handle_demo_message = lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("demo no debería interceptar auth"))
 
     class FakeAuth:
         def is_auth_message(self, chat_id, text):
@@ -136,7 +136,7 @@ def test_process_message_demo_mode_still_allows_auth_flow() -> None:
     module.auth_engine = FakeAuth()
     module.db = types.SimpleNamespace(
         get_clinic=lambda: {
-            "name": "Conny Demo",
+            "name": "Bublee Demo",
             "sector": "estetica",
             "setup_done": 1,
             "admin_chat_ids": [],
@@ -146,24 +146,24 @@ def test_process_message_demo_mode_still_allows_auth_flow() -> None:
         get_admin=lambda chat_id: None,
     )
 
-    bubbles = asyncio.run(conny.process_message("7000001099", "/login"))
+    bubbles = asyncio.run(bublee.process_message("7000001099", "/login"))
     assert bubbles == ["flujo auth"]
 
 
 def test_split_bubbles_cleans_orphan_pipe_delimiters() -> None:
-    module = load_conny_module()
-    conny = module.ConnyUltra.__new__(module.ConnyUltra)
+    module = load_bublee_module()
+    bublee = module.BubleeUltra.__new__(module.BubleeUltra)
 
-    bubbles = conny._split_bubbles("Hola, buenas tardes ||", archetype="amigable")
+    bubbles = bublee._split_bubbles("Hola, buenas tardes ||", archetype="amigable")
 
     assert bubbles == ["Hola, buenas tardes"]
 
 
 def test_normalize_first_patient_turn_keeps_meaningful_llm_greeting() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
     generator = module.ResponseGenerator.__new__(module.ResponseGenerator)
     clinic = {"name": "Clinica de las americas", "sector": "estetica", "services": ["Botox"]}
-    personality = types.SimpleNamespace(name="Conny", archetype="amigable")
+    personality = types.SimpleNamespace(name="Bublee", archetype="amigable")
 
     result = generator._normalize_first_patient_turn(
         response="Hola, aquí estoy. Dime qué te gustaría revisar. ||| Si es botox, te ubico.",
@@ -174,17 +174,17 @@ def test_normalize_first_patient_turn_keeps_meaningful_llm_greeting() -> None:
     )
 
     lowered = result.lower()
-    assert "hola, soy conny" not in lowered
+    assert "hola, soy bublee" not in lowered
     assert "aquí estoy" in lowered or "aqui estoy" in lowered
 
 
 def test_returning_greeting_drops_prefab_resume_copy() -> None:
-    module = load_conny_module()
-    from conny_core.conversation_engine import ConversationEngine
-    from conny_core.persona_registry import PersonaRegistry
+    module = load_bublee_module()
+    from bublee_core.conversation_engine import ConversationEngine
+    from bublee_core.persona_registry import PersonaRegistry
 
     core_root = MODULE_PATH.parent
-    registry = PersonaRegistry(core_root / "personas" / "conny" / "base")
+    registry = PersonaRegistry(core_root / "personas" / "bublee" / "base")
     engine = ConversationEngine(registry)
     persona = registry.resolve_for_clinic({"sector": "estetica"})
 
@@ -201,11 +201,11 @@ def test_returning_greeting_drops_prefab_resume_copy() -> None:
 
 
 def test_conversation_engine_recognizes_status_greetings_as_llm_greetings() -> None:
-    from conny_core.conversation_engine import ConversationEngine
-    from conny_core.persona_registry import PersonaRegistry
+    from bublee_core.conversation_engine import ConversationEngine
+    from bublee_core.persona_registry import PersonaRegistry
 
     core_root = MODULE_PATH.parent
-    registry = PersonaRegistry(core_root / "personas" / "conny" / "base")
+    registry = PersonaRegistry(core_root / "personas" / "bublee" / "base")
     engine = ConversationEngine(registry)
 
     result = engine.handle(
@@ -221,13 +221,13 @@ def test_conversation_engine_recognizes_status_greetings_as_llm_greetings() -> N
 
 
 def test_normalize_first_patient_turn_repairs_low_quality_whatsapp_greeting() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
     generator = module.ResponseGenerator.__new__(module.ResponseGenerator)
     clinic = {"name": "Clinica de las americas", "sector": "estetica", "services": ["Botox", "Rellenos"]}
-    personality = types.SimpleNamespace(name="Conny", archetype="amigable")
+    personality = types.SimpleNamespace(name="Bublee", archetype="amigable")
 
     result = generator._normalize_first_patient_turn(
-        response="hola! Soy Conny, la asistente virtual. hoy?",
+        response="hola! Soy Bublee, la asistente virtual. hoy?",
         clinic=clinic,
         personality=personality,
         user_msg="hola",
@@ -238,16 +238,16 @@ def test_normalize_first_patient_turn_repairs_low_quality_whatsapp_greeting() ->
     assert "asistente virtual" not in lowered
     assert "hoy?" not in lowered
     assert "botox" in lowered or "rellenos" in lowered
-    assert "soy conny" in lowered
+    assert "soy bublee" in lowered
     assert "clinica de las americas" in lowered
 
 
 def test_conversation_engine_identity_probe_for_whatsapp_stays_human() -> None:
-    from conny_core.conversation_engine import ConversationEngine
-    from conny_core.persona_registry import PersonaRegistry
+    from bublee_core.conversation_engine import ConversationEngine
+    from bublee_core.persona_registry import PersonaRegistry
 
     core_root = MODULE_PATH.parent
-    registry = PersonaRegistry(core_root / "personas" / "conny" / "base")
+    registry = PersonaRegistry(core_root / "personas" / "bublee" / "base")
     engine = ConversationEngine(registry)
 
     result = engine.handle(
@@ -267,12 +267,12 @@ def test_conversation_engine_identity_probe_for_whatsapp_stays_human() -> None:
     assert result.handled is True
     assert "recepcionista virtual" not in joined
     assert "asistente virtual" not in joined
-    assert "conny" in joined
+    assert "bublee" in joined
     assert "tratamientos" in joined or "valoración" in joined or "valoracion" in joined
 
 
 def test_brain_v10_normalize_wrapper_does_not_bypass_low_quality_first_turn() -> None:
-    import conny_brain_v10 as brain_v10
+    import bublee_brain_v10 as brain_v10
 
     calls = []
 
@@ -284,19 +284,19 @@ def test_brain_v10_normalize_wrapper_does_not_bypass_low_quality_first_turn() ->
 
     result = wrapped(
         object(),
-        "hola! Soy Conny, la asistente virtual. hoy?",
+        "hola! Soy Bublee, la asistente virtual. hoy?",
         {"name": "Clinica de las americas", "sector": "estetica"},
-        types.SimpleNamespace(name="Conny"),
+        types.SimpleNamespace(name="Bublee"),
         "hola",
         [],
     )
 
     assert result == "normalized"
-    assert calls == [("hola! Soy Conny, la asistente virtual. hoy?", "hola")]
+    assert calls == [("hola! Soy Bublee, la asistente virtual. hoy?", "hola")]
 
 
 def test_brain_v10_assess_llm_first_response_accepts_meaningful_greeting() -> None:
-    import conny_brain_v10 as brain_v10
+    import bublee_brain_v10 as brain_v10
 
     verdict = brain_v10.assess_llm_first_response(
         "Hola, aquí estoy. Dime qué te gustaría revisar. ||| Si es botox, te ubico."
@@ -309,9 +309,9 @@ def test_brain_v10_assess_llm_first_response_accepts_meaningful_greeting() -> No
 
 
 def test_brain_v10_assess_llm_first_response_exposes_threshold_failure_contract() -> None:
-    import conny_brain_v10 as brain_v10
+    import bublee_brain_v10 as brain_v10
 
-    verdict = brain_v10.assess_llm_first_response("hola! Soy Conny, la asistente virtual. hoy?")
+    verdict = brain_v10.assess_llm_first_response("hola! Soy Bublee, la asistente virtual. hoy?")
 
     assert verdict["failure_kind"] == "below_threshold"
     assert verdict["failure_signal"] == "low_quality_first_turn"
@@ -321,7 +321,7 @@ def test_brain_v10_assess_llm_first_response_exposes_threshold_failure_contract(
 
 
 def test_brain_v10_assess_llm_first_response_flags_exceptions_for_fallback() -> None:
-    import conny_brain_v10 as brain_v10
+    import bublee_brain_v10 as brain_v10
 
     verdict = brain_v10.assess_llm_first_response(None, exception=RuntimeError("boom"))
 
@@ -331,46 +331,46 @@ def test_brain_v10_assess_llm_first_response_flags_exceptions_for_fallback() -> 
     assert verdict["should_fallback"] is True
 
 
-@pytest.mark.xfail(reason='Identity transitioned from Conny to Conny')
+@pytest.mark.xfail(reason='Identity transitioned from Bublee to Bublee')
 def test_normalize_first_contact_response_rewrites_bad_greeting_followup() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
 
     result = module._normalize_first_contact_response(
-        "hola! Soy Conny, tu. hoy?",
+        "hola! Soy Bublee, tu. hoy?",
         {"name": "la clínica", "services": ["Botox"], "sector": "estetica"},
         "hola",
     )
 
     lowered = result.lower()
-    assert "soy conny, tu. hoy?" not in lowered
+    assert "soy bublee, tu. hoy?" not in lowered
     assert "qué te gustaría revisar" in lowered or "que te gustaria revisar" in lowered
 
 
 def test_looks_fragmented_reply_detects_dangling_prepositions() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
 
-    assert module.looks_fragmented_reply("Soy Conny, asesora de")
+    assert module.looks_fragmented_reply("Soy Bublee, asesora de")
     assert module.looks_fragmented_reply("No tengo esa información de los")
-    assert not module.looks_fragmented_reply("Soy Conny, asesora virtual de la clínica.")
+    assert not module.looks_fragmented_reply("Soy Bublee, asesora virtual de la clínica.")
 
 
 def test_admin_local_fallback_explains_creator_and_capabilities() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
     module.db = types.SimpleNamespace(get_admin=lambda chat_id: {"name": "Santiago"})
-    runtime = module.ConnyUltra.__new__(module.ConnyUltra)
+    runtime = module.BubleeUltra.__new__(module.BubleeUltra)
 
     creator = runtime._admin_local_fallback(
         "quien te hizo",
         "quien te hizo",
         {"services": ["Botox"]},
-        "Conny",
+        "Bublee",
         "6908159885",
     )
     audio = runtime._admin_local_fallback(
         "aceptas audios y pdf?",
         "aceptas audios y pdf?",
         {"services": ["Botox"]},
-        "Conny",
+        "Bublee",
         "6908159885",
     )
 
@@ -383,8 +383,8 @@ def test_admin_local_fallback_explains_creator_and_capabilities() -> None:
 
 
 def test_is_synthetic_chat_id_filters_probe_like_demo_ids() -> None:
-    module = load_conny_module()
-    runtime = module.ConnyUltra.__new__(module.ConnyUltra)
+    module = load_bublee_module()
+    runtime = module.BubleeUltra.__new__(module.BubleeUltra)
 
     assert runtime._is_synthetic_chat_id("owner-demo-1")
     assert runtime._is_synthetic_chat_id("wa_style_probe_live_40")
@@ -394,31 +394,31 @@ def test_is_synthetic_chat_id_filters_probe_like_demo_ids() -> None:
 
 
 def test_extract_conversation_selection_understands_conversation_number_phrase() -> None:
-    from conny_core.first_turn_ops import _extract_conversation_selection
+    from bublee_core.first_turn_ops import _extract_conversation_selection
 
     assert _extract_conversation_selection("muestrame la conversacion 1") == 1
     assert _extract_conversation_selection("quiero ver el chat numero 2") == 2
 
 
-@pytest.mark.xfail(reason='Identity transitioned from Conny to Conny')
+@pytest.mark.xfail(reason='Identity transitioned from Bublee to Bublee')
 def test_normalize_first_contact_response_drops_duplicate_intro_bubble() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
 
     result = module._normalize_first_contact_response(
-        "Conny por acá, del equipo de la clínica. ||| Botox lo manejan acá. Si quieres, te cuento cómo lo trabajan y qué suelen revisar para que se vea natural.",
+        "Bublee por acá, del equipo de la clínica. ||| Botox lo manejan acá. Si quieres, te cuento cómo lo trabajan y qué suelen revisar para que se vea natural.",
         {"name": "la clínica", "services": ["Botox"], "sector": "estetica"},
         "quiero una cita para botox",
     )
 
     lowered = result.lower()
-    assert lowered.count("hola, soy conny") == 1
+    assert lowered.count("hola, soy bublee") == 1
     assert "asesora virtual" in lowered
     assert "botox lo manejan acá" in lowered or "botox lo manejan aca" in lowered
 
 
-@pytest.mark.xfail(reason='Identity transitioned from Conny to Conny')
+@pytest.mark.xfail(reason='Identity transitioned from Bublee to Bublee')
 def test_first_contact_intro_defaults_to_uppercase_virtual_advisor_voice() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
 
     intro = module._first_contact_intro({"name": "la clínica"})
 
@@ -429,10 +429,10 @@ def test_first_contact_intro_defaults_to_uppercase_virtual_advisor_voice() -> No
 
 
 def test_identity_probe_bubbles_admit_virtual_role_without_robotic_copy() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
     generator = module.ResponseGenerator.__new__(module.ResponseGenerator)
     clinic = {"name": "la clínica", "sector": "estetica", "services": ["Botox", "Rellenos"]}
-    personality = types.SimpleNamespace(name="Conny")
+    personality = types.SimpleNamespace(name="Bublee")
 
     bubbles = generator._build_identity_probe_bubbles(clinic, personality, "quien eres")
 
@@ -445,11 +445,11 @@ def test_identity_probe_bubbles_admit_virtual_role_without_robotic_copy() -> Non
 
 
 def test_conversation_engine_identity_probe_uses_virtual_advisor_voice() -> None:
-    from conny_core.conversation_engine import ConversationEngine
-    from conny_core.persona_registry import PersonaRegistry
+    from bublee_core.conversation_engine import ConversationEngine
+    from bublee_core.persona_registry import PersonaRegistry
 
     core_root = MODULE_PATH.parent
-    registry = PersonaRegistry(core_root / "personas" / "conny" / "base")
+    registry = PersonaRegistry(core_root / "personas" / "bublee" / "base")
     engine = ConversationEngine(registry)
 
     result = engine.handle(
@@ -468,7 +468,7 @@ def test_conversation_engine_identity_probe_uses_virtual_advisor_voice() -> None
 
 
 def test_owner_style_controller_can_keep_lowercase_start_when_requested() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
     controller = module.OwnerStyleController()
     controller._loaded = True
 
@@ -477,7 +477,7 @@ def test_owner_style_controller_can_keep_lowercase_start_when_requested() -> Non
     assert result["ok"] is True
 
     rendered = controller.enforce_output(
-        "Hola, soy Conny ||| Te ayudo con información",
+        "Hola, soy Bublee ||| Te ayudo con información",
         is_admin=False,
         first_turn=False,
         clinic={"name": "la clínica"},
@@ -489,7 +489,7 @@ def test_owner_style_controller_can_keep_lowercase_start_when_requested() -> Non
 
 
 def test_calc_smart_wait_holds_first_contact_greeting_for_five_minutes() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
     module.Config.DEMO_MODE = False
     module.Config.GREETING_ONLY_IDLE_SECONDS = 300
     module.db = types.SimpleNamespace(
@@ -497,16 +497,16 @@ def test_calc_smart_wait_holds_first_contact_greeting_for_five_minutes() -> None
         get_history=lambda chat_id, limit=None: [],
     )
 
-    runtime = module.ConnyUltra.__new__(module.ConnyUltra)
+    runtime = module.BubleeUltra.__new__(module.BubleeUltra)
 
     wait = runtime._calc_smart_wait("7000001004", "buenas tardes")
 
     assert wait == 300.0
 
 
-@pytest.mark.xfail(reason='Identity transitioned from Conny to Conny')
+@pytest.mark.xfail(reason='Identity transitioned from Bublee to Bublee')
 def test_owner_style_controller_renders_three_bubble_welcome_for_pure_greeting() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
     controller = module.OwnerStyleController()
     controller._loaded = True
 
@@ -528,8 +528,8 @@ def test_owner_style_controller_renders_three_bubble_welcome_for_pure_greeting()
 
 
 def test_admin_recent_conversation_browser_shows_six_and_stores_context() -> None:
-    module = load_conny_module()
-    runtime = module.ConnyUltra.__new__(module.ConnyUltra)
+    module = load_bublee_module()
+    runtime = module.BubleeUltra.__new__(module.BubleeUltra)
     runtime._admin_pending = {}
 
     module.db = types.SimpleNamespace(
@@ -569,8 +569,8 @@ def test_admin_recent_conversation_browser_shows_six_and_stores_context() -> Non
 
 
 def test_admin_patient_chat_preview_defaults_to_last_ten_messages() -> None:
-    module = load_conny_module()
-    runtime = module.ConnyUltra.__new__(module.ConnyUltra)
+    module = load_bublee_module()
+    runtime = module.BubleeUltra.__new__(module.BubleeUltra)
     runtime._admin_pending = {}
 
     module.db = types.SimpleNamespace(
@@ -592,8 +592,8 @@ def test_admin_patient_chat_preview_defaults_to_last_ten_messages() -> None:
 
 
 def test_admin_recent_conversation_selection_opens_preview_without_pending_browser() -> None:
-    module = load_conny_module()
-    runtime = module.ConnyUltra.__new__(module.ConnyUltra)
+    module = load_bublee_module()
+    runtime = module.BubleeUltra.__new__(module.BubleeUltra)
     runtime._admin_pending = {}
     runtime._last_reviewed_chat = None
 
@@ -639,8 +639,8 @@ def test_admin_recent_conversation_selection_opens_preview_without_pending_brows
 
 
 def test_admin_handler_understands_direct_conversation_selection_without_pending_browser() -> None:
-    module = load_conny_module()
-    runtime = module.ConnyUltra.__new__(module.ConnyUltra)
+    module = load_bublee_module()
+    runtime = module.BubleeUltra.__new__(module.BubleeUltra)
     runtime._admin_pending = {}
     runtime._pending_buffers = {}
     runtime._chat_routes = {}
@@ -687,7 +687,7 @@ def test_admin_handler_understands_direct_conversation_selection_without_pending
         runtime._handle_admin_or_setup(
             "admin-1",
             "muestrame que has hablado en la conversacion 1",
-            {"name": "Conny Demo", "admin_chat_ids": ["admin-1"], "setup_done": True},
+            {"name": "Bublee Demo", "admin_chat_ids": ["admin-1"], "setup_done": True},
         )
     )
 
@@ -697,9 +697,9 @@ def test_admin_handler_understands_direct_conversation_selection_without_pending
 
 
 def test_persona_forbidden_patterns_include_helpdesk_openers() -> None:
-    from conny_core.persona_registry import PersonaRegistry
+    from bublee_core.persona_registry import PersonaRegistry
 
-    registry = PersonaRegistry(MODULE_PATH.parent / "personas" / "conny" / "base")
+    registry = PersonaRegistry(MODULE_PATH.parent / "personas" / "bublee" / "base")
     profile = registry.get("estetica_whatsapp")
     assert profile is not None
 
@@ -710,13 +710,13 @@ def test_persona_forbidden_patterns_include_helpdesk_openers() -> None:
     assert "cómo puedo ayudarte" in banned
 
 
-@pytest.mark.xfail(reason='Identity transitioned from Conny to Conny')
+@pytest.mark.xfail(reason='Identity transitioned from Bublee to Bublee')
 def test_system_prompt_explicitly_forbids_helpdesk_openers() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
     generator = module.ResponseGenerator.__new__(module.ResponseGenerator)
-    from conny_core.persona_registry import PersonaRegistry
+    from bublee_core.persona_registry import PersonaRegistry
 
-    generator._conversation_registry = PersonaRegistry(MODULE_PATH.parent / "personas" / "conny" / "base")
+    generator._conversation_registry = PersonaRegistry(MODULE_PATH.parent / "personas" / "bublee" / "base")
     module.owner_style_controller = None
     module.db = types.SimpleNamespace(
         get_core_memory_block=lambda: "",
@@ -724,13 +724,13 @@ def test_system_prompt_explicitly_forbids_helpdesk_openers() -> None:
         get_behavior_playbooks=lambda limit=3: [],
     )
     personality = types.SimpleNamespace(
-        name="Conny",
+        name="Bublee",
         tone_instruction="",
         custom_phrases={},
         forbidden_words=[],
     )
 
-    from conny_core.prompt_ops import build_compact_system_prompt
+    from bublee_core.prompt_ops import build_compact_system_prompt
     prompt = build_compact_system_prompt(
         clinic={"name": "la clínica", "sector": "estetica", "services": ["Botox", "Rellenos"]},
         patient={"name": "", "visits": 0, "is_new": True, "last_service": ""},
@@ -752,7 +752,7 @@ def test_system_prompt_explicitly_forbids_helpdesk_openers() -> None:
 
 
 def test_full_system_prompt_accepts_explicit_user_message() -> None:
-    module = load_conny_module()
+    module = load_bublee_module()
     generator = module.ResponseGenerator.__new__(module.ResponseGenerator)
     generator._conversation_registry = None
     module.owner_style_controller = None
@@ -765,7 +765,7 @@ def test_full_system_prompt_accepts_explicit_user_message() -> None:
     module.trainer_get_system_prompt_addon = lambda *args, **kwargs: ""
 
     personality = types.SimpleNamespace(
-        name="Conny",
+        name="Bublee",
         tone_instruction="",
         custom_phrases={},
         forbidden_words=[],
@@ -773,7 +773,7 @@ def test_full_system_prompt_accepts_explicit_user_message() -> None:
         archetype="amigable",
     )
 
-    from conny_core.prompt_ops import build_system_prompt
+    from bublee_core.prompt_ops import build_system_prompt
     prompt = build_system_prompt(
         clinic={"name": "la clínica", "sector": "estetica", "services": ["Botox"]},
         patient={"name": "", "visits": 0, "is_new": True, "last_service": "", "language": "es"},
@@ -788,5 +788,5 @@ def test_full_system_prompt_accepts_explicit_user_message() -> None:
     )
 
     lowered = prompt.lower()
-    assert "soy conny" in lowered
+    assert "soy bublee" in lowered
     assert "asi respondo cuando alguien me escribe" in lowered

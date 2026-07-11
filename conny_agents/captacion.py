@@ -1,1 +1,0 @@
-"""Agente de captacion scaffold."""

@@ -1,47 +1,47 @@
-=== CONNY.PY IMPORTS FROM SATELLITES ===
-30:from conny_demo import ConnyDemo
-31:from conny_admin import ConnyAdmin, AuthEngine, AdminLearningEngine, SimulationEngine, SelfImprovementEngine
-32:from conny_production import ConnyProduction
-33:from conny_utils import (
-82:    from conny_core import ConversationEngine, PersonaRegistry
-83:    from conny_core.first_turn_ops import (
-99:    from conny_core.prompt_ops import (
-114:    from conny_domino import build_demo_domino_payload
-122:    from conny_i18n import get_i18n, detect_user_language, SUPPORTED_LANGUAGES
-129:    from conny_session import SessionManager
-135:    from conny_audio import AudioHandler
-141:    from conny_generator import GeneratorManager
-175:    from conny_pitch_upgrade import (
-181:    from conny_send_guard import SendGuard, check_proactive_handoff
-182:    from conny_nuke_robot_phrases import apply_patch as _nuke_robot_apply
-231:    from conny_v9_humanization import (
-2482:        from conny_v9_humanization import v9_patch_archetypes, V9_PERSONALITY_ARCHETYPES
-2645:        from conny_v9_humanization import v9_enhance_anti_robot_filter
-9236:            from conny_brain_v10 import extract_short_memory, format_memory_block
-11555:            from conny_intelligence import _trigger_self_improve
-12452:                    from conny_commands import get_command_handler
-19727:                from conny_commands import get_command_handler
-19867:                from conny_demo_voice import generate_demo_audio, should_send_voice_in_demo
-20208:        from conny_brain_v10 import init_brain, patch_llm_first
-20279:        from conny_memory_engine import memory_engine as _mem_engine
-20280:        from conny_cron import init_scheduler as _init_cron
-20281:        from conny_uncertainty import uncertainty_detector as _unc_detector
-20304:        from conny_cron import shutdown_scheduler
-20329:    from conny_admin_api import router as admin_api_router
+=== BUBLEE.PY IMPORTS FROM SATELLITES ===
+30:from bublee_demo import BubleeDemo
+31:from bublee_admin import BubleeAdmin, AuthEngine, AdminLearningEngine, SimulationEngine, SelfImprovementEngine
+32:from bublee_production import BubleeProduction
+33:from bublee_utils import (
+82:    from bublee_core import ConversationEngine, PersonaRegistry
+83:    from bublee_core.first_turn_ops import (
+99:    from bublee_core.prompt_ops import (
+114:    from bublee_domino import build_demo_domino_payload
+122:    from bublee_i18n import get_i18n, detect_user_language, SUPPORTED_LANGUAGES
+129:    from bublee_session import SessionManager
+135:    from bublee_audio import AudioHandler
+141:    from bublee_generator import GeneratorManager
+175:    from bublee_pitch_upgrade import (
+181:    from bublee_send_guard import SendGuard, check_proactive_handoff
+182:    from bublee_nuke_robot_phrases import apply_patch as _nuke_robot_apply
+231:    from bublee_v9_humanization import (
+2482:        from bublee_v9_humanization import v9_patch_archetypes, V9_PERSONALITY_ARCHETYPES
+2645:        from bublee_v9_humanization import v9_enhance_anti_robot_filter
+9236:            from bublee_brain_v10 import extract_short_memory, format_memory_block
+11555:            from bublee_intelligence import _trigger_self_improve
+12452:                    from bublee_commands import get_command_handler
+19727:                from bublee_commands import get_command_handler
+19867:                from bublee_demo_voice import generate_demo_audio, should_send_voice_in_demo
+20208:        from bublee_brain_v10 import init_brain, patch_llm_first
+20279:        from bublee_memory_engine import memory_engine as _mem_engine
+20280:        from bublee_cron import init_scheduler as _init_cron
+20281:        from bublee_uncertainty import uncertainty_detector as _unc_detector
+20304:        from bublee_cron import shutdown_scheduler
+20329:    from bublee_admin_api import router as admin_api_router
 
-=== SATELLITES THAT IMPORT FROM CONNY.PY ===
-/home/ubuntu/conny/conny_admin.py:29:        from conny import db, llm_engine
-/home/ubuntu/conny/conny_admin.py:86:                from conny import llm_engine as _llm
-/home/ubuntu/conny/conny_admin.py:226:        from conny import v8_process_response
-/home/ubuntu/conny/conny_admin.py:592:        from conny import db
-/home/ubuntu/conny/conny_admin.py:653:        from conny import db
-/home/ubuntu/conny/conny_admin.py:668:        from conny import db
-/home/ubuntu/conny/conny_admin.py:684:        from conny import db
-/home/ubuntu/conny/conny_admin.py:695:        from conny import db
-/home/ubuntu/conny/conny_admin.py:702:        from conny import db
-/home/ubuntu/conny/conny_admin.py:720:        from conny import db
-/home/ubuntu/conny/conny_bridge.py:281:        import conny as conny_module
-/home/ubuntu/conny/conny_production.py:21:        from conny import db, llm_engine, kb, v8_process_response
+=== SATELLITES THAT IMPORT FROM BUBLEE.PY ===
+/home/ubuntu/bublee/bublee_admin.py:29:        from bublee import db, llm_engine
+/home/ubuntu/bublee/bublee_admin.py:86:                from bublee import llm_engine as _llm
+/home/ubuntu/bublee/bublee_admin.py:226:        from bublee import v8_process_response
+/home/ubuntu/bublee/bublee_admin.py:592:        from bublee import db
+/home/ubuntu/bublee/bublee_admin.py:653:        from bublee import db
+/home/ubuntu/bublee/bublee_admin.py:668:        from bublee import db
+/home/ubuntu/bublee/bublee_admin.py:684:        from bublee import db
+/home/ubuntu/bublee/bublee_admin.py:695:        from bublee import db
+/home/ubuntu/bublee/bublee_admin.py:702:        from bublee import db
+/home/ubuntu/bublee/bublee_admin.py:720:        from bublee import db
+/home/ubuntu/bublee/bublee_bridge.py:281:        import bublee as bublee_module
+/home/ubuntu/bublee/bublee_production.py:21:        from bublee import db, llm_engine, kb, v8_process_response
 
 === EXTERNAL PIP PACKAGES ===
 from abc import ABC, abstractmethod
@@ -142,5 +142,5 @@ import uuid
 import uuid as _uuid_trainer
 
 === CIRCULAR RISKS ===
-CIRCULAR: conny_admin (imported by conny.py AND imports from it)
-CIRCULAR: conny_production (imported by conny.py AND imports from it)
+CIRCULAR: bublee_admin (imported by bublee.py AND imports from it)
+CIRCULAR: bublee_production (imported by bublee.py AND imports from it)

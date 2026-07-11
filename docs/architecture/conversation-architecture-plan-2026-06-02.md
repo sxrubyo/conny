@@ -1,17 +1,17 @@
-# Conny Conversation Architecture Plan - 2026-06-02
+# Bublee Conversation Architecture Plan - 2026-06-02
 
 ## Bugs graves detectados en conversacion
 
-1. `src/interfaces/web/demo_handler.py` y `src/conny/demo/handler.py` agregaban una burbuja hardcodeada despues del LLM en primer saludo: "cuentame que te gustaria revisar". Esto hacia que una respuesta buena del modelo sonara a fallback.
-2. El modo admin intercepta todo con un prompt corto ("Eres Conny... 2 burbujas") y no usa una memoria/admin brain real. Resultado: el admin recibe respuestas de bot cuando pide acciones operativas complejas.
+1. `src/interfaces/web/demo_handler.py` y `src/bublee/demo/handler.py` agregaban una burbuja hardcodeada despues del LLM en primer saludo: "cuentame que te gustaria revisar". Esto hacia que una respuesta buena del modelo sonara a fallback.
+2. El modo admin intercepta todo con un prompt corto ("Eres Bublee... 2 burbujas") y no usa una memoria/admin brain real. Resultado: el admin recibe respuestas de bot cuando pide acciones operativas complejas.
 3. El modo demo desactiva `is_admin_demo` cuando `sim_mode_active=True`. Si el dueno entra a simulacion, pierde capacidades admin en ese mismo chat.
-4. Existen dos handlers de demo casi duplicados: `src/interfaces/web/demo_handler.py` y `src/conny/demo/handler.py`. Un fix en una ruta puede no aplicar en la otra.
+4. Existen dos handlers de demo casi duplicados: `src/interfaces/web/demo_handler.py` y `src/bublee/demo/handler.py`. Un fix en una ruta puede no aplicar en la otra.
 5. Hay respuestas hardcodeadas para comandos y flujos de aprendizaje que se ejecutan antes de pedir criterio al modelo.
 6. El fallback de cliente (`_demo_customer_last_resort`) todavia interpreta intenciones por keywords. Debe limitarse a "no hubo modelo" y reportar la causa.
 7. El fallback de owner (`_demo_owner_last_resort`) tiene pitch fijo y puede sonar igual en conversaciones distintas.
 8. El modo aprendizaje manual puede tomar frases como informacion del negocio cuando el usuario esta corrigiendo o cuestionando.
 9. El cambio de negocio en caliente depende de heuristicas de nombre y puede borrar contexto valido.
-10. `handle_command` en `conny_router.py` devuelve respuestas estaticas como "no tengo memoria activa todavia", aunque el sistema si tiene memoria en otros modulos.
+10. `handle_command` en `bublee_router.py` devuelve respuestas estaticas como "no tengo memoria activa todavia", aunque el sistema si tiene memoria en otros modulos.
 11. Los errores de LLM en `_llm` y `_llm_conv` se convierten en `None` sin exponer causa conversacional ni decision de continuidad.
 12. Los `except Exception: pass` silencian fallos de DB, sesion, archivos, media y limpieza de contexto.
 13. La busqueda del negocio puede marcar `found_online=True` por texto suficiente aunque el enlace sea generico si la validacion no es consistente entre rutas.
@@ -54,7 +54,7 @@
 27. Convertir `SendGuard` en postprocesador quirurgico, no filtro semantico amplio.
 28. Crear pruebas de "no se agregan burbujas por codigo si LLM ya respondio".
 29. Crear pruebas de "admin no cae en demo cuando sim_mode_active".
-30. Crear pruebas de "dueno pregunta en ingles y Conny continua en ingles".
+30. Crear pruebas de "dueno pregunta en ingles y Bublee continua en ingles".
 31. Crear pruebas de "confirmacion de negocio no pisa nombre ya cargado".
 32. Crear pruebas de "documento recibido sin texto no se trata como negocio aprendido".
 33. Crear pruebas de "precio desconocido dispara handoff o confirmacion, no invento".
@@ -74,7 +74,7 @@
 47. Añadir replay harness de conversaciones reales anonimizadas.
 48. Crear matriz de roles por canal: Telegram, WhatsApp bridge, WhatsApp Cloud, CLI.
 49. Evitar que `Config.DEMO_MODE` cambie identidad del negocio si ya existe instancia.
-50. Crear contract tests para instalacion npm/GitHub: `conny`, `conny init`, `conny chat`, `conny config`.
+50. Crear contract tests para instalacion npm/GitHub: `bublee`, `bublee init`, `bublee chat`, `bublee config`.
 51. Versionar prompts y reglas por instancia para que un cliente nuevo no herede datos del autor.
 52. Crear `BusinessSearchService` con Brave, Apify y fallback web; hoy la logica esta acoplada al handler.
 53. Añadir cache de busqueda con invalidacion por correccion del dueno.

@@ -1,0 +1,1 @@
+"""Bublee skills scaffold."""

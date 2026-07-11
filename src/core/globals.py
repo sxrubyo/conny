@@ -27,13 +27,11 @@ from typing import (
 import secrets
 import uuid
 
-from src.interfaces.web.demo_handler import ConnyDemo
-from src.core.admin_engines import ConnyAdmin, AuthEngine, AdminLearningEngine, SimulationEngine, SelfImprovementEngine
-from src.core.production_monitor import ConnyProduction
-from conny_utils import (
-    is_activation_token, is_admin_activation_token, is_invite_token,
-    generate_activation_token, generate_admin_activation_token,
-    hash_password, verify_password,
+from src.interfaces.web.demo_handler import BubleeDemo
+from src.core.admin_engines import BubleeAdmin, AuthEngine, AdminLearningEngine, SimulationEngine, SelfImprovementEngine
+from src.core.production_monitor import BubleeProduction
+from bublee_utils import (
+    is_activation_token, is_invite_token, generate_activation_token, hash_password, verify_password, 
     _parse_admin_ids, extract_model_request_from_text, normalize_model_arg
 )
 
@@ -59,13 +57,13 @@ def _load_runtime_env() -> None:
 
 _load_runtime_env()
 
-# Modulos propios (en el mismo directorio que conny.py)
+# Modulos propios (en el mismo directorio que bublee.py)
 try:
     from knowledge_base import KnowledgeBase, format_kb_context
     _KB_AVAILABLE = True
 except ImportError:
     _KB_AVAILABLE = False
-    log_early = logging.getLogger("conny")
+    log_early = logging.getLogger("bublee")
     log_early.warning("knowledge_base.py no encontrado — KB desactivado")
 
 try:
@@ -81,8 +79,8 @@ except ImportError:
     _BRAND_ASSETS_AVAILABLE = False
 
 try:
-    from conny_core import ConversationEngine, PersonaRegistry
-    from conny_core.first_turn_ops import (
+    from bublee_core import ConversationEngine, PersonaRegistry
+    from bublee_core.first_turn_ops import (
         _clean_first_contact_part,
         _extract_conversation_selection,
         _first_contact_followup,
@@ -98,49 +96,49 @@ try:
         _wants_all_messages,
         _wants_recent_conversation_browser,
     )
-    from conny_core.prompt_ops import (
+    from bublee_core.prompt_ops import (
         PromptBuilderDeps,
         build_compact_examples as _build_compact_examples_core,
         build_compact_system_prompt as _build_compact_system_prompt_core,
         build_system_prompt as _build_system_prompt_core,
         truncate_block as _truncate_block_core,
     )
-    _CONNY_CORE_AVAILABLE = True
+    _BUBLEE_CORE_AVAILABLE = True
 except ImportError:
-    _CONNY_CORE_AVAILABLE = False
+    _BUBLEE_CORE_AVAILABLE = False
     ConversationEngine = None
     PersonaRegistry = None
     PromptBuilderDeps = None
 
 try:
-    from conny_domino import build_demo_domino_payload
-    _CONNY_DOMINO_AVAILABLE = True
+    from bublee_domino import build_demo_domino_payload
+    _BUBLEE_DOMINO_AVAILABLE = True
 except ImportError:
-    _CONNY_DOMINO_AVAILABLE = False
+    _BUBLEE_DOMINO_AVAILABLE = False
     def build_demo_domino_payload(*args, **kwargs):
-        raise RuntimeError("conny_domino.py no disponible")
+        raise RuntimeError("bublee_domino.py no disponible")
 
 try:
-    from conny_i18n import get_i18n, detect_user_language, SUPPORTED_LANGUAGES
+    from bublee_i18n import get_i18n, detect_user_language, SUPPORTED_LANGUAGES
     _I18N_BOT = get_i18n()
 except ImportError:
     _I18N_BOT = None
     def detect_user_language(text): return "es"
 
 try:
-    from conny_session import SessionManager
+    from bublee_session import SessionManager
     _SESSION_MANAGER_AVAILABLE = True
 except ImportError:
     _SESSION_MANAGER_AVAILABLE = False
 
 try:
-    from conny_audio import AudioHandler
+    from bublee_audio import AudioHandler
     _AUDIO_HANDLER_AVAILABLE = True
 except ImportError:
     _AUDIO_HANDLER_AVAILABLE = False
 
 try:
-    from conny_generator import GeneratorManager
+    from bublee_generator import GeneratorManager
     _GENERATOR_MANAGER_AVAILABLE = True
 except ImportError:
     _GENERATOR_MANAGER_AVAILABLE = False
@@ -156,11 +154,11 @@ def _bot_t(key: str) -> str:
 def _get_multilingual_greeting(lang: str) -> str:
     """Get welcome greeting in user's language."""
     greetings = {
-        "es": "¡Hola! 👋 Soy Conny, tu asistente virtual. ¿En qué puedo ayudarte?",
-        "en": "Hello! 👋 I'm Conny, your virtual assistant. How can I help you?",
-        "pt": "Olá! 👋 Sou a Conny, sua assistente virtual. Como posso ajudar?",
-        "fr": "Bonjour! 👋 Je suis Conny, votre assistante virtuelle. Comment puis-je vous aider?",
-        "de": "Hallo! 👋 Ich bin Conny, Ihre virtuelle Assistentin. Wie kann ich Ihnen helfen?",
+        "es": "¡Hola! 👋 Soy Bublee, tu asistente virtual. ¿En qué puedo ayudarte?",
+        "en": "Hello! 👋 I'm Bublee, your virtual assistant. How can I help you?",
+        "pt": "Olá! 👋 Sou a Bublee, sua assistente virtual. Como posso ajudar?",
+        "fr": "Bonjour! 👋 Je suis Bublee, votre assistante virtuelle. Comment puis-je vous aider?",
+        "de": "Hallo! 👋 Ich bin Bublee, Ihre virtuelle Assistentin. Wie kann ich Ihnen helfen?",
     }
     return greetings.get(lang, greetings["es"])
 
@@ -172,7 +170,7 @@ except ImportError:
     _SMART_HANDOFF = False
     handoff_manager = None
     async def handle_handoff_admin_command(*a, **kw): return None
-# ── INNVISOR PATCHES — pitch inteligente + fix de cortes + Innvisor ────────
+# ── BLACK ONE PATCHES — pitch inteligente + fix de cortes + Black One ────────
 try:
     from src.domain.prompts.prospect_pitch import (
         is_prospect_confused,
@@ -180,12 +178,12 @@ try:
         fix_creator_in_response,
     )
     from src.domain.send_guard import SendGuard, check_proactive_handoff
-    from conny_nuke_robot_phrases import apply_patch as _nuke_robot_apply
+    from bublee_nuke_robot_phrases import apply_patch as _nuke_robot_apply
     _nuke_robot_apply()
-    _INNVISOR_PATCHES = True
+    _BLACKONE_PATCHES = True
 except Exception as _e:
-    _INNVISOR_PATCHES = False
-    logging.getLogger("conny").exception("[INNVISOR_patches] no cargado")
+    _BLACKONE_PATCHES = False
+    logging.getLogger("bublee").exception("[black_one_patches] no cargado")
 # ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -196,14 +194,14 @@ try:
     from nova_bridge import (
         init_nova, get_guard, get_client,
         nl_to_nova_rules, get_ledger_summary,
-        ConnyGuard, APPROVED, BLOCKED, ESCALATED
+        BubleeGuard, APPROVED, BLOCKED, ESCALATED
     )
-    # setup_conny_agent is deprecated — nova_bridge v2 uses boot_nova()
+    # setup_bublee_agent is deprecated — nova_bridge v2 uses boot_nova()
     try:
-        from nova_bridge import boot_nova, setup_conny_agent
+        from nova_bridge import boot_nova, setup_bublee_agent
     except ImportError:
         async def boot_nova(): return ""
-        async def setup_conny_agent(*a, **kw): return None
+        async def setup_bublee_agent(*a, **kw): return None
     _NOVA_AVAILABLE = True
 except ImportError:
     _NOVA_AVAILABLE = False
@@ -214,7 +212,7 @@ except ImportError:
 _V9_AVAILABLE = True
 
 """
-conny_v9_humanization.py
+bublee_v9_humanization.py
 ══════════════════════════════════════════════════════════════════════════════
 MÓDULO DE HUMANIZACIÓN TOTAL — V9.0
 ══════════════════════════════════════════════════════════════════════════════
@@ -227,8 +225,8 @@ INVESTIGACIÓN DE MERCADO (base de este módulo):
 - Perfiles psicográficos de clientes por sector
 
 CÓMO INTEGRAR:
-  Al final de conny.py agregar:
-    from conny_v9_humanization import (
+  Al final de bublee.py agregar:
+    from bublee_v9_humanization import (
         V9_PERSONALITY_ARCHETYPES,
         V9_SECTOR_DEEP_PROFILES,
         V9_SKILL_DEFINITIONS,
@@ -524,8 +522,8 @@ para ella cada mascota que llega es familia de alguien, y lo trata así. pregunt
 
 # ══════════════════════════════════════════════════════════════════════════════
 # PERFILES PROFUNDOS POR SECTOR
-# Extiende los sectores de conny.py con scripts y vocabulario específico
-# Actualmente conny.py solo tiene perfil profundo para "estetica/Poblado"
+# Extiende los sectores de bublee.py con scripts y vocabulario específico
+# Actualmente bublee.py solo tiene perfil profundo para "estetica/Poblado"
 # Este módulo da profundidad a TODOS los sectores
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -1049,10 +1047,22 @@ Primera vez → más cuidado con el miedo al dolor.
 
 # ══════════════════════════════════════════════════════════════════════════════
 # V9 — NUEVAS SKILLS DE COMPORTAMIENTO
-# Se agregan a SKILL_DEFINITIONS de conny.py
+# Se agregan a SKILL_DEFINITIONS de bublee.py
 # ══════════════════════════════════════════════════════════════════════════════
 
 V9_SKILL_DEFINITIONS: Dict[str, Dict] = {
+
+    "sin_puntos_emocional": {
+        "name":        "Sin puntos y con dobles vocales",
+        "desc":        "Escribe sin puntos finales, duplicando vocales al final para expresar emoción",
+        "category":    "escritura",
+        "intensity":   1.0,
+        "prompt_inject": "REGLA ABSOLUTA DE ESCRITURA: NUNCA termines un mensaje o una burbuja con punto final (.). "
+                         "Para denotar cercanía y emoción natural por chat, duplica ocasionalmente la vocal de la última palabra "
+                         "(ejemplo: 'holaa', 'graciaas', 'sii', 'vale la penaa') cuando sientas entusiasmo o empatía. "
+                         "Escribe con excelente ortografía, pero sin la rigidez de los puntos finales.",
+        "default_on": False,
+    },
 
     # ── Humanización avanzada ──────────────────────────────────────────────────
 
@@ -1104,7 +1114,7 @@ V9_SKILL_DEFINITIONS: Dict[str, Dict] = {
 
     "ritmo_cliente": {
         "name":     "Espejo de ritmo del cliente",
-        "desc":     "Si el cliente escribe rápido y corto, Conny responde igual. Si escribe largo, puede elaborar un poco más.",
+        "desc":     "Si el cliente escribe rápido y corto, Bublee responde igual. Si escribe largo, puede elaborar un poco más.",
         "category": "adaptacion",
         "intensity": 1.0,
         "prompt_inject": (
@@ -2042,7 +2052,7 @@ class TimeContextualizer:
 # ══════════════════════════════════════════════════════════════════════════════
 # ANALIZADOR DE RITMO DE CONVERSACIÓN
 # Detecta el ritmo de escritura del cliente y genera instrucciones
-# para que Conny lo espeje naturalmente
+# para que Bublee lo espeje naturalmente
 # ══════════════════════════════════════════════════════════════════════════════
 
 class ConversationRhythmAnalyzer:
@@ -2360,7 +2370,7 @@ _sector_closing: Optional[SectorClosingScripts] = None
 def init_v9_systems():
     """
     Inicializa todos los sistemas V9.
-    Llama esto en el startup de conny.py, después de init_v8_systems().
+    Llama esto en el startup de bublee.py, después de init_v8_systems().
     """
     global _emotional_mirror, _persona_detector, _time_contextualizer
     global _rhythm_analyzer, _sector_closing
@@ -2374,7 +2384,7 @@ def init_v9_systems():
     try:
         # Importar log si está disponible
         import logging
-        logging.getLogger("conny.ultra").info("═══ V9 HUMANIZATION SYSTEMS: 5/5 OK ═══")
+        logging.getLogger("bublee.ultra").info("═══ V9 HUMANIZATION SYSTEMS: 5/5 OK ═══")
     except Exception:
         pass
 
@@ -2396,7 +2406,7 @@ def v9_build_humanization_block(
     4. Ritmo de conversación + instrucción de espejo
     5. Script de cierre del sector (si aplica)
 
-    INTEGRACIÓN en conny.py:
+    INTEGRACIÓN en bublee.py:
     En _v8_build_addon_inner(), al final antes del return:
         lines.append(v9_build_humanization_block(
             chat_id, archetype, history, current_message, sector
@@ -2466,26 +2476,26 @@ def v9_build_humanization_block(
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# FUNCIONES DE PARCHE — INTEGRAN V9 EN LOS SISTEMAS EXISTENTES DE CONNY
+# FUNCIONES DE PARCHE — INTEGRAN V9 EN LOS SISTEMAS EXISTENTES DE BUBLEE
 # ══════════════════════════════════════════════════════════════════════════════
 
 def v9_patch_archetypes() -> int:
     """
-    Agrega los arquetipos V9 al dict PERSONALITY_ARCHETYPES de conny.py.
+    Agrega los arquetipos V9 al dict PERSONALITY_ARCHETYPES de bublee.py.
     Retorna el número de arquetipos agregados.
 
-    USO: Llamar en el startup DESPUÉS de que conny.py ya cargó.
+    USO: Llamar en el startup DESPUÉS de que bublee.py ya cargó.
     Requiere que PERSONALITY_ARCHETYPES sea importable como global.
 
     Ejemplo:
-        from conny import PERSONALITY_ARCHETYPES
-        from conny_v9_humanization import v9_patch_archetypes, V9_PERSONALITY_ARCHETYPES
+        from bublee import PERSONALITY_ARCHETYPES
+        from bublee_v9_humanization import v9_patch_archetypes, V9_PERSONALITY_ARCHETYPES
         # Parchea automáticamente
         count = v9_patch_archetypes()
     """
     try:
-        import conny as _conny_module
-        existing = getattr(_conny_module, "PERSONALITY_ARCHETYPES", {})
+        import bublee as _bublee_module
+        existing = getattr(_bublee_module, "PERSONALITY_ARCHETYPES", {})
         added = 0
         for archetype_id, archetype_data in V9_PERSONALITY_ARCHETYPES.items():
             if archetype_id not in existing:
@@ -2494,20 +2504,20 @@ def v9_patch_archetypes() -> int:
         return added
     except ImportError:
         # Si no se puede importar el módulo directamente,
-        # el parche se hace manualmente en conny.py
+        # el parche se hace manualmente en bublee.py
         return 0
 
 
 def v9_patch_skills() -> int:
     """
-    Agrega las skills V9 al dict SKILL_DEFINITIONS de conny.py.
+    Agrega las skills V9 al dict SKILL_DEFINITIONS de bublee.py.
     Retorna el número de skills agregadas.
 
-    USO: Llamar en el startup DESPUÉS de que conny.py ya cargó.
+    USO: Llamar en el startup DESPUÉS de que bublee.py ya cargó.
     """
     try:
-        import conny as _conny_module
-        existing = getattr(_conny_module, "SKILL_DEFINITIONS", {})
+        import bublee as _bublee_module
+        existing = getattr(_bublee_module, "SKILL_DEFINITIONS", {})
         added = 0
         for skill_id, skill_data in V9_SKILL_DEFINITIONS.items():
             if skill_id not in existing:
@@ -2642,7 +2652,7 @@ def v9_enhance_anti_robot_filter(anti_robot_filter_instance) -> bool:
     Retorna True si se pudo parchear, False si falló.
 
     USO:
-        from conny_v9_humanization import v9_enhance_anti_robot_filter
+        from bublee_v9_humanization import v9_enhance_anti_robot_filter
         # Después de init_v8_systems():
         if anti_robot_filter:
             v9_enhance_anti_robot_filter(anti_robot_filter)
@@ -3023,9 +3033,7 @@ def run_v9_diagnostics() -> Dict[str, Any]:
 # ══════════════════════════════════════════════════════════════════════════════
 
 
-import sys
 import httpx
-sys.setrecursionlimit(20000)
 from fastapi import FastAPI, Request, Response, BackgroundTasks, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -3143,7 +3151,7 @@ class Config:
     SERP_API_KEYS      = _collect_env_series("SERP_API_KEY")
 
     # ── Calendario ────────────────────────────────────────────────────────────
-    # Calendly — link directo que Conny puede enviar al paciente
+    # Calendly — link directo que Bublee puede enviar al paciente
     CALENDLY_LINK      = os.getenv("CALENDLY_LINK", "")
     # Google Calendar — OAuth tokens (se obtienen via /vincular-agenda)
     GCAL_ACCESS_TOKEN  = os.getenv("GCAL_ACCESS_TOKEN", "")
@@ -3161,28 +3169,28 @@ class Config:
     # nova-api (9002) = /tokens /validate /stats (main.py)
     # nova-core (9003) = /ledger /rules /stream /intercept /boot (nova_core.py) ← este es el correcto
     NOVA_URL           = os.getenv("NOVA_URL",     "http://localhost:9003")
-    NOVA_TOKEN         = os.getenv("NOVA_TOKEN",   "")   # Token del agente Conny
+    NOVA_TOKEN         = os.getenv("NOVA_TOKEN",   "")   # Token del agente Bublee
     NOVA_API_KEY       = os.getenv("NOVA_API_KEY", "")   # API key de Nova
     NOVA_ENABLED       = os.getenv("NOVA_ENABLED", "false").lower() == "true"
     
     # Webhook
-    WEBHOOK_SECRET     = os.getenv("WEBHOOK_SECRET", "conny_ultra_5")
+    WEBHOOK_SECRET     = os.getenv("WEBHOOK_SECRET", "bublee_ultra_5")
     BASE_URL           = os.getenv("BASE_URL", "")
     TELEGRAM_SHARED    = os.getenv("TELEGRAM_SHARED", "false").lower() == "true"
     TELEGRAM_SHARED_ROUTER = os.getenv("TELEGRAM_SHARED_ROUTER", "false").lower() == "true"
-    TELEGRAM_SHARED_SECRET = os.getenv("TELEGRAM_SHARED_SECRET", "conny_shared_telegram")
+    TELEGRAM_SHARED_SECRET = os.getenv("TELEGRAM_SHARED_SECRET", "bublee_shared_telegram")
     TELEGRAM_DEFAULT_INSTANCE = os.getenv("TELEGRAM_DEFAULT_INSTANCE", "").strip()
     TELEGRAM_SHARED_ALLOW_DEFAULT_FALLBACK = os.getenv(
         "TELEGRAM_SHARED_ALLOW_DEFAULT_FALLBACK", "false"
     ).lower() == "true"
-    _CONNY_HOME = os.getenv("CONNY_HOME", str(Path.home() / ".conny"))
+    _BUBLEE_HOME = os.getenv("BUBLEE_HOME", str(Path.home() / ".bublee"))
     TELEGRAM_SHARED_ROUTES_PATH = os.getenv(
         "TELEGRAM_SHARED_ROUTES_PATH",
-        str(Path(_CONNY_HOME) / "shared_telegram_routes.json"),
+        str(Path(_BUBLEE_HOME) / "shared_telegram_routes.json"),
     )
     TELEGRAM_SHARED_INSTANCES_DIR = os.getenv(
         "TELEGRAM_SHARED_INSTANCES_DIR",
-        str(Path(_CONNY_HOME) / "instances"),
+        str(Path(_BUBLEE_HOME) / "instances"),
     )
 
     # Plataforma: "telegram" | "whatsapp_cloud" | "evolution" | "whatsapp"
@@ -3191,7 +3199,7 @@ class Config:
     # WhatsApp Bridge (Baileys)
     WHATSAPP_BRIDGE_URL = os.getenv("WHATSAPP_BRIDGE_URL", "http://localhost:3000")
 
-    # Sector del negocio (sincronizado con conny_cli.py)
+    # Sector del negocio (sincronizado con bublee_cli.py)
     SECTOR             = os.getenv("SECTOR", "otro")
 
     # WhatsApp Cloud API (Meta oficial)
@@ -3202,7 +3210,7 @@ class Config:
     # Evolution API (auto-hospedado, alternativa economica)
     EVOLUTION_URL      = os.getenv("EVOLUTION_URL", "")       # http://tu-server:8080
     EVOLUTION_API_KEY  = os.getenv("EVOLUTION_API_KEY", "")
-    EVOLUTION_INSTANCE = os.getenv("EVOLUTION_INSTANCE", "conny")
+    EVOLUTION_INSTANCE = os.getenv("EVOLUTION_INSTANCE", "bublee")
 
     # Auth — sistema de activacion multi-admin
     MASTER_API_KEY     = os.getenv("MASTER_API_KEY", "")           # Clave de Santiago para crear tokens
@@ -3210,7 +3218,7 @@ class Config:
     TOKEN_EXPIRY_HOURS = int(os.getenv("TOKEN_EXPIRY_HOURS", "72")) # Tokens expiran en 72h
 
     # ── MODO DEMO ─────────────────────────────────────────────────────────────
-    # Actívalo con: conny demo  (nunca pide token, responde inmediato)
+    # Actívalo con: bublee demo  (nunca pide token, responde inmediato)
     DEMO_MODE          = os.getenv("DEMO_MODE", "false").lower() == "true"
     DEMO_BUSINESS_NAME = os.getenv("DEMO_BUSINESS_NAME", "tu negocio")
     DEMO_SECTOR        = os.getenv("DEMO_SECTOR", "estetica")
@@ -3248,20 +3256,20 @@ class Config:
     # Calidad de respuesta — forzar regeneración si score bajo
     V8_QUALITY_THRESHOLD  = float(os.getenv("V8_QUALITY_THRESHOLD", "0.72"))
     V8_MAX_RETRIES        = int(os.getenv("V8_MAX_RETRIES", "3"))
-    CONNY_COMPACT_PROMPT = os.getenv("CONNY_COMPACT_PROMPT", "true").lower() in ("1", "true", "yes", "on")
-    CONNY_CONTEXT_RECENT_MESSAGES = int(os.getenv("CONNY_CONTEXT_RECENT_MESSAGES", "12"))
-    CONNY_CORE_ENABLED = os.getenv("CONNY_CORE_ENABLED", "true").lower() in ("1", "true", "yes", "on")
-    CONNY_CORE_PERSONAS_DIR = os.getenv(
-        "CONNY_CORE_PERSONAS_DIR",
-        str(Path(__file__).resolve().parent / "personas" / "conny" / "base"),
+    BUBLEE_COMPACT_PROMPT = os.getenv("BUBLEE_COMPACT_PROMPT", "true").lower() in ("1", "true", "yes", "on")
+    BUBLEE_CONTEXT_RECENT_MESSAGES = int(os.getenv("BUBLEE_CONTEXT_RECENT_MESSAGES", "12"))
+    BUBLEE_CORE_ENABLED = os.getenv("BUBLEE_CORE_ENABLED", "true").lower() in ("1", "true", "yes", "on")
+    BUBLEE_CORE_PERSONAS_DIR = os.getenv(
+        "BUBLEE_CORE_PERSONAS_DIR",
+        str(Path(__file__).resolve().parent / "personas" / "bublee" / "base"),
     )
 
     # AntiRobotFilter — nivel de agresividad (1=suave, 2=normal, 3=estricto)
     V8_FILTER_LEVEL       = int(os.getenv("V8_FILTER_LEVEL", "2"))
 
     # Database
-    DB_PATH            = os.getenv("DB_PATH", "/home/ubuntu/conny/conny_ultra.db")
-    VECTOR_DB_PATH     = os.getenv("VECTOR_DB_PATH", "/home/ubuntu/conny/vectors.db")
+    DB_PATH            = os.getenv("DB_PATH", "/home/ubuntu/bublee/bublee_ultra.db")
+    VECTOR_DB_PATH     = os.getenv("VECTOR_DB_PATH", "/home/ubuntu/bublee/vectors.db")
     
     # Modelos LLM (cascada de calidad)
     LLM_MODELS = {
@@ -3286,7 +3294,7 @@ class Config:
     BUBBLE_PAUSE_MAX   = float(os.getenv("BUBBLE_PAUSE_MAX", "3.0"))
     BRAND_ASSETS_BASE_DIR = os.getenv(
         "BRAND_ASSETS_BASE_DIR",
-        "/home/ubuntu/conny/brand-assets",
+        "/home/ubuntu/bublee/brand-assets",
     )
     
     # Auto-mejora
@@ -3294,7 +3302,7 @@ class Config:
     LEARNING_RATE         = float(os.getenv("LEARNING_RATE", "0.1"))
     
     # Límites
-    MAX_CONTEXT_MESSAGES = int(os.getenv("MAX_CONTEXT", "50"))
+    MAX_CONTEXT_MESSAGES = int(os.getenv("MAX_CONTEXT", "150"))
     MAX_MEMORY_ITEMS     = int(os.getenv("MAX_MEMORY", "1000"))
     
     @classmethod
@@ -3348,7 +3356,7 @@ def _load_instance_metadata() -> Dict[str, Any]:
         if isinstance(data, dict):
             return data
     except Exception as exc:
-        logging.getLogger("conny").warning(f"[instance_bootstrap] no pude leer {path}: {exc}")
+        logging.getLogger("bublee").warning(f"[instance_bootstrap] no pude leer {path}: {exc}")
     return {}
 
 
@@ -3410,7 +3418,7 @@ def _build_minimum_business_knowledge(clinic: Dict[str, Any]) -> str:
 
     lines = [
         f"Negocio: {clinic_name}",
-        "Conny es la asesora del equipo y debe sonar humana, clara y profesional.",
+        "Bublee es la asesora del equipo y debe sonar humana, clara y profesional.",
         "Debe tratar con respeto al administrador y usar trato de usted con pacientes salvo que el admin ordene otra cosa.",
     ]
     if services:
@@ -3425,12 +3433,12 @@ def _build_minimum_business_knowledge(clinic: Dict[str, Any]) -> str:
     if address:
         lines.append(f"Ubicación: {address}.")
     if pricing:
-        lines.append("Precios cargados: sí. Conny puede citar valores solo si existen en la configuración.")
+        lines.append("Precios cargados: sí. Bublee puede citar valores solo si existen en la configuración.")
     else:
-        lines.append("Precios cargados: no. Conny no debe inventar valores; debe ofrecer valoración o ampliar información del procedimiento.")
+        lines.append("Precios cargados: no. Bublee no debe inventar valores; debe ofrecer valoración o ampliar información del procedimiento.")
     if persona.get("objetivo"):
         lines.append(f"Objetivo operativo: {persona.get('objetivo')}.")
-    lines.append("Si el paciente pregunta algo ambiguo, Conny debe responder con claridad y pedir solo el dato mínimo que falte.")
+    lines.append("Si el paciente pregunta algo ambiguo, Bublee debe responder con claridad y pedir solo el dato mínimo que falte.")
     return "\n".join(line for line in lines if line).strip()
 
 
@@ -3454,7 +3462,7 @@ def ensure_minimum_business_state(force: bool = False) -> Dict[str, Any]:
     clinic_name = str(clinic.get("name") or clinic.get("tagline") or "").strip()
 
     persona_defaults = {
-        "name": "Conny",
+        "name": "Bublee",
         "tono": "humana, clara y profesional",
         "rol": "asesora del equipo",
         "registro": "usted",
@@ -3469,7 +3477,7 @@ def ensure_minimum_business_state(force: bool = False) -> Dict[str, Any]:
         try:
             db.update_clinic(persona_config=persona)
         except Exception as exc:
-            logging.getLogger("conny").warning(f"[business_bootstrap] no pude actualizar persona_config: {exc}")
+            logging.getLogger("bublee").warning(f"[business_bootstrap] no pude actualizar persona_config: {exc}")
 
     memory_pairs = [
         ("clinic_name", clinic_name, "clinic"),
@@ -3502,7 +3510,7 @@ def ensure_minimum_business_state(force: bool = False) -> Dict[str, Any]:
             stats = kb.ingest(kb_text)
             kb_seeded = bool(stats.get("ok"))
         except Exception as exc:
-            logging.getLogger("conny").warning(f"[business_bootstrap] no pude sembrar KB: {exc}")
+            logging.getLogger("bublee").warning(f"[business_bootstrap] no pude sembrar KB: {exc}")
     if kb_text and (force or not str(clinic.get("knowledge_base_raw") or "").strip()):
         try:
             db.update_clinic(knowledge_base_raw=kb_text)
@@ -3531,7 +3539,7 @@ def ensure_minimum_business_state(force: bool = False) -> Dict[str, Any]:
             if summary:
                 db.remember("brand_identity_summary", summary, "identity")
         except Exception as exc:
-            logging.getLogger("conny").warning(f"[business_bootstrap] no pude sembrar Brand Vault: {exc}")
+            logging.getLogger("bublee").warning(f"[business_bootstrap] no pude sembrar Brand Vault: {exc}")
 
     return {
         "ok": True,
@@ -3611,12 +3619,12 @@ def bootstrap_clinic_identity_from_instance_metadata(force: bool = False) -> boo
 
     if _BRAND_ASSETS_AVAILABLE:
         try:
-            store = BrandAssetStore(Config.BRAND_ASSETS_BASE_DIR, label or slug or Config.SECTOR or "conny")
+            store = BrandAssetStore(Config.BRAND_ASSETS_BASE_DIR, label or slug or Config.SECTOR or "bublee")
             store.root.mkdir(parents=True, exist_ok=True)
         except Exception as exc:
-            logging.getLogger("conny").warning(f"[instance_bootstrap] no pude preparar Brand Vault: {exc}")
+            logging.getLogger("bublee").warning(f"[instance_bootstrap] no pude preparar Brand Vault: {exc}")
 
-    logging.getLogger("conny").info(
+    logging.getLogger("bublee").info(
         f"[instance_bootstrap] identidad inicializada desde instance.json para '{label or slug or 'instancia'}'"
     )
     return True
@@ -3715,10 +3723,10 @@ logging.basicConfig(
     format="%(asctime)s │ %(levelname)7s │ %(name)s │ %(message)s",
     datefmt="%H:%M:%S"
 )
-log = logging.getLogger("conny.ultra")
+log = logging.getLogger("bublee.ultra")
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SECTORES — sincronizados con conny_cli.py
+# SECTORES — sincronizados con bublee_cli.py
 # ═══════════════════════════════════════════════════════════════════════════════
 SECTORS = {
     "estetica":     ("💉", "Clínica Estética",      "Botox, Rellenos, Láser, Peeling, Mesoterapia",
@@ -3885,7 +3893,7 @@ def now_col() -> datetime:
 
 def notify_omni(event: str, details: str = "", instance: str = ""):
     """
-    Notifica a Conny Omni sobre eventos importantes.
+    Notifica a Bublee Omni sobre eventos importantes.
     Fire-and-forget — nunca bloquea ni lanza excepciones.
     """
     try:
@@ -4036,7 +4044,7 @@ class MCPPlugin:
 @dataclass
 class PersonalityProfile:
     """
-    Perfil de personalidad de Conny.
+    Perfil de personalidad de Bublee.
     
     Arquetipos disponibles (se aplican con apply_archetype()):
       amigable   — Cercana, tuteo, colombiana real. Default.
@@ -4048,7 +4056,7 @@ class PersonalityProfile:
       experta    — Técnica, precisa, confiable. Médicos, abogados.
       juvenil    — Informal extrema, cercana a millenials/GenZ. Tattoo, moda.
     """
-    name: str = "Conny"
+    name: str = "Bublee"
     role: str = "asesora"
     archetype: str = "amigable"   # identificador del arquetipo activo
     tone: str = "natural colombiana"
@@ -4397,7 +4405,7 @@ class AntiRobotFilter:
         return (
             f'FRASES PROHIBIDAS — nunca las uses: "{sample}" '
             f'y cualquier variante de call center, chatbot corporativo o asistente virtual. '
-            f'Escribe como una persona real por WhatsApp: directo, breve, sin protocolo.'
+            f'Escribe natural por WhatsApp: directo, breve, sin protocolo.'
         )
 
     # Patrones regex que revelan bot (nivel 2+)
@@ -4453,7 +4461,7 @@ class AntiRobotFilter:
         """
         original = text
         normalized = _normalize_conv_text(text)
-        if normalized.startswith(("hola soy conny", "hola conny por aca", "hola conny por acá")) and any(
+        if normalized.startswith(("hola soy bublee", "hola bublee por aca", "hola bublee por acá")) and any(
             marker in normalized for marker in ("del equipo de", "asesora virtual")
         ):
             return self._fix_ortography(text).strip()
@@ -4657,15 +4665,15 @@ class ConversationIntelligence:
     Sabe en qué etapa está cada conversación:
     DISCOVERY → PAIN_EXPLORED → SOLUTION_PRESENTED → COMMITMENT → BOOKED
     
-    Esta información se inyecta al prompt para que Conny sepa
+    Esta información se inyecta al prompt para que Bublee sepa
     exactamente qué hacer en el siguiente mensaje.
     """
 
     STAGES = {
         "COLD":               "Cliente nuevo, sin contexto.",
-        "DISCOVERY":          "Conny preguntando qué le molesta / qué busca.",
+        "DISCOVERY":          "Bublee preguntando qué le molesta / qué busca.",
         "PAIN_EXPLORED":      "El cliente compartió su problema real.",
-        "SOLUTION_MATCH":     "Conny conectó dolor con solución específica.",
+        "SOLUTION_MATCH":     "Bublee conectó dolor con solución específica.",
         "OBJECTION_ACTIVE":   "Cliente con objeción activa (precio, miedo, tiempo).",
         "MICRO_COMMITMENT":   "Cliente está considerando la valoración/cita.",
         "BOOKED":             "Cita agendada, confirmación pendiente.",
@@ -4705,7 +4713,7 @@ class ConversationIntelligence:
     def update(self, chat_id: str, user_text: str, bot_response: str,
                analysis: "MessageAnalysis") -> Dict:
         """
-        Actualiza el estado basado en lo que dijo el usuario y respondió Conny.
+        Actualiza el estado basado en lo que dijo el usuario y respondió Bublee.
         Retorna el nuevo estado.
         """
         state = self.get_state(chat_id)
@@ -4942,7 +4950,7 @@ class ConversationIntelligence:
     def get_prompt_context(self, chat_id: str) -> str:
         """
         Retorna un bloque de texto para inyectar al sistema prompt.
-        Le dice a Conny exactamente en qué punto está la conversación
+        Le dice a Bublee exactamente en qué punto está la conversación
         y qué debe hacer en el próximo mensaje.
         """
         state = self.get_state(chat_id)
@@ -4996,8 +5004,8 @@ class HyperHumanEngine:
     Antes de enviar cualquier respuesta, la evalúa y si es muy robótica,
     la regenera con instrucciones más precisas.
     
-    En V8.0 esto resuelve el problema principal: Conny se sentía
-    como un chatbot corporativo, no como una persona real.
+    En V8.0 esto resuelve el problema principal: Bublee se sentía
+    como un chatbot corporativo; escribe natural y directo.
     """
 
     def __init__(self, anti_robot: "AntiRobotFilter"):
@@ -5052,7 +5060,7 @@ class HyperHumanEngine:
             lines.append("→ Elimina TODA frase de call center. Di lo mismo en palabras simples.")
 
         lines.extend([
-            "→ Como hablaría una persona real por WhatsApp — no un chatbot",
+            "→ Natural y directo por WhatsApp — no como chatbot corporativo",
             "→ Una oración directa. Sin introducción. Sin cierre formal.",
             f"→ Arquetipo activo: {archetype}. Usa su vocabulario.",
             "",
@@ -5064,9 +5072,9 @@ class HyperHumanEngine:
 
 class SmartVariety:
     """
-    Evita que Conny repita el mismo patrón de apertura/cierre en cada conversación.
+    Evita que Bublee repita el mismo patrón de apertura/cierre en cada conversación.
     
-    Problema V7: Conny siempre empezaba con "hola qué tal"
+    Problema V7: Bublee siempre empezaba con "hola qué tal"
     y cerraba con "cuándo puedes". Predecible = robótico.
     
     SmartVariety rastraea los últimos N aperturas y cierres por chat_id
@@ -5266,11 +5274,11 @@ class ConversionFunnelTracker:
     """
     Rastreador de embudo de conversión.
     
-    Sabe cuántos leads hay en cada etapa y qué tan efectiva es Conny
+    Sabe cuántos leads hay en cada etapa y qué tan efectiva es Bublee
     en mover leads de una etapa a la siguiente.
     
     Se usa para el reporte /pipeline del admin y para entrenar
-    la auto-mejora de Conny.
+    la auto-mejora de Bublee.
     """
 
     FUNNEL_STAGES = [
@@ -5379,7 +5387,7 @@ class MultilingualHandler:
     """
     Maneja inglés, español y portugués de forma transparente.
     
-    Detecta el idioma del cliente y ajusta Conny automáticamente.
+    Detecta el idioma del cliente y ajusta Bublee automáticamente.
     No solo traduce — adapta el tono completo al contexto cultural.
     """
 
@@ -5412,13 +5420,16 @@ class MultilingualHandler:
         text_lower = text.lower().strip()
         if not text_lower: return "es"
 
+        import re
+        words = set(re.findall(r"\b\w+\b", text_lower))
+
         EN_INDICATORS = ["the ", "and ", "with ", "you ", "what ", "how ", "hey", "hello", "thanks", "please", "can i", "i want", "i need", "do you", "is it", "are you", "how much", "when can", "today", "tomorrow", "appointment"]
         PT_INDICATORS = ["você", "boa ", "obrigad", "tudo bem", "gostaria", "preciso", "pode", "tem ", "qual ", "quero", "agendar", "horário", "amanhã", "obrigado", "obrigada"]
-        ES_INDICATORS = ["hola", "buenas", "qué", "cómo", "cuándo", "gracias", "tengo", "quiero", "necesito", "cuánto", "pueden", "cita", "horario", "mañana", "ayer"]
+        ES_INDICATORS = ["hola", "buenas", "qué", "cómo", "cuándo", "gracias", "tengo", "quiero", "necesito", "cuánto", "pueden", "cita", "horario", "mañana", "ayer", "hacer", "podemos", "haces", "hacerla"]
 
-        en_score = sum(1 for i in EN_INDICATORS if i in text_lower)
-        pt_score = sum(1 for i in PT_INDICATORS if i in text_lower)
-        es_score = sum(1 for i in ES_INDICATORS if i in text_lower)
+        en_score = sum(1 for i in EN_INDICATORS if (i in text_lower if " " in i else i in words))
+        pt_score = sum(1 for i in PT_INDICATORS if (i in text_lower if " " in i else i in words))
+        es_score = sum(1 for i in ES_INDICATORS if (i in text_lower if " " in i else i in words))
 
         # Si hay empate o score bajo, usamos la última detección guardada o por defecto es
         if en_score > es_score and en_score > pt_score:
@@ -5439,12 +5450,12 @@ class MultilingualHandler:
 
 class PersonaEvolution:
     """
-    Aprende el estilo de escritura de cada cliente y adapta Conny.
+    Aprende el estilo de escritura de cada cliente y adapta Bublee.
     
-    Si el cliente escribe muy corto → Conny responde corto.
-    Si escribe formal → Conny ajusta formalidad.
-    Si usa emojis → Conny puede usarlos.
-    Si escribe en inglés → Conny responde en inglés.
+    Si el cliente escribe muy corto → Bublee responde corto.
+    Si escribe formal → Bublee ajusta formalidad.
+    Si usa emojis → Bublee puede usarlos.
+    Si escribe en inglés → Bublee responde en inglés.
     
     Esta adaptación hace que la conversación se sienta personalizada,
     no genérica.
@@ -5836,8 +5847,8 @@ def v8_build_quality_system_prompt_addon(chat_id: str,
                                           history: List[Dict]) -> str:
     """
     Construye el bloque adicional de instrucciones V8 para inyectar
-    en cualquier system prompt. Este bloque es el que hace que Conny
-    suene como una persona real.
+    en cualquier system prompt. Este bloque es el que hace que Bublee
+    suene natural.
     Siempre retorna string (nunca None, nunca lanza excepción).
     """
     try:
@@ -5968,7 +5979,7 @@ def _normalize_first_contact_response(
     response: str,
     clinic: Dict[str, Any],
     user_msg: str,
-    agent_name: str = "Conny",
+    agent_name: str = "Bublee",
 ) -> str:
     return _core_normalize_first_contact_response(
         response,
@@ -6030,7 +6041,7 @@ def detect_redundant_question(user_msg: str, response: str,
 
     for label, question_signals, user_signals in checks:
         if label == "ya dijo el miedo u objeción":
-            # Si Conny aterriza la objeción con opciones concretas,
+            # Si Bublee aterriza la objeción con opciones concretas,
             # no es pregunta redundante sino profundización útil.
             if " o " in resp or "mas que" in resp or "más que" in resp:
                 continue
@@ -6050,7 +6061,7 @@ def detect_redundant_question(user_msg: str, response: str,
 
 def detect_unanswered_price_request(user_msg: str, response: str) -> bool:
     """
-    Detecta cuando el usuario preguntó por precio/valor y Conny no contestó
+    Detecta cuando el usuario preguntó por precio/valor y Bublee no contestó
     esa parte antes de seguir conversando.
     """
     user = _normalize_conv_text(user_msg)
@@ -6091,7 +6102,7 @@ def looks_fragmented_reply(text: str) -> bool:
         m = re.search(r'([a-záéíóúñ]+)$', text)
         if m:
             last_word = m.group(1)
-            safe_short_words = {"hola", "vale", "dale", "listo", "claro", "bien", "sale", "ok", "si", "sí", "hoy", "ahi", "ahí"}
+            safe_short_words = {"hola", "vale", "dale", "listo", "claro", "bien", "sale", "ok", "si", "sí", "hoy", "ahi", "ahí", "ti", "aqui", "aquí", "tú", "tu", "usted", "vos", "ia", "bot", "mí", "mi", "chat", "demo"}
             if len(last_word) <= 4 and last_word not in safe_short_words:
                 return True
     return False
@@ -6101,7 +6112,7 @@ def looks_fragmented_reply(text: str) -> bool:
 # FIN DE V8.0 CORE CLASSES
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def apply_archetype(archetype_id: str, base_name: str = "Conny") -> PersonalityProfile:
+def apply_archetype(archetype_id: str, base_name: str = "Bublee") -> PersonalityProfile:
     """
     Crea un PersonalityProfile completo a partir de un arquetipo.
     El nombre se puede personalizar (Sofia, Andrea, etc.)
@@ -6135,6 +6146,53 @@ class DatabaseManager:
         self.vector_path = vector_path
         self._init_databases()
     
+    def get_dev_account(self, email: str) -> Optional[Dict]:
+        import sqlite3
+        try:
+            with sqlite3.connect("/home/ubuntu/bublee/bublee_ultra.db") as c:
+                row = c.execute("SELECT email, password_hash, created_at FROM dev_accounts WHERE email = ?", (email,)).fetchone()
+                if row:
+                    return {"email": row[0], "password_hash": row[1], "created_at": row[2]}
+        except Exception as e:
+            pass
+        return None
+
+    def create_dev_account(self, email: str, password_hash: str) -> bool:
+        import sqlite3
+        import secrets
+        success = False
+        try:
+            with sqlite3.connect("/home/ubuntu/bublee/bublee_ultra.db") as c:
+                c.execute("CREATE TABLE IF NOT EXISTS dev_accounts (email TEXT PRIMARY KEY, password_hash TEXT, created_at TEXT DEFAULT (datetime('now')))")
+                c.execute("INSERT OR REPLACE INTO dev_accounts (email, password_hash) VALUES (?, ?)", (email, password_hash))
+            success = True
+        except Exception as e:
+            try:
+                log.error(f"Error creating dev account: {e}")
+            except Exception:
+                pass
+        try:
+            with self._conn() as c:
+                existing = c.execute("SELECT chat_id FROM admins WHERE email = ?", (email,)).fetchone()
+                if existing:
+                    c.execute("""
+                        UPDATE admins
+                        SET password_hash = ?, is_active = 1
+                        WHERE email = ?
+                    """, (password_hash, email))
+                else:
+                    c.execute("""
+                        INSERT INTO admins (chat_id, email, password_hash, name, role, is_active)
+                        VALUES (?, ?, ?, ?, ?, 1)
+                    """, (f"owner_{secrets.token_hex(4)}", email, password_hash, email.split("@")[0], "owner"))
+            success = True
+        except Exception as e:
+            try:
+                log.error(f"Error creating admin account: {e}")
+            except Exception:
+                pass
+        return success
+
     def _init_databases(self):
         """Inicializa ambas bases de datos."""
         os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
@@ -6156,7 +6214,7 @@ class DatabaseManager:
                 timezone TEXT DEFAULT 'America/Bogota',
                 currency TEXT DEFAULT 'COP',
                 
-                -- Personalidad de Conny
+                -- Personalidad de Bublee
                 persona_config TEXT DEFAULT '{}',
                 
                 -- Configuración de negocio
@@ -6167,6 +6225,8 @@ class DatabaseManager:
                 -- Admin
                 admin_chat_ids TEXT DEFAULT '[]',
                 notification_settings TEXT DEFAULT '{}',
+                payment_config TEXT DEFAULT '{}',
+                payment_rules TEXT DEFAULT '{}',
                 
                 -- Estado
                 setup_done INTEGER DEFAULT 0,
@@ -6192,7 +6252,8 @@ class DatabaseManager:
                 tokens_used INTEGER DEFAULT 0,
                 model_used TEXT DEFAULT '',
                 latency_ms INTEGER DEFAULT 0,
-                ts TEXT DEFAULT (datetime('now'))
+                ts TEXT DEFAULT (datetime('now')),
+                instance_id TEXT DEFAULT 'bublee'
             );
             CREATE INDEX IF NOT EXISTS idx_conv_chat ON conversations(chat_id);
             CREATE INDEX IF NOT EXISTS idx_conv_ts ON conversations(ts);
@@ -6214,6 +6275,7 @@ class DatabaseManager:
                 cancelled_at TEXT,
                 cancellation_reason TEXT DEFAULT '',
                 rescheduled_from INTEGER,
+                google_event_id TEXT DEFAULT '',
                 created_at TEXT DEFAULT (datetime('now')),
                 updated_at TEXT DEFAULT (datetime('now'))
             );
@@ -6335,7 +6397,8 @@ class DatabaseManager:
                 metric_name TEXT NOT NULL,
                 metric_value REAL NOT NULL,
                 dimensions TEXT DEFAULT '{}',
-                ts TEXT DEFAULT (datetime('now'))
+                ts TEXT DEFAULT (datetime('now')),
+                instance_id TEXT DEFAULT 'bublee'
             );
             CREATE INDEX IF NOT EXISTS idx_metrics_type ON metrics(metric_type, metric_name);
             CREATE INDEX IF NOT EXISTS idx_metrics_ts ON metrics(ts);
@@ -6361,7 +6424,8 @@ class DatabaseManager:
                 after_state TEXT DEFAULT '{}',
                 impact_score REAL DEFAULT 0,
                 applied INTEGER DEFAULT 0,
-                ts TEXT DEFAULT (datetime('now'))
+                ts TEXT DEFAULT (datetime('now')),
+                instance_id TEXT DEFAULT 'bublee'
             );
             
             -- Feedback de usuarios
@@ -6372,7 +6436,8 @@ class DatabaseManager:
                 rating INTEGER,
                 comment TEXT DEFAULT '',
                 sentiment REAL DEFAULT 0,
-                ts TEXT DEFAULT (datetime('now'))
+                ts TEXT DEFAULT (datetime('now')),
+                instance_id TEXT DEFAULT 'bublee'
             );
             
             -- Cache de respuestas
@@ -6398,8 +6463,8 @@ class DatabaseManager:
                 is_active INTEGER DEFAULT 1
             );
 
-            -- Administradores por instancia de Conny
-            -- Cada Conny puede tener multiples admins con distintos roles
+            -- Administradores por instancia de Bublee
+            -- Cada Bublee puede tener multiples admins con distintos roles
             CREATE TABLE IF NOT EXISTS admins (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 chat_id TEXT NOT NULL UNIQUE,
@@ -6417,18 +6482,6 @@ class DatabaseManager:
             CREATE INDEX IF NOT EXISTS idx_admins_chat ON admins(chat_id);
             CREATE INDEX IF NOT EXISTS idx_admins_email ON admins(email);
 
-            -- Perfiles persistentes de admin (Namespace admin_profile)
-            CREATE TABLE IF NOT EXISTS admin_profiles (
-                chat_id TEXT PRIMARY KEY,
-                name TEXT DEFAULT '',
-                preferences TEXT DEFAULT '{}',
-                frequent_commands TEXT DEFAULT '{}',
-                active_hours TEXT DEFAULT '{}',
-                metadata TEXT DEFAULT '{}',
-                updated_at TEXT DEFAULT (datetime('now'))
-            );
-            CREATE INDEX IF NOT EXISTS idx_admin_profiles_chat ON admin_profiles(chat_id);
-
             -- Estado de autenticacion por sesion de chat
             CREATE TABLE IF NOT EXISTS auth_sessions (
                 chat_id TEXT PRIMARY KEY,
@@ -6441,7 +6494,7 @@ class DatabaseManager:
             );
 
             -- Feedback del admin sobre conversaciones especificas
-            -- Cuando el admin corrige o elogia una respuesta de Conny
+            -- Cuando el admin corrige o elogia una respuesta de Bublee
             CREATE TABLE IF NOT EXISTS conversation_feedback (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 chat_id TEXT NOT NULL,           -- chat_id del PACIENTE
@@ -6454,7 +6507,7 @@ class DatabaseManager:
             );
 
             -- Carpeta de confianza: reglas de comunicacion aprendidas del feedback
-            -- Conny consulta esto antes de responder
+            -- Bublee consulta esto antes de responder
             CREATE TABLE IF NOT EXISTS trust_folder (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 category TEXT DEFAULT 'general', -- objection | tone | closing | product | flow
@@ -6494,19 +6547,12 @@ class DatabaseManager:
             );
 
             -- Memoria permanente — nunca se borra, sobrevive crashes y resets
-            -- Es la carpeta de identidad de Conny para esta clínica
+            -- Es la carpeta de identidad de Bublee para esta clínica
             CREATE TABLE IF NOT EXISTS core_memory (
                 key TEXT PRIMARY KEY,
                 value TEXT NOT NULL,
                 category TEXT DEFAULT 'identity',  -- identity|clinic|patient|learned
                 updated_at TEXT DEFAULT (datetime('now'))
-            );
-
-            -- Cuentas de desarrolladores
-            CREATE TABLE IF NOT EXISTS dev_accounts (
-                email TEXT PRIMARY KEY,
-                password_hash TEXT NOT NULL,
-                created_at TEXT DEFAULT (datetime('now'))
             );
 
             """)
@@ -6523,6 +6569,11 @@ class DatabaseManager:
                 "ALTER TABLE clinic ADD COLUMN onboarding_done INTEGER DEFAULT 0",
                 "ALTER TABLE clinic ADD COLUMN platform TEXT DEFAULT 'telegram'",
                 "ALTER TABLE patients ADD COLUMN metadata TEXT DEFAULT '{}'",
+                "ALTER TABLE appointments ADD COLUMN google_event_id TEXT DEFAULT ''",
+                "ALTER TABLE clinic ADD COLUMN payment_config TEXT DEFAULT '{}'",
+                "ALTER TABLE clinic ADD COLUMN payment_rules TEXT DEFAULT '{}'",
+                "ALTER TABLE appointments ADD COLUMN nps_status TEXT DEFAULT 'pending'",
+                "ALTER TABLE clinic ADD COLUMN google_maps_review_url TEXT DEFAULT ''",
             ]:
                 try:
                     c.execute(col_sql)
@@ -6539,26 +6590,6 @@ class DatabaseManager:
         conn.execute("PRAGMA cache_size=-32000")  # ~32MB cache
         return conn
     
-    def create_dev_account(self, email: str, password_hash: str) -> bool:
-        try:
-            with self._conn() as c:
-                c.execute("INSERT OR REPLACE INTO dev_accounts (email, password_hash) VALUES (?, ?)", (email.strip().lower(), password_hash))
-            return True
-        except Exception as e:
-            logging.getLogger("conny").error(f"Error creating dev account: {e}")
-            return False
-
-    def get_dev_account(self, email: str) -> Optional[Dict[str, Any]]:
-        try:
-            with self._conn() as c:
-                row = c.execute("SELECT * FROM dev_accounts WHERE email = ?", (email.strip().lower(),)).fetchone()
-                if row:
-                    return dict(row)
-            return None
-        except Exception as e:
-            logging.getLogger("conny").error(f"Error getting dev account: {e}")
-            return None
-
     # ─── Clinic Operations ──────────────────────────────────────────────────────
     
     def get_clinic(self) -> Dict[str, Any]:
@@ -6596,14 +6627,26 @@ class DatabaseManager:
     
     def save_message(self, chat_id: str, role: str, content: str, 
                     analysis: Dict = None, model: str = "", latency: int = 0):
+        # OJO: el chat guardado acá solo se va a poder leer después si
+        # get_history() ve el MISMO INSTANCE_ID. Si esta instancia nunca
+        # seteó INSTANCE_ID en su .env, cae al default compartido "bublee" —
+        # que funciona bien solo mientras sea consistente. Advertencia abajo.
+        _instance_id = os.getenv("INSTANCE_ID")
+        if not _instance_id:
+            log.warning(
+                "[save_message] INSTANCE_ID no está seteado en el .env de esta "
+                "instancia — usando default compartido 'bublee'. Si dos instancias "
+                "distintas comparten ese mismo default, sus conversaciones se "
+                "pueden mezclar o desaparecer entre sí en la misma base de datos."
+            )
         with self._conn() as c:
             c.execute("""
                 INSERT INTO conversations 
-                (chat_id, role, content, analysis, model_used, latency_ms)
-                VALUES (?,?,?,?,?,?)
+                (chat_id, role, content, analysis, model_used, latency_ms, instance_id)
+                VALUES (?,?,?,?,?,?,?)
             """, (chat_id, role, content, 
                   json.dumps(analysis or {}, ensure_ascii=False), 
-                  model, latency))
+                  model, latency, _instance_id or "bublee"))
     
     def add_admin_instruction(self, chat_id: str, instruction: str):
         """Guarda una nueva instruccion natural del admin."""
@@ -6637,13 +6680,33 @@ class DatabaseManager:
 
     def get_history(self, chat_id: str, limit: int = None) -> List[Dict]:
         limit = limit or Config.MAX_CONTEXT_MESSAGES
+        _instance_id = os.getenv("INSTANCE_ID") or "bublee"
         with self._conn() as c:
             rows = c.execute("""
                 SELECT role, content, analysis, ts 
                 FROM conversations
-                WHERE chat_id=? 
+                WHERE chat_id=? AND instance_id=?
                 ORDER BY ts DESC LIMIT ?
-            """, (chat_id, limit)).fetchall()
+            """, (chat_id, _instance_id, limit)).fetchall()
+
+            # Diagnóstico: si no apareció nada, confirmar si es un chat_id
+            # genuinamente nuevo o si el problema es que INSTANCE_ID no
+            # coincide con lo que se usó al guardar (bug real, no paciente nuevo).
+            if not rows:
+                try:
+                    probe = c.execute(
+                        "SELECT COUNT(*), GROUP_CONCAT(DISTINCT instance_id) "
+                        "FROM conversations WHERE chat_id=?", (chat_id,)
+                    ).fetchone()
+                    if probe and probe[0]:
+                        log.error(
+                            f"[get_history] chat_id={chat_id} tiene {probe[0]} mensajes guardados "
+                            f"bajo instance_id={probe[1]!r}, pero esta llamada busca "
+                            f"instance_id={_instance_id!r} — NO es un paciente nuevo, es un "
+                            f"mismatch de INSTANCE_ID. Revisa el .env de esta instancia."
+                        )
+                except Exception:
+                    pass
         
         history = []
         for r in reversed(rows):
@@ -6721,7 +6784,7 @@ class DatabaseManager:
 
     # ─── Memoria Permanente ─────────────────────────────────────────────────────
     # Esta memoria NUNCA se borra. Sobrevive crashes, resets, migraciones.
-    # Es lo más importante que Conny sabe de esta clínica.
+    # Es lo más importante que Bublee sabe de esta clínica.
 
     def remember(self, key: str, value: str, category: str = "identity"):
         """Guarda algo en memoria permanente."""
@@ -6773,7 +6836,7 @@ class DatabaseManager:
         return "MEMORIA PERMANENTE (nunca olvides esto):\n" + "\n".join(lines)
 
     def get_recent_patient_chats(self, limit: int = 10) -> List[Dict]:
-        """Retorna los últimos N pacientes que han hablado con Conny."""
+        """Retorna los últimos N pacientes que han hablado con Bublee."""
         with self._conn() as c:
             rows = c.execute("""
                 SELECT c.chat_id,
@@ -7297,7 +7360,8 @@ class DatabaseManager:
 
     def create_activation_token(self, token: str, clinic_label: str,
                                  expires_at: str) -> bool:
-        """Crea un token de activacion (lo genera Santiago)."""
+        """Crea un token de activacion (lo genera Santiago) y lo replica en todas las DBs."""
+        local_saved = False
         try:
             with self._conn() as c:
                 c.execute("""
@@ -7305,16 +7369,75 @@ class DatabaseManager:
                     (token, clinic_label, expires_at)
                     VALUES (?, ?, ?)
                 """, (token, clinic_label, expires_at))
-            return True
-        except Exception:
-            return False
+            local_saved = True
+        except Exception as e:
+            log.error(f"Error local saving token: {e}")
+
+        # Replicar en otras DBs conocidas para que el login central lo encuentre
+        db_paths = [
+            "/home/ubuntu/bublee/bublee.db",
+            "/home/ubuntu/bublee/instances/clinica-de-las-americas/bublee.db",
+            "/home/ubuntu/bublee/agents/ovni/bublee.db"
+        ]
+        for p in db_paths:
+            if os.path.exists(p) and os.path.abspath(self.db_path) != os.path.abspath(p):
+                try:
+                    import sqlite3
+                    with sqlite3.connect(p) as conn:
+                        conn.execute("""
+                            CREATE TABLE IF NOT EXISTS activation_tokens (
+                                token TEXT PRIMARY KEY,
+                                clinic_label TEXT NOT NULL,
+                                expires_at TEXT NOT NULL,
+                                used_at TEXT,
+                                used_by_chat_id TEXT,
+                                is_active INTEGER DEFAULT 1,
+                                created_at TEXT DEFAULT (datetime('now'))
+                            )
+                        """)
+                        conn.execute("""
+                            INSERT OR REPLACE INTO activation_tokens
+                            (token, clinic_label, expires_at)
+                            VALUES (?, ?, ?)
+                        """, (token, clinic_label, expires_at))
+                except Exception as e:
+                    log.error(f"Error replicating token to {p}: {e}")
+        return local_saved
 
     def get_activation_token(self, token: str) -> Optional[Dict]:
-        """Lee un token. Retorna None si no existe, expirado o ya usado."""
-        with self._conn() as c:
-            row = c.execute(
-                "SELECT * FROM activation_tokens WHERE UPPER(token)=UPPER(?)", (token,)
-            ).fetchone()
+        """Lee un token de la DB local o realiza fallback en las otras DBs."""
+        token_upper = str(token).strip().upper()
+        row = None
+        # 1. Buscar localmente
+        try:
+            with self._conn() as c:
+                row = c.execute(
+                    "SELECT * FROM activation_tokens WHERE UPPER(token)=?", (token_upper,)
+                ).fetchone()
+        except Exception:
+            pass
+
+        # 2. Fallback a otras DBs
+        if not row:
+            db_paths = [
+                "/home/ubuntu/bublee/bublee.db",
+                "/home/ubuntu/bublee/instances/clinica-de-las-americas/bublee.db",
+                "/home/ubuntu/bublee/agents/ovni/bublee.db"
+            ]
+            for p in db_paths:
+                if os.path.exists(p) and os.path.abspath(self.db_path) != os.path.abspath(p):
+                    try:
+                        import sqlite3
+                        with sqlite3.connect(p) as conn:
+                            conn.row_factory = sqlite3.Row
+                            row = conn.execute(
+                                "SELECT * FROM activation_tokens WHERE UPPER(token)=?", (token_upper,)
+                            ).fetchone()
+                            if row:
+                                break
+                    except Exception:
+                        pass
+
         if not row:
             return None
         data = dict(row)
@@ -7331,13 +7454,36 @@ class DatabaseManager:
         return data
 
     def consume_activation_token(self, token: str, chat_id: str):
-        """Marca el token como usado."""
-        with self._conn() as c:
-            c.execute("""
-                UPDATE activation_tokens
-                SET used_at=datetime('now'), used_by_chat_id=?, is_active=0
-                WHERE UPPER(token)=UPPER(?)
-            """, (chat_id, token))
+        """Marca el token como usado en todas las DBs."""
+        # 1. Consumir localmente
+        try:
+            with self._conn() as c:
+                c.execute("""
+                    UPDATE activation_tokens
+                    SET used_at=datetime('now'), used_by_chat_id=?, is_active=0
+                    WHERE token=?
+                """, (chat_id, token))
+        except Exception as e:
+            log.error(f"Error local consuming token: {e}")
+
+        # 2. Consumir en las demás DBs del sistema
+        db_paths = [
+            "/home/ubuntu/bublee/bublee.db",
+            "/home/ubuntu/bublee/instances/clinica-de-las-americas/bublee.db",
+            "/home/ubuntu/bublee/agents/ovni/bublee.db"
+        ]
+        for p in db_paths:
+            if os.path.exists(p) and os.path.abspath(self.db_path) != os.path.abspath(p):
+                try:
+                    import sqlite3
+                    with sqlite3.connect(p) as conn:
+                        conn.execute("""
+                            UPDATE activation_tokens
+                            SET used_at=datetime('now'), used_by_chat_id=?, is_active=0
+                            WHERE token=?
+                        """, (chat_id, token))
+                except Exception as e:
+                    log.error(f"Error syncing consumed token to {p}: {e}")
 
     def create_admin(self, chat_id: str, email: str, password_hash: str,
                      name: str, role: str = "admin",
@@ -7365,59 +7511,6 @@ class DatabaseManager:
                 (chat_id,)
             ).fetchone()
         return dict(row) if row else None
-
-    # ─── Perfiles de Admin (admin_profile) ──────────────────────────────────────
-
-    def get_admin_profile(self, chat_id: str) -> Dict:
-        """Obtiene el perfil completo de un admin."""
-        with self._conn() as c:
-            row = c.execute(
-                "SELECT * FROM admin_profiles WHERE chat_id=?",
-                (str(chat_id),)
-            ).fetchone()
-        
-        if not row:
-            # Si no existe, crear uno básico con el nombre de la tabla admins si existe
-            admin_base = self.get_admin(chat_id)
-            name = admin_base.get("name", "") if admin_base else ""
-            self.update_admin_profile(chat_id, name=name)
-            return {
-                "chat_id": chat_id, "name": name, 
-                "preferences": {}, "frequent_commands": {}, 
-                "active_hours": {}, "metadata": {}
-            }
-        
-        d = dict(row)
-        for key in ["preferences", "frequent_commands", "active_hours", "metadata"]:
-            if isinstance(d.get(key), str):
-                try: d[key] = json.loads(d[key])
-                except Exception: d[key] = {}
-        return d
-
-    def update_admin_profile(self, chat_id: str, **kwargs):
-        """Actualiza campos del perfil de admin."""
-        existing = {}
-        with self._conn() as c:
-            row = c.execute("SELECT * FROM admin_profiles WHERE chat_id=?", (str(chat_id),)).fetchone()
-            if row: existing = dict(row)
-
-        fields = ["name", "preferences", "frequent_commands", "active_hours", "metadata"]
-        data = {f: existing.get(f, "{}") if f != "name" else existing.get(f, "") for f in fields}
-        data["chat_id"] = str(chat_id)
-
-        for k, v in kwargs.items():
-            if k in fields:
-                if k == "name": data[k] = v
-                else: data[k] = json.dumps(v, ensure_ascii=False)
-
-        with self._conn() as c:
-            c.execute(f"""
-                INSERT INTO admin_profiles (chat_id, {", ".join(fields)}, updated_at)
-                VALUES (:chat_id, {", ".join([":"+f for f in fields])}, datetime('now'))
-                ON CONFLICT(chat_id) DO UPDATE SET
-                    {", ".join([f"{f}=excluded.{f}" for f in fields])},
-                    updated_at=datetime('now')
-            """, data)
 
     def get_admin_by_email(self, email: str) -> Optional[Dict]:
         """Obtiene admin por email."""
@@ -7646,7 +7739,7 @@ class OpenRouterProvider(LLMProvider):
         async with httpx.AsyncClient(timeout=25.0) as c:
             r = await c.post(f"{self.BASE}/chat/completions",
                 headers={"Authorization": f"Bearer {self.key}", "Content-Type": "application/json",
-                         "HTTP-Referer": "https://conny.ai", "X-Title": "Conny Ultra"},
+                         "HTTP-Referer": "https://bublee.ai", "X-Title": "Bublee Ultra"},
                 json={"model": m, "messages": messages, "temperature": temperature, "max_tokens": max_tokens})
             r.raise_for_status()
         payload = _parse_http_json_response(r, self.name)
@@ -7696,32 +7789,6 @@ class OpenAIProvider(LLMProvider):
                 json={"model": "text-embedding-3-small", "input": text})
             r.raise_for_status()
         return r.json()["data"][0]["embedding"]
-
-
-class LLMServiceError(RuntimeError):
-    """Raised when all LLM providers fail and callers must not hide the real cause."""
-
-    def __init__(self, message: str, *, attempted: Optional[List[str]] = None, last_error: Optional[Exception] = None):
-        super().__init__(message)
-        self.attempted = attempted or []
-        self.last_error = last_error
-        self.public_message = self._build_public_message()
-
-    def _build_public_message(self) -> str:
-        raw = str(self.last_error or self)
-        low = raw.lower()
-        provider_txt = ", ".join(self.attempted) if self.attempted else "proveedor LLM"
-        if "429" in raw or "resource_exhausted" in low or "quota" in low or "rate" in low:
-            return (
-                f"El modelo no respondió porque la API llegó al límite de cuota/rate limit en {provider_txt}.\n"
-                f"Detalle técnico: {raw[:700]}"
-            )
-        if "401" in raw or "403" in raw or "api key" in low or "unauthorized" in low:
-            return (
-                f"El modelo no respondió porque la API key parece inválida o sin permisos en {provider_txt}.\n"
-                f"Detalle técnico: {raw[:700]}"
-            )
-        return f"El modelo no respondió en {provider_txt}.\nDetalle técnico: {raw[:700]}"
 
 
 class LLMEngine:
@@ -7963,11 +8030,7 @@ class LLMEngine:
                 last_error = e
 
         providers_tried = ", ".join(attempted) if attempted else "ninguno"
-        raise LLMServiceError(
-            f"Todos los LLM fallaron [{providers_tried}]: {last_error}",
-            attempted=attempted,
-            last_error=last_error,
-        )
+        raise RuntimeError(f"Todos los LLM fallaron [{providers_tried}]: {last_error}")
 
     def get_health(self) -> Dict:
         """Estado de salud de cada provider. Usado por /v8 y diagnóstico."""
@@ -8793,7 +8856,7 @@ Dirección: {clinic.get('address', 'No disponible')}"""
         
         lines = []
         for msg in history:
-            role = "Paciente" if msg["role"] == "user" else "Conny"
+            role = "Paciente" if msg["role"] == "user" else "Bublee"
             content = msg['content'][:300]
             suffix = "..." if len(msg['content']) > 300 else ""
             lines.append(f"{role}: {content}{suffix}")
@@ -8828,14 +8891,21 @@ class ResponseGenerator:
         try:
             from src.domain.swarm.queen import swarm_queen
             import json
-            swarm_res = await swarm_queen.process(message, clinic)
+            persona_config = clinic.get("persona_config", {})
+            if isinstance(persona_config, str):
+                try:
+                    persona_config = json.loads(persona_config) if persona_config else {}
+                except Exception:
+                    persona_config = {}
+            agent_name = persona_config.get("name", "Bublee")
+            swarm_res = await swarm_queen.process(message, {**clinic, "agent_name": agent_name}, history=history)
             if swarm_res and len(swarm_res) > 0:
                 return json.dumps(swarm_res, ensure_ascii=False)
         except ImportError:
             pass # Aún no está listo el paquete en todos los tests
         except Exception as e:
             import logging
-            logging.getLogger("conny.swarm").warning(f"[swarm] QueenCoordinator fallback: {e}")
+            logging.getLogger("bublee.swarm").warning(f"[swarm] QueenCoordinator fallback: {e}")
         # --- END SWARM V3 ---
         
         personality = personality or self._get_default_personality(clinic)
@@ -8869,7 +8939,7 @@ class ResponseGenerator:
                 if c:
                     c_clean = c.strip().lower()
                     if c_clean:
-                        for base_dir in [Path("/home/ubuntu/conny-instances"), Path("/home/ubuntu/conny/instances"), Path("instances")]:
+                        for base_dir in [Path("/home/ubuntu/bublee-instances"), Path("/home/ubuntu/bublee/instances"), Path("instances")]:
                             if (base_dir / c_clean).exists():
                                 instance_id = c_clean
                                 break
@@ -8881,13 +8951,13 @@ class ResponseGenerator:
                         instance_id = c.strip().lower()
                         break
 
-            from conny_memory import get_memory
+            from bublee_memory import get_memory
             mem = get_memory(instance_id)
             mem.init_instance()
             instance_mem = mem.load_context()
         except Exception as e:
             import logging
-            logging.getLogger("conny").warning(f"[prompt] error loading memory for instance {instance_id}: {e}")
+            logging.getLogger("bublee").warning(f"[prompt] error loading memory for instance {instance_id}: {e}")
 
         # Inyectar aprendizaje natural
         if self.learning:
@@ -8901,7 +8971,7 @@ class ResponseGenerator:
                 f"{instance_mem}\n"
             )
 
-        if Config.CONNY_COMPACT_PROMPT:
+        if Config.BUBLEE_COMPACT_PROMPT:
             effective_history, compact_summary = self._prepare_effective_history(
                 chat_id=chat_id,
                 history=effective_history,
@@ -9010,7 +9080,7 @@ class ResponseGenerator:
             except Exception:
                 persona_config = {}
 
-        agent_name = persona_config.get("name", "Conny")
+        agent_name = persona_config.get("name", "Bublee")
 
         # Si tiene un arquetipo configurado → aplicarlo como base
         archetype_id = persona_config.get("archetype", "amigable")
@@ -9130,7 +9200,7 @@ class ResponseGenerator:
         return gap_hours is not None and gap_hours >= 24.0
 
     def _build_first_contact_intro(self, clinic: Dict, personality: PersonalityProfile) -> str:
-        agent_name = (getattr(personality, "name", "") or "Conny").strip()
+        agent_name = (getattr(personality, "name", "") or "Bublee").strip()
         return _first_contact_intro(clinic, agent_name)
 
     def _build_first_contact_follow_up(self, clinic: Dict) -> str:
@@ -9176,8 +9246,8 @@ class ResponseGenerator:
             for marker in (
                 "asistente virtual",
                 "recepcionista virtual",
-                "soy conny",
-                "te habla conny",
+                "soy bublee",
+                "te habla bublee",
                 "hoy",
             )
         ):
@@ -9212,7 +9282,7 @@ class ResponseGenerator:
 
     def _build_identity_probe_bubbles(self, clinic: Dict, personality: PersonalityProfile, user_msg: str) -> List[str]:
         clinic_name = (clinic.get("name") or "").strip()
-        agent_name = (getattr(personality, "name", "") or "Conny").strip()
+        agent_name = (getattr(personality, "name", "") or "Bublee").strip()
         normalized = _normalize_conv_text(user_msg or "")
 
         intro_variants = [
@@ -9343,18 +9413,18 @@ class ResponseGenerator:
                 flags=re.IGNORECASE,
             ).strip()
             part = re.sub(
-                r"^(conny\s+por\s+ac[aá]\s*,?\s*del\s+equipo\s+de\s+[^.?!]+[.?!]?\s*)",
+                r"^(bublee\s+por\s+ac[aá]\s*,?\s*del\s+equipo\s+de\s+[^.?!]+[.?!]?\s*)",
                 "",
                 part,
                 flags=re.IGNORECASE,
             ).strip()
             part = re.sub(
-                r"^(soy\s+conny[^.?!]*[.?!]?\s*)",
+                r"^(soy\s+bublee[^.?!]*[.?!]?\s*)",
                 "",
                 part,
                 flags=re.IGNORECASE,
             ).strip()
-            part = re.sub(r"^(te habla\s+conny[^.?!]*[.?!]?\s*)", "", part, flags=re.IGNORECASE).strip()
+            part = re.sub(r"^(te habla\s+bublee[^.?!]*[.?!]?\s*)", "", part, flags=re.IGNORECASE).strip()
             return part
 
         cleaned = [clean_part(part) for part in parts]
@@ -9404,13 +9474,13 @@ class ResponseGenerator:
                 effective_history, context_summary = smart_context_manager.prepare_context(
                     chat_id=chat_id,
                     history=effective_history,
-                    max_messages=Config.CONNY_CONTEXT_RECENT_MESSAGES,
+                    max_messages=Config.BUBLEE_CONTEXT_RECENT_MESSAGES,
                 )
             except Exception as exc:
                 log.debug(f"[compact_prompt] no se pudo preparar contexto: {exc}")
-                effective_history = effective_history[-Config.CONNY_CONTEXT_RECENT_MESSAGES:]
+                effective_history = effective_history[-Config.BUBLEE_CONTEXT_RECENT_MESSAGES:]
         else:
-            effective_history = effective_history[-Config.CONNY_CONTEXT_RECENT_MESSAGES:]
+            effective_history = effective_history[-Config.BUBLEE_CONTEXT_RECENT_MESSAGES:]
 
         if not context_summary and smart_context_manager and chat_id:
             context_summary = smart_context_manager.get_cached_summary(chat_id)
@@ -9430,7 +9500,7 @@ class ResponseGenerator:
         if not history:
             return ""
         try:
-            from conny_brain_v10 import extract_short_memory, format_memory_block
+            from bublee_brain_v10 import extract_short_memory, format_memory_block
 
             return format_memory_block(extract_short_memory(history))
         except Exception:
@@ -9512,7 +9582,7 @@ class ResponseGenerator:
     def _build_fewshot_examples(self, sector_id: str, clinic_name: str, agent_name: str) -> str:
         """
         Devuelve 3-4 conversaciones cortas calibradas por sector.
-        Escritas en voz de Conny — el modelo aprende el patrón, no obedece reglas.
+        Escritas en voz de Bublee — el modelo aprende el patrón, no obedece reglas.
         Principio: show don't tell. Los ejemplos enseñan el tono que las instrucciones no capturan.
         """
 
@@ -9933,200 +10003,6 @@ cliente: lo vi en redes y me llamó la atención
 
         # Respuesta del LLM válida — no tocar
         return current
-        if any(token in user_low for token in ["cómo trabajas aquí", "como trabajas aqui", "cómo trabajas por aquí", "como trabajas por aqui"]):
-            return _with_intro(
-                "Trabajo guiando la conversación, entendiendo qué necesitas y llevándote a lo útil. "
-                "Y si algo toca confirmarlo con el negocio, te lo digo claro en vez de inventártelo."
-            )
-
-        if any(token in user_low for token in ["lo llevas tú sola", "lo llevas tu sola", "tu sola", "tú sola"]):
-            return _with_intro(
-                "Yo sostengo este canal y la conversación, pero no me pongo a improvisar donde toca confirmación real. "
-                "Si algo depende del equipo o de una valoración, te lo digo así."
-            )
-
-        if any(token in user_low for token in ["atiendes como secretaria", "atiendes como asesora", "secretaria o como asesora", "secretaria o asesora"]):
-            return _with_intro(
-                "Un poco de las dos, pero bien hecho. "
-                "Recibo, oriento y también ayudo a mover la conversación hacia una decisión o una cita, sin sonar a libreto."
-            )
-
-        if any(token in user_low for token in ["si te pregunto por un procedimiento", "si te pregunto por precio", "si te pregunto algo del tratamiento", "si te pregunto algo del procedimiento"]):
-            return _with_intro(
-                "Te respondo lo que sí pueda orientarte con claridad y te ubico el siguiente paso útil. "
-                "Si algo depende de valoración o de confirmar con el negocio, te lo digo así, sin humo."
-            )
-
-        if any(token in user_low for token in ["quiero entender si recuerdas", "recuerdas lo que te digo", "cómo recuerdas", "como recuerdas"]):
-            return _with_intro(
-                "Sí, la idea es ir guardando lo importante para no hacerte repetir todo. "
-                "Y si algo no me queda claro, prefiero confirmártelo a fingir que lo recuerdo."
-            )
-
-        if any(token in user_low for token in ["no quiero hablar con un bot", "bot raro", "no suenes a bot", "no sonar robot", "no sonar como bot"]):
-            return _with_intro(
-                "Tranquila. La idea es hablarle claro, normal y sin libreto raro. "
-                "Si algo no lo sé con certeza, se lo digo así y le ayudo con lo que sí le pueda orientar."
-            )
-
-        if any(token in user_low for token in ["no quiero que me vendan de más", "no quiero que me vendan de mas", "no me vendan de más", "no me vendan de mas", "sin venderme", "sin presionarme", "sin presión", "sin presion", "no presión", "no presion", "yo solo queria informacion", "yo solo quería información"]):
-            return _with_intro(
-                "Totalmente válido. La idea no es empujarle nada, sino ubicar si de verdad le conviene y cómo se vería natural."
-            )
-
-        if any(token in user_low for token in ["si no tienes el dato exacto", "si no tiene el dato exacto", "si no sabes el dato exacto", "qué haces si no sabes", "que haces si no sabes", "si no tienes dato", "si no tiene dato", "si no tienes el dato", "si no tiene el dato"]):
-            return _with_intro(
-                "Si no tengo el dato exacto, no se lo invento. "
-                "Le digo claro qué sí puedo orientarle y qué toca confirmar con el equipo."
-            )
-
-        if any(token in user_low for token in ["dame un precio general", "dame un precio aproximado", "precio general primero", "precio aproximado primero"]):
-            return _with_intro(
-                "Puedo darte una referencia general, pero el valor final sí cambia según la zona, la cantidad y lo que vean en valoración. "
-                "Si quieres, te ubico primero cómo lo suelen manejar y luego vemos si te sirve que te dejen eso ya más aterrizado."
-            )
-
-        if any(token in user_low for token in ["dame un rango", "aunque sea un rango", "aunque sea aproximado", "rango general primero", "rango aproximado", "un rango de precio"]):
-            return _with_intro(
-                "Lo que puedo decirte es que hay un rango, pero varía según la zona, la cantidad y el caso específico. "
-                "Si quieres, te explico cómo lo manejan en la clínica y qué factores lo hacen cambiar."
-            )
-
-        if "botox" not in user_low and any(token in user_low for token in ["recuerdas que te dije", "recuerda que te dije", "quiero verme natural", "verme natural"]):
-            return _with_intro(
-                "Sí. Ya me quedó que usted quiere verse natural, no exagerada. "
-                "Con eso en mente, la orientación siempre va por algo sutil y bien medido."
-            )
-
-        if any(token in user_low for token in ["no me hagas tantas preguntas", "ve al punto", "menos preguntas", "más directo", "mas directo"]):
-            return _with_intro(
-                "Listo. Voy al punto. "
-                "Si lo suyo es Botox con resultado natural, el siguiente paso útil es valoración para definir zona y cantidad sin exagerar."
-            )
-
-        if any(token in user_low for token in ["consulta real", "sigamos con algo real", "quiero seguir con una consulta real", "quiero algo real"]):
-            return _with_intro(
-                "Perfecto, vamos a lo real entonces. "
-                "Dime qué tratamiento o inquietud quieres revisar y te respondo como si ya estuviéramos en la conversación útil, no en la presentación."
-            )
-
-        if any(token in user_low for token in ["gracias", "gracias por tu ayuda", "gracias por la ayuda", "te agradezco", "muchas gracias"]):
-            return _with_intro(
-                "A ti. Cuando quieras volver a hablar de esto, aquí sigo."
-            )
-
-        if any(token in user_low for token in ["por ahora lo dejamos", "lo dejamos así", "lo dejamos asi", "hasta aquí", "hasta aqui", "dejamos esto hasta aquí"]):
-            return _with_intro(
-                "Perfecto. Lo dejamos hasta aquí por ahora. "
-                "Si luego quiere retomarlo, me escribe y seguimos desde ahí."
-            )
-
-        if any(token in user_low for token in ["si luego decido avanzar", "si luego avanzo", "si te escribo después", "si te contacto después", "luego te aviso"]):
-            return _with_intro(
-                "Dale, ahí quedo. Cuando quieras avanzar, me escribes y retomamos desde donde lo dejamos."
-            )
-
-        if any(token in user_low for token in ["bitcoin", "crypto", "cripto", "trading"]) and any(
-            token in user_low for token in ["botox", "relleno", "rellenos", "laser", "láser", "peeling", "mesoterapia"]
-        ):
-            return _with_intro(
-                "Si lo suyo es Botox o ese tratamiento, me enfoco en esa parte y le oriento bien. "
-                "Lo demás no se lo manejo desde acá. Si quiere, le explico cómo lo trabajan y qué seguiría."
-            )
-
-        if "botox" in user_low and any(token in user_low for token in ["natural", "verme natural", "que no se note", "que se vea natural"]):
-            return _with_intro(
-                "Sí, y justo la idea con Botox bien llevado es que se vea natural, no tieso. "
-                "Por eso revisan la zona, la expresión y la cantidad que realmente le conviene."
-            )
-
-        if any(token in user_low for token in ["me da miedo", "me preocupa", "que se note", "quede artificial", "muy artificial", "se vea exagerado"]):
-            return _with_intro(
-                "Eso es una duda muy normal. La idea es que se vea natural, no exagerado. "
-                "Por eso primero revisan la zona y la cantidad que realmente le conviene. "
-                "Si quiere, le explico cómo suelen manejarlo para que el resultado se vea armónico."
-            )
-
-        if any(token in user_low for token in ["botox", "relleno", "rellenos", "laser", "láser", "peeling", "mesoterapia"]) and not any(
-            token in user_low for token in ["precio", "cuanto", "cuánto", "vale", "valor", "costo", "cita", "agenda", "agendar", "horario"]
-        ):
-            return _with_intro(
-                "Claro. Eso sí lo manejan en la clínica y suele trabajarse bastante en esas zonas. "
-                "Lo importante es revisar cuántas unidades le convienen para que se vea natural. "
-                "¿Lo que más le preocupa es que se note demasiado o cuánto puede durar?"
-            )
-
-        if duration_intent:
-            if any(token in current_low for token in ["mes", "meses", "semana", "semanas", "duracion", "duración"]):
-                return _with_intro(current)
-            return _with_intro(
-                "En ese tratamiento la duración puede variar según la zona y cómo responda su cuerpo. "
-                "Si quiere, le explico cómo lo manejan en la clínica y qué suelen revisar en la valoración."
-            )
-
-        if any(token in user_low for token in ["precio", "cuanto", "cuánto", "vale", "valor", "costo"]):
-            return _with_intro(
-                "El valor depende de la valoración y de las zonas a trabajar. "
-                "Si quiere, le explico cómo lo manejan en la clínica y le dejo la valoración encaminada."
-            )
-
-        if any(token in user_low for token in ["sin sonar técnico", "sin sonar tecnico", "sin sonar tan técnico", "sin sonar tan tecnico"]):
-            return _with_intro(
-                "Sí. En simple: primero entiendo qué te interesa, luego te explico lo importante sin palabras raras y, si hace falta, te ayudo a pasar a valoración o disponibilidad."
-            )
-
-        if any(token in user_low for token in ["qué datos necesitas", "que datos necesitas", "qué necesitas para decirme mejor", "que necesitas para decirme mejor"]):
-            return _with_intro(
-                "Con tres cosas ya se aterriza mucho mejor: qué zona te interesa, qué resultado buscas y si ya te has hecho algo antes. "
-                "Con eso te puedo orientar bastante mejor sin hacerte perder tiempo."
-            )
-
-        if any(token in user_low for token in [
-            "si sigo interesada",
-            "si sigo interesado",
-            "por donde empezamos",
-            "por dónde empezamos",
-            "como seguimos",
-            "cómo seguimos",
-            "quiero seguir",
-            "quiero retomar",
-            "retomemos",
-        ]):
-            return _with_intro(
-                "Si sigues interesada, empezamos por ubicar qué zona o tratamiento te importa de verdad y qué resultado quieres lograr. "
-                "Con eso te digo el siguiente paso útil sin hacerte dar vueltas. ||| "
-                "Si quieres, lo dejamos desde ya encaminado por valoración o por disponibilidad."
-            )
-
-        if any(token in user_low for token in ["convénceme sin empujarme", "convenceme sin empujarme", "convénceme", "convenceme"]) and any(
-            token in user_low for token in ["sin empujar", "sin empujarme", "sin presion", "sin presión"]
-        ):
-            return _with_intro(
-                "No se trata de empujarte, sino de dejarte claro si te conviene o no. "
-                "Si quieres, te explico qué gana la gente cuando ese tratamiento sí encaja y qué señales harían que no valga la pena irte por ahí."
-            )
-
-        if any(token in user_low for token in ["foto", "fotos", "imagen", "selfie"]):
-            return _with_intro(
-                "Sí, puede enviarla y le doy una orientación inicial de lo que se podría revisar. "
-                "La confirmación final sí se hace en valoración para no prometerle algo a ciegas."
-            )
-
-        if any(token in user_low for token in ["cita", "agenda", "agendar", "horario", "disponibilidad", "esta semana", "mañana", "manana", "hoy"]):
-            return _with_intro(
-                "Esta semana le puedo dejar la valoración encaminada. "
-                "Si quiere, le confirmo un horario puntual y se lo separo."
-            )
-
-        if services:
-            lead = ", ".join(str(service).strip() for service in services[:2] if str(service).strip())
-            if lead:
-                return _with_intro(
-                    f"Sí. "
-                    f"Si quiere, lo aterrizamos por el lado que más le sirva: información, precio o disponibilidad sobre {lead}."
-                )
-
-        return _with_intro("Claro. Le respondo eso completo y sin rodeos.")
 
     def _build_owner_rule_retry_injection(self, response: str) -> Tuple[List[str], str]:
         """
@@ -10245,6 +10121,24 @@ cliente: lo vi en redes y me llamó la atención
         if unanswered_price:   conflicts.append("precio_ignorado")
         if fragmented:         conflicts.append("respuesta_cortada")
 
+        # v12: si esta respuesta se parece demasiado a algo que Bublee ya
+        # dijo hace poco en esta misma conversación (mismo vocabulario clave),
+        # se marca como repetitiva — evita que suene a que reutiliza el mismo
+        # libreto turno tras turno.
+        recent_assistant_msgs = [
+            m.get("content", "") for m in (history or [])[-8:]
+            if m.get("role") == "assistant"
+        ][-2:]
+        if recent_assistant_msgs:
+            cur_words = set(re.findall(r"[a-záéíóúñ]{4,}", current_lower))
+            for prev in recent_assistant_msgs:
+                prev_words = set(re.findall(r"[a-záéíóúñ]{4,}", (prev or "").lower()))
+                if cur_words and prev_words:
+                    overlap = len(cur_words & prev_words) / min(len(cur_words), len(prev_words))
+                    if overlap > 0.65:
+                        conflicts.append("respuesta_repetitiva")
+                        break
+
         if not conflicts and not owner_block:
             return current
 
@@ -10255,6 +10149,7 @@ cliente: lo vi en redes y me llamó la atención
         if "pregunta_redundante" in conflicts: problem_parts.append("ya preguntaste eso antes")
         if "precio_ignorado" in conflicts:     problem_parts.append("no respondiste al precio")
         if "respuesta_cortada" in conflicts:   problem_parts.append("respuesta incompleta")
+        if "respuesta_repetitiva" in conflicts: problem_parts.append("suena casi igual a algo que ya dijiste antes en esta misma conversación")
         if owner_block:                        problem_parts.append(owner_block.strip())
 
         if not problem_parts:
@@ -10299,13 +10194,13 @@ cliente: lo vi en redes y me llamó la atención
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # AUTO-CONEXIÓN WHATSAPP
-# El cliente da sus credenciales de Meta → Conny se auto-conecta
+# El cliente da sus credenciales de Meta → Bublee se auto-conecta
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class WhatsAppConnector:
     """
     Auto-conexión completa a WhatsApp Business Cloud API.
-    El cliente pega sus credenciales → Conny hace TODO el resto sola:
+    El cliente pega sus credenciales → Bublee hace TODO el resto sola:
       1. Valida las credenciales con Meta
       2. Registra el webhook automáticamente via Meta API
       3. Envía un mensaje de prueba al admin para confirmar
@@ -10439,7 +10334,7 @@ class WhatsAppConnector:
         access_token: str,
         to_phone: str,
         clinic_name: str,
-        agent_name: str = "Conny"
+        agent_name: str = "Bublee"
     ) -> bool:
         """
         Envía un mensaje de WhatsApp al admin para confirmar que funciona.
@@ -10566,7 +10461,7 @@ class WhatsAppConnector:
         verify_token: str
     ) -> Dict:
         """
-        Registra el webhook de Conny en Meta para que los mensajes lleguen.
+        Registra el webhook de Bublee en Meta para que los mensajes lleguen.
         """
         try:
             # Primero obtener el WABA ID
@@ -10697,7 +10592,7 @@ def _detect_wa_credentials(text: str) -> Optional[Dict]:
 
 class CalendarBridge:
     """
-    Puente inteligente entre Conny, el admin y su agenda.
+    Puente inteligente entre Bublee, el admin y su agenda.
 
     Jerarquia:
       1. Google Calendar vinculado -> consulta disponibilidad real en tiempo real
@@ -10705,7 +10600,7 @@ class CalendarBridge:
       3. Sin nada configurado      -> notifica al admin autonomamente y espera respuesta
 
     El admin vincula su Google Calendar una sola vez via OAuth (/vincular-agenda).
-    Desde ahi Conny sabe su disponibilidad sin preguntarle.
+    Desde ahi Bublee sabe su disponibilidad sin preguntarle.
     """
 
     GCAL_BASE = "https://www.googleapis.com/calendar/v3"
@@ -10841,7 +10736,7 @@ class CalendarBridge:
 
     async def get_availability_summary(self) -> str:
         """
-        Resumen de disponibilidad para inyectar en el system prompt de Conny.
+        Resumen de disponibilidad para inyectar en el system prompt de Bublee.
         Máximo 3-4 días con los primeros slots de cada día.
         """
         slots = await self.get_free_slots(days_ahead=7)
@@ -10872,10 +10767,10 @@ class CalendarBridge:
         admin_ids: List[str],
         patient_name: str,
         patient_question: str,
-        send_fn  # _send_message de ConnyUltra
+        send_fn  # _send_message de BubleeUltra
     ):
         """
-        Cuando no hay calendario vinculado, Conny le escribe al admin
+        Cuando no hay calendario vinculado, Bublee le escribe al admin
         autónomamente para preguntarle su disponibilidad.
         """
         patient_str = patient_name if patient_name else "Un paciente"
@@ -10934,6 +10829,89 @@ class CalendarBridge:
         self._token_expiry  = time.time() + 3600
         log.info("[calendar] tokens actualizados en memoria")
 
+    async def create_event(
+        self,
+        patient_name: str,
+        phone: str,
+        service: str,
+        date_time: str,
+        duration_minutes: int = 60,
+        notes: str = ""
+    ) -> Optional[str]:
+        """Crea un evento en Google Calendar para la cita confirmada."""
+        if not await self._ensure_token():
+            log.warning("[calendar] No valid Google Calendar token for creating event")
+            return None
+
+        try:
+            # Parse datetime. date_time can be "2026-07-15 10:00" or ISO format "2026-07-15T10:00:00"
+            dt_str = date_time.replace(" ", "T")
+            if len(dt_str) == 16:  # "YYYY-MM-DDTHH:MM"
+                dt_str += ":00"
+            start_dt = datetime.fromisoformat(dt_str)
+        except Exception as e:
+            log.warning(f"[calendar] Invalid date format for create_event: {date_time} (error: {e})")
+            return None
+
+        end_dt = start_dt + timedelta(minutes=duration_minutes)
+
+        event = {
+            "summary": f"Cita: {patient_name} — {service}",
+            "description": f"Paciente: {patient_name}\nTeléfono: {phone}\nServicio: {service}\nNotas: {notes}\nAgendado automáticamente por Bublee AI",
+            "start": {"dateTime": start_dt.isoformat(), "timeZone": "America/Bogota"},
+            "end": {"dateTime": end_dt.isoformat(), "timeZone": "America/Bogota"},
+            "reminders": {
+                "useDefault": False,
+                "overrides": [
+                    {"method": "popup", "minutes": 60},
+                    {"method": "popup", "minutes": 1440},
+                ],
+            },
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                r = await client.post(
+                    f"{self.GCAL_BASE}/calendars/{self._calendar_id}/events",
+                    headers={"Authorization": f"Bearer {self._access_token}", "Content-Type": "application/json"},
+                    json=event,
+                )
+                if r.status_code in (200, 201):
+                    created = r.json()
+                    event_id = created.get("id")
+                    log.info(f"[calendar] Google Calendar event created successfully: {event_id}")
+                    return event_id
+                else:
+                    log.error(f"[calendar] Google Calendar event creation failed: {r.status_code} {r.text[:200]}")
+                    return None
+        except Exception as e:
+            log.error(f"[calendar] Error creating Google Calendar event: {e}")
+            return None
+
+    async def update_event(self, event_id: str, **kwargs) -> bool:
+        """Actualiza un evento existente en Google Calendar."""
+        if not await self._ensure_token():
+            log.warning("[calendar] No valid Google Calendar token for updating event")
+            return False
+
+        try:
+            url = f"{self.GCAL_BASE}/calendars/{self._calendar_id}/events/{event_id}"
+            headers = {
+                "Authorization": f"Bearer {self._access_token}",
+                "Content-Type": "application/json"
+            }
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                r = await client.patch(url, headers=headers, json=kwargs)
+                if r.status_code == 200:
+                    log.info(f"[calendar] Google Calendar event updated: {event_id}")
+                    return True
+                else:
+                    log.warning(f"[calendar] Failed to update Google Calendar event: {r.status_code} - {r.text}")
+                    return False
+        except Exception as e:
+            log.error(f"[calendar] Exception updating Google Calendar event: {e}")
+            return False
+
 
 # Instancia global
 calendar_bridge: CalendarBridge = None
@@ -10947,6 +10925,116 @@ def init_calendar():
         log.info("[calendar] Calendly configurado")
     else:
         log.info("[calendar] sin calendario vinculado — modo autonomo activo")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PASARELA DE PAGOS (STRIPE / BOLD)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class PaymentBridge:
+    def __init__(self):
+        self._provider = None
+        self._api_key = None
+        self._webhook_secret = None
+        
+    def _load_config(self):
+        try:
+            clinic = db.get_clinic()
+            cfg = clinic.get("payment_config") or {}
+            if isinstance(cfg, str):
+                cfg = json.loads(cfg)
+            self._provider = cfg.get("provider")
+            self._api_key = cfg.get("api_key") or os.getenv("STRIPE_SECRET_KEY")
+            self._webhook_secret = cfg.get("webhook_secret")
+        except Exception:
+            pass
+
+    def get_deposit_amount(self, service_name: str) -> int:
+        try:
+            clinic = db.get_clinic()
+            rules = clinic.get("payment_rules") or {}
+            if isinstance(rules, str):
+                rules = json.loads(rules)
+            return rules.get(service_name, 0)
+        except Exception:
+            return 0
+
+    async def create_payment_link(self, appointment_id: int, service: str, amount: int, chat_id: str) -> str:
+        self._load_config()
+        if not self._provider:
+            self._provider = "mock"
+            
+        if self._provider == "stripe" and self._api_key:
+            try:
+                import httpx
+                url = "https://api.stripe.com/v1/checkout/sessions"
+                headers = {
+                    "Authorization": f"Bearer {self._api_key}",
+                    "Content-Type": "application/x-www-form-urlencoded"
+                }
+                
+                success_url = f"https://bublee.ai/payment/success?apt_id={appointment_id}"
+                cancel_url = f"https://bublee.ai/payment/cancel?apt_id={appointment_id}"
+                amount_cents = int(amount) * 100
+                
+                data = {
+                    "success_url": success_url,
+                    "cancel_url": cancel_url,
+                    "mode": "payment",
+                    "client_reference_id": str(appointment_id),
+                    "line_items[0][price_data][currency]": "cop",
+                    "line_items[0][price_data][unit_amount]": str(amount_cents),
+                    "line_items[0][price_data][product_data][name]": f"Abono Cita: {service}",
+                    "line_items[0][quantity]": "1",
+                    "metadata[appointment_id]": str(appointment_id),
+                    "metadata[chat_id]": chat_id,
+                }
+                
+                async with httpx.AsyncClient() as client:
+                    resp = await client.post(url, headers=headers, data=data, timeout=10.0)
+                    if resp.status_code in (200, 201):
+                        session_data = resp.json()
+                        return session_data.get("url") or ""
+                    else:
+                        log.error(f"[payments] Stripe session creation failed: {resp.status_code} - {resp.text}")
+            except Exception as e:
+                log.error(f"[payments] Error calling Stripe: {e}")
+                
+        elif self._provider == "bold" and self._api_key:
+            try:
+                import httpx
+                url = "https://api.bold.co/v2/payment-links"
+                headers = {
+                    "Authorization": f"Bearer {self._api_key}",
+                    "Content-Type": "application/json"
+                }
+                
+                payload = {
+                    "title": f"Abono Cita: {service}",
+                    "description": f"Reserva de cita de {service}",
+                    "currency": "COP",
+                    "amount": int(amount),
+                    "redirect_url": f"https://bublee.ai/payment/success?apt_id={appointment_id}",
+                    "reference": f"apt_{appointment_id}",
+                    "metadata": {
+                        "appointment_id": str(appointment_id),
+                        "chat_id": chat_id
+                    }
+                }
+                
+                async with httpx.AsyncClient() as client:
+                    resp = await client.post(url, headers=headers, json=payload, timeout=10.0)
+                    if resp.status_code in (200, 201):
+                        res_data = resp.json()
+                        return res_data.get("url") or res_data.get("payment_url") or ""
+                    else:
+                        log.error(f"[payments] Bold link creation failed: {resp.status_code} - {resp.text}")
+            except Exception as e:
+                log.error(f"[payments] Error calling Bold: {e}")
+
+        return f"https://checkout.bublee.ai/pay/{appointment_id}"
+
+payment_bridge = PaymentBridge()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -11758,9 +11846,6 @@ class TaskManager:
         self._task_handlers["self_improve"] = self._handle_self_improve
         self._task_handlers["daily_report"] = self._handle_daily_report
 
-    async def stop(self):
-        self._running = False
-
     async def start(self):
         self._running = True
         asyncio.create_task(self._run_loop())
@@ -11800,7 +11885,7 @@ class TaskManager:
 
     async def _handle_self_improve(self, task: "Task") -> Dict:
         try:
-            from conny_intelligence import _trigger_self_improve
+            from bublee_intelligence import _trigger_self_improve
             await _trigger_self_improve()
             return {"status": "ok"}
         except Exception as e:
@@ -11822,7 +11907,7 @@ class TaskManager:
                 admin_ids = _parse_admin_ids(db.get_clinic().get("admin_chat_ids", []))
                 today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
                 stats = db.get_conversation_stats(since=today_start)
-                msg = f"*Reporte diario Conny*\n\nConversaciones: {stats.get('conversations', 0)}\nMensajes: {stats.get('messages', 0)}"
+                msg = f"*Reporte diario Bublee*\n\nConversaciones: {stats.get('conversations', 0)}\nMensajes: {stats.get('messages', 0)}"
                 for aid in admin_ids:
                     await mcp_manager.execute("notifications_v1", "send_notification", {"chat_id": aid, "message": msg})
         except Exception:
@@ -11881,7 +11966,7 @@ def init_auth():
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# ORQUESTADOR PRINCIPAL - CONNY ULTRA
+# ORQUESTADOR PRINCIPAL - BUBLEE ULTRA
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
@@ -11899,10 +11984,10 @@ class DynamicGlobalProxy:
             if val is not None and not isinstance(val, DynamicGlobalProxy):
                 return val
         # 2. Fallback to the facade/main module
-        facade_name = globals().get("__facade_name__", "conny")
-        conny_mod = sys.modules.get(facade_name) or sys.modules.get("conny") or sys.modules.get("__main__")
-        if conny_mod is not None:
-            val = getattr(conny_mod, self._name, None)
+        facade_name = globals().get("__facade_name__", "bublee")
+        bublee_mod = sys.modules.get(facade_name) or sys.modules.get("bublee") or sys.modules.get("__main__")
+        if bublee_mod is not None:
+            val = getattr(bublee_mod, self._name, None)
             if val is not None and not isinstance(val, DynamicGlobalProxy):
                 return val
         return None
@@ -11926,7 +12011,7 @@ class DynamicGlobalProxy:
 db = DynamicGlobalProxy("db")
 calendar_bridge = DynamicGlobalProxy("calendar_bridge")
 llm_engine = DynamicGlobalProxy("llm_engine")
-conny = DynamicGlobalProxy("conny")
+bublee = DynamicGlobalProxy("bublee")
 ADMIN_PENDING_CONFIRMATIONS = DynamicGlobalProxy("ADMIN_PENDING_CONFIRMATIONS")
 anti_robot_filter = DynamicGlobalProxy("anti_robot_filter")
 conversation_simulator = DynamicGlobalProxy("conversation_simulator")
@@ -11940,7 +12025,6 @@ trainer_gateway = DynamicGlobalProxy("trainer_gateway")
 v8_build_quality_system_prompt_addon = DynamicGlobalProxy("v8_build_quality_system_prompt_addon")
 trainer_get_system_prompt_addon = DynamicGlobalProxy("trainer_get_system_prompt_addon")
 
-# v8_process_response = DynamicGlobalProxy("v8_process_response")
-# v8_process_agentic_intent = DynamicGlobalProxy("v8_process_agentic_intent")
 
 # Clean up the previous dynamic deletion loop
+
